@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Session History - {{ client.name }} - TrainerPro{% endblock %}
+
+{% block content %}
+<div class="p-4 lg:p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center">
+                <a href="{{ url_for('client_detail', client_id=client.id) }}" 
+                   class="text-gray-600 hover:text-gray-800 mr-4">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Session History - {{ client.name }}</h1>
+            </div>
+        </div>
+
+        <!-- Session History -->
+        <div class="bg-white rounded-lg shadow">
+            {% if all_sessions %}
+                <div class="divide-y divide-gray-200">
+                    {% for session in all_sessions %}
+                    <div class="p-4 
+                        {% if session.status == 'completed' %}bg-green-50
+                        {% elif session.status == 'cancelled' %}bg-red-50
+                        {% else %}bg-white{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-4">
+                                    <div>
+                                        <p class="font-medium text-gray-900 session-date" data-date="{{ session.session_date }}">{{ session.session_date }}</p>
+                                        <p class="text-sm text-gray-600 session-time" data-start="{{ session.start_time }}" data-end="{{ session.end_time }}">{{ session.start_time }} - {{ session.end_time }}</p>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">{{ session.session_type }}</span>
+                                        <span class="text-xs px-2 py-1 rounded-full
+                                            {% if session.status == 'completed' %}bg-green-100 text-green-800
+                                            {% elif session.status == 'cancelled' %}bg-red-100 text-red-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ session.status.title() }}
+                                        </span>
+                                        {% if session.notes %}
+                                        <i class="fas fa-exclamation-circle text-red-500 text-sm" title="Has notes"></i>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if session.notes %}
+                                <div class="mt-2 text-sm text-gray-600">
+                                    <strong>Notes:</strong> {{ session.notes }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="p-8 text-center">
+                    <p class="text-gray-500">No session history found</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function formatDates() {
+    // Format session dates
+    document.querySelectorAll('.session-date').forEach(element => {
+        const dateStr = element.getAttribute('data-date');
+        if (dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = date.toLocaleDateString('en-US', options);
+            const dayNum = date.getDate();
+            let suffix = 'th';
+            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
+            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
+            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
+            element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
+        }
+    });
+
+    // Format session times
+    document.querySelectorAll('.session-time').forEach(element => {
+        const startTime = element.getAttribute('data-start');
+        const endTime = element.getAttribute('data-end');
+        if (startTime && endTime) {
+            const formatTime = (time) => {
+                const [hours, minutes] = time.split(':');
+                const hour = parseInt(hours);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const displayHour = hour % 12 || 12;
+                return `${displayHour}:${minutes} ${ampm}`;
+            };
+            element.textContent = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', formatDates);
+</script>
+{% endblock %}

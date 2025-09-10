@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar - TrainerPro{% endblock %}
+
+{% block content %}
+<div class="p-4 lg:p-8">
+    <div class="flex items-center justify-between mb-6">
+        <!-- Added week navigation controls -->
+        <div class="flex items-center space-x-4">
+            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Calendar</h1>
+            <div class="flex items-center space-x-2">
+                <a href="{{ url_for('calendar', week_offset=week_offset-1) }}"
+                   class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                <span class="text-sm font-medium text-gray-700 px-3">
+                    {{ week_start.strftime('%b %d') }} - {{ week_end.strftime('%b %d, %Y') }}
+                </span>
+                <a href="{{ url_for('calendar', week_offset=week_offset+1) }}"
+                   class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                <a href="{{ url_for('calendar') }}"
+                   class="ml-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Today
+                </a>
+            </div>
+        </div>
+        <button onclick="openQuickBookModal()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+            <i class="fas fa-plus mr-2"></i>Quick Book
+        </button>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <!-- Calendar Header -->
+        <div class="grid grid-cols-8 bg-gray-50 border-b">
+            <div class="p-4 text-sm font-medium text-gray-700">Time</div>
+            {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+            {% for day in days %}
+                {% set day_date = week_dates[loop.index0] %}
+                <div class="p-4 text-center border-l border-gray-200">
+                    <div class="text-sm font-medium text-gray-700">{{ day[:3] }}</div>
+                    <div class="text-lg font-semibold text-gray-900">{{ day_date.day }}</div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Calendar Body -->
+        <div class="grid grid-cols-8 divide-x divide-gray-200">
+            <!-- Time Column -->
+            <div class="divide-y divide-gray-200">
+                {% for hour in range(6, 22) %}
+                    <div class="h-16 p-2 text-xs text-gray-500 bg-gray-50">
+                        <!-- Convert military time to regular time format -->
+                        <span class="time-display" data-hour="{{ hour }}">{{ '%02d:00'|format(hour) }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Day Columns -->
+            {% for day_index in range(7) %}
+                {% set day_date = week_dates[day_index] %}
+                {% set day_key = day_date.strftime('%Y-%m-%d') %}
+                <div class="divide-y divide-gray-200 relative">
+                    {% for hour in range(6, 22) %}
+                        <div class="h-16 p-1 hover:bg-gray-50 cursor-pointer relative"
+                             onclick="openBookingModal('{{ day_key }}', '{{ '%02d:00'|format(hour) }}')">
+                            <!-- Enhanced session display with proper positioning and actions -->
+                            {% for session in week_sessions[day_key] %}
+                                {% set start_parts = session.start_time.split(':') %}
+                                {% set end_parts = session.end_time.split(':') %}
+                                {% set start_hour = start_parts[0]|int %}
+                                {% set start_minute = start_parts[1]|int %}
+                                {% set end_hour = end_parts[0]|int %}
+                                {% set end_minute = end_parts[1]|int %}
+                                {% set duration_minutes = (end_hour * 60 + end_minute) - (start_hour * 60 + start_minute) %}
+                                {% set height_percent = (duration_minutes / 60) * 100 %}
+                                {% set top_offset = (start_minute / 60) * 100 %}
+
+                                {% if start_hour == hour %}
+                                    <div class="absolute left-1 right-1 rounded text-xs z-10 cursor-pointer
+                                        {% if session.status == 'completed' %}bg-green-100 border border-green-300
+                                        {% elif session.status == 'cancelled' %}bg-red-100 border border-red-300
+                                        {% else %}bg-blue-100 border border-blue-300{% endif %}"
+                                         style="top: {{ top_offset }}%; height: {{ height_percent }}%; min-height: 20px;"
+                                         onclick="event.stopPropagation(); editCalendarSession({{ session.id }})">
+                                        <div class="p-1 relative">
+                                            <div class="font-medium
+                                                {% if session.status == 'completed' %}text-green-900
+                                                {% elif session.status == 'cancelled' %}text-red-900
+                                                {% else %}text-blue-900{% endif %}">
+                                                {{ session.client_name }}
+                                            </div>
+                                            <div class="
+                                                {% if session.status == 'completed' %}text-green-700
+                                                {% elif session.status == 'cancelled' %}text-red-700
+                                                {% else %}text-blue-700{% endif %}">
+                                                {{ session.start_time }}-{{ session.end_time }}
+                                            </div>
+                                            {% if session.notes %}
+                                            <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                                                <i class="fas fa-exclamation text-white text-xs"></i>
+                                            </div>
+                                            {% endif %}
+                                            <!-- Made session action buttons always visible by removing hover classes -->
+                                            <div class="absolute bottom-0 right-0 flex gap-1">
+                                                <button onclick="event.stopPropagation(); editCalendarSession('{{ session.id }}')"
+                                                        class="w-4 h-4 bg-blue-600 text-white rounded-full flex items-center justify-center"
+                                                        title="Edit Session">
+                                                    <i class="fas fa-pencil-alt" style="font-size: 8px;"></i>
+                                                </button>
+                                                <button onclick="event.stopPropagation(); removeSessionCalendar('{{ session.id }}')"
+                                                        class="w-4 h-4 bg-gray-600 text-white rounded-full flex items-center justify-center"
+                                                        title="Remove">
+                                                    <i class="fas fa-times" style="font-size: 8px;"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick Book Modal -->
+<div id="quickBookModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Quick Book Session</h3>
+            <button onclick="closeQuickBookModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="quickBookForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                    <select id="quickClientId" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select a client...</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">{{ client.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="quickSessionDate" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                        <input type="time" id="quickStartTime" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                        <input type="time" id="quickEndTime" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Session Type</label>
+                    <select id="quickSessionType"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="training">Training</option>
+                        <option value="consultation">Consultation</option>
+                        <option value="assessment">Assessment</option>
+                    </select>
+                </div>
+                <!-- Added status field below session type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="quickSessionStatus"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <!-- Added notes section below status -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea id="quickSessionNotes" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                    Book Session
+                </button>
+                <button type="button" onclick="closeQuickBookModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function formatTimeDisplay() {
+    const timeElements = document.querySelectorAll('.time-display');
+    timeElements.forEach(element => {
+        const hour = parseInt(element.getAttribute('data-hour'));
+        let displayHour = hour;
+        let ampm = 'AM';
+
+        if (hour === 0) {
+            displayHour = 12;
+        } else if (hour === 12) {
+            ampm = 'PM';
+        } else if (hour > 12) {
+            displayHour = hour - 12;
+            ampm = 'PM';
+        }
+
+        element.textContent = `${displayHour}:00 ${ampm}`;
+    });
+}
+
+// Initialize time formatting when page loads
+document.addEventListener('DOMContentLoaded', formatTimeDisplay);
+
+function openQuickBookModal() {
+    document.getElementById('quickBookModal').classList.remove('hidden');
+    document.getElementById('quickBookModal').classList.add('flex');
+}
+
+function closeQuickBookModal() {
+    document.getElementById('quickBookModal').classList.add('hidden');
+    document.getElementById('quickBookModal').classList.remove('flex');
+
+    // Reset form and modal state
+    document.getElementById('quickBookForm').reset();
+    const sessionIdField = document.getElementById('editingSessionId');
+    if (sessionIdField) {
+        sessionIdField.remove();
+    }
+    document.querySelector('#quickBookModal h3').textContent = 'Quick Book Session';
+    document.querySelector('#quickBookForm button[type="submit"]').textContent = 'Book Session';
+}
+
+function openBookingModal(date, time) {
+    document.getElementById('quickSessionDate').value = date;
+    document.getElementById('quickStartTime').value = time;
+
+    // Set end time to 1 hour later
+    const startTime = new Date(`2000-01-01T${time}`);
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+    document.getElementById('quickEndTime').value = endTime.toTimeString().slice(0, 5);
+
+    openQuickBookModal();
+}
+
+async function editCalendarSession(sessionId) {
+    try {
+        const response = await fetch(`/api/sessions/${sessionId}`);
+        if (response.ok) {
+            const session = await response.json();
+
+            // Populate the quick book form with session data
+            document.getElementById('quickClientId').value = session.client_id;
+            document.getElementById('quickSessionDate').value = session.session_date;
+            document.getElementById('quickStartTime').value = session.start_time;
+            document.getElementById('quickEndTime').value = session.end_time;
+            document.getElementById('quickSessionType').value = session.session_type;
+            document.getElementById('quickSessionStatus').value = session.status || 'scheduled';
+            document.getElementById('quickSessionNotes').value = session.notes || '';
+
+            // Add hidden field for session ID to indicate this is an edit
+            let sessionIdField = document.getElementById('editingSessionId');
+            if (!sessionIdField) {
+                sessionIdField = document.createElement('input');
+                sessionIdField.type = 'hidden';
+                sessionIdField.id = 'editingSessionId';
+                document.getElementById('quickBookForm').appendChild(sessionIdField);
+            }
+            sessionIdField.value = sessionId;
+
+            // Change modal title and button text
+            document.querySelector('#quickBookModal h3').textContent = 'Edit Session';
+            document.querySelector('#quickBookForm button[type="submit"]').textContent = 'Update Session';
+
+            openQuickBookModal();
+        }
+    } catch (error) {
+        alert('Error loading session details');
+    }
+}
+
+async function markCompleteCalendar(sessionId) {
+    if (!sessionId) return;
+
+    try {
+        const response = await fetch(`/api/sessions/${sessionId}/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error marking session as complete');
+        }
+    } catch (error) {
+        alert('Error marking session as complete');
+    }
+}
+
+async function cancelSessionCalendar(sessionId) {
+    if (!sessionId) return;
+
+    if (!confirm('Are you sure you want to cancel this session?')) return;
+
+    try {
+        const response = await fetch(`/api/sessions/${sessionId}/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error cancelling session');
+        }
+    } catch (error) {
+        alert('Error cancelling session');
+    }
+}
+
+async function removeSessionCalendar(sessionId) {
+    if (!sessionId) return;
+
+    if (!confirm('Are you sure you want to permanently remove this session?')) return;
+
+    try {
+        const response = await fetch(`/api/sessions/${sessionId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error removing session');
+        }
+    } catch (error) {
+        alert('Error removing session');
+    }
+}
+
+document.getElementById('quickBookForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const sessionId = document.getElementById('editingSessionId')?.value;
+    const isEdit = !!sessionId;
+
+    const formData = {
+        client_id: document.getElementById('quickClientId').value,
+        session_date: document.getElementById('quickSessionDate').value,
+        start_time: document.getElementById('quickStartTime').value,
+        end_time: document.getElementById('quickEndTime').value,
+        session_type: document.getElementById('quickSessionType').value,
+        status: document.getElementById('quickSessionStatus').value,
+        notes: document.getElementById('quickSessionNotes').value
+    };
+
+    try {
+        const url = isEdit ? `/api/sessions/${sessionId}` : '/api/sessions';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            closeQuickBookModal();
+            location.reload();
+        } else {
+            alert(isEdit ? 'Error updating session' : 'Error booking session');
+        }
+    } catch (error) {
+        alert(isEdit ? 'Error updating session' : 'Error booking session');
+    }
+});
+</script>
+{% endblock %}

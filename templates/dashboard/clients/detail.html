@@ -1,0 +1,822 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.name }} - TrainerPro{% endblock %}
+
+{% block content %}
+<div class="p-4 lg:p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+            <div class="flex items-center mb-4 lg:mb-0">
+                <!-- Made profile picture clickable for photo upload -->
+                <div class="relative mr-4">
+                    {% if client.photo_url %}
+                        <img src="{{ url_for('static', filename=client.photo_url) }}" alt="{{ client.name }}"
+                             class="w-16 h-16 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                             onclick="document.getElementById('photoUpload').click()">
+                    {% else %}
+                        <div class="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-400 transition-colors"
+                             onclick="document.getElementById('photoUpload').click()">
+                            <i class="fas fa-user text-gray-600 text-xl"></i>
+                        </div>
+                    {% endif %}
+                    <input type="file" id="photoUpload" accept="image/*" class="hidden" onchange="uploadPhoto(this)">
+                </div>
+                <div>
+                    <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">{{ client.name }}</h1>
+                    <span class="px-2 py-1 text-sm rounded-full
+                        {% if client.status == 'active' %}bg-green-100 text-green-800
+                        {% elif client.status == 'potential' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ client.status.title() }}
+                    </span>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <!-- Added edit client button -->
+                <a href="{{ url_for('edit_client', client_id=client.id) }}"
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium text-center">
+                    <i class="fas fa-edit mr-2"></i>Edit Client
+                </a>
+                <button onclick="openBookingModal()"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium">
+                    <i class="fas fa-calendar-plus mr-2"></i>Book Session
+                </button>
+            </div>
+        </div>
+
+        <!-- Client Information -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Client Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Email</p>
+                            <p class="text-gray-900">{{ client.email or 'Not provided' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Phone</p>
+                            <p class="text-gray-900">{{ client.phone or 'Not provided' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Age</p>
+                            <p class="text-gray-900">{{ client.age or 'Not provided' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Gender</p>
+                            <p class="text-gray-900">{{ client.gender.title() if client.gender else 'Not provided' }}</p>
+                        </div>
+                        <div>
+                            <!-- Changed "Weight" to "Current Weight" -->
+                            <p class="text-sm font-medium text-gray-600">Current Weight</p>
+                            <p class="text-gray-900">{{ client.weight ~ ' lbs' if client.weight else 'Not provided' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Height</p>
+                            <p class="text-gray-900">{{ client.height ~ ' inches' if client.height else 'Not provided' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900">Upcoming Sessions</h2>
+                        <!-- Added session history icon -->
+                        <button onclick="window.location.href='{{ url_for('session_history', client_id=client.id) }}'"
+                                class="text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-history text-lg"></i>
+                        </button>
+                    </div>
+                    {% if upcoming_sessions %}
+                        <div class="space-y-3">
+                            {% for session in upcoming_sessions %}
+                            <div class="p-3 bg-gray-50 rounded-lg
+                                {% if session.status == 'cancelled' %}bg-red-50 border border-red-200
+                                {% elif session.status == 'completed' %}bg-green-50 border border-green-200{% endif %}">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1">
+                                        <p class="font-medium text-gray-900 session-date" data-date="{{ session.session_date }}">{{ session.session_date }}</p>
+                                        <p class="text-sm text-gray-600 session-time" data-start="{{ session.start_time }}" data-end="{{ session.end_time }}">{{ session.start_time }} - {{ session.end_time }}</p>
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">{{ session.session_type }}</span>
+                                        {% if session.notes %}
+                                        <div class="relative inline-block ml-2">
+                                            <i class="fas fa-exclamation-circle text-red-500 text-sm"></i>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <!-- Removed separate completed and cancelled buttons since status is now managed in editor -->
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="editSession('{{ session.id }}')"
+                                                class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
+                                            <i class="fas fa-pencil-alt"></i>
+                                        </button>
+                                        <button onclick="removeSession('{{ session.id }}')"
+                                                class="text-gray-600 hover:text-gray-800 p-1" title="Remove">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-4">No upcoming sessions</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Moved WorkoutsNotesWeight Logs container to replace the separate weight tracker -->
+        <!-- Enhanced Recent Workouts/Notes/Weight Logs Section with switchable content -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-4">
+                    <!-- Added switchable icons for workouts vs notes vs weight logs -->
+                    <div class="flex bg-gray-100 rounded-lg p-1">
+                        <button id="workoutsTab" onclick="switchTab('workouts')" class="px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white">
+                            <i class="fas fa-dumbbell mr-1"></i>Workouts
+                        </button>
+                        <button id="notesTab" onclick="switchTab('notes')" class="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900">
+                            <i class="fas fa-sticky-note mr-1"></i>Notes
+                        </button>
+                        <button id="weightLogsTab" onclick="switchTab('weightLogs')" class="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900">
+                            <i class="fas fa-weight mr-1"></i>Weight Logs
+                        </button>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <!-- Moved Log Workout button inside container and made it conditional -->
+                    <button id="logWorkoutBtn" onclick="window.location.href='{{ url_for('new_workout', client_id=client.id) }}'"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                        <i class="fas fa-dumbbell mr-1"></i>Log Workout
+                    </button>
+                    <button id="addNoteBtn" onclick="openNoteModal()"
+                            class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm hidden">
+                        <i class="fas fa-plus mr-1"></i>Add Note
+                    </button>
+                    <!-- Added Add Weight button for weight logs tab -->
+                    <button id="addWeightBtn" onclick="openWeightModal()"
+                            class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm hidden">
+                        <i class="fas fa-plus mr-1"></i>Add Weight
+                    </button>
+                </div>
+            </div>
+
+            <!-- Workouts Content -->
+            <div id="workoutsContent">
+                {% if recent_workouts %}
+                    <div class="space-y-3">
+                        {% for workout in recent_workouts %}
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p class="font-medium text-gray-900 workout-date" data-date="{{ workout.workout_date }}">{{ workout.workout_date }}</p>
+                                <p class="text-sm text-gray-600">{{ workout.exercise_count }} exercises</p>
+                            </div>
+                            <a href="{{ url_for('client_workouts', client_id=client.id) }}"
+                               class="text-blue-600 hover:text-blue-800 text-sm">
+                                View Details
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 text-center py-8">No workouts logged yet</p>
+                {% endif %}
+            </div>
+
+            <!-- Notes Content -->
+            <div id="notesContent" class="hidden">
+                {% if client_notes %}
+                    <div class="space-y-3">
+                        {% for note in client_notes %}
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <p class="text-gray-900">{{ note.note_text }}</p>
+                            <p class="text-xs text-gray-500 mt-1 note-date" data-date="{{ note.created_at }}">{{ note.created_at }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 text-center py-8">No notes added yet</p>
+                {% endif %}
+            </div>
+
+            <!-- Weight Logs Content -->
+            <div id="weightLogsContent" class="hidden">
+                {% if weight_history %}
+                    <div class="space-y-2">
+                        {% for entry in weight_history %}
+                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <div>
+                                <span class="font-medium weight-date" data-date="{{ entry.date }}">{{ entry.date }}</span>
+                                <span class="text-gray-600 ml-2">{{ entry.weight }} lbs</span>
+                            </div>
+                            {% if entry.notes %}
+                            <span class="text-sm text-gray-500">{{ entry.notes }}</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 text-center py-8">No weight entries yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Booking Modal -->
+<div id="bookingModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Book Session</h3>
+            <button onclick="closeBookingModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="bookingForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="sessionDate" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                        <input type="time" id="startTime" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                        <input type="time" id="endTime" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Session Type</label>
+                    <select id="sessionType"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="training">Training</option>
+                        <option value="consultation">Consultation</option>
+                        <option value="assessment">Assessment</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea id="sessionNotes" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                    Book Session
+                </button>
+                <button type="button" onclick="closeBookingModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Added Weight Tracking Modal -->
+<div id="weightModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Add Weight Entry</h3>
+            <button onclick="closeWeightModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="weightForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="weightDate" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Weight (lbs)</label>
+                    <input type="number" id="weightValue" step="0.1" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+                    <textarea id="weightNotes" rows="2"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                    Save Weight
+                </button>
+                <button type="button" onclick="closeWeightModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Added Note Modal -->
+<div id="noteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Add Note</h3>
+            <button onclick="closeNoteModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="noteForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                    <textarea id="noteText" rows="4" required
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium">
+                    Save Note
+                </button>
+                <button type="button" onclick="closeNoteModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Added Edit Session Modal -->
+<div id="editSessionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Edit Session</h3>
+            <button onclick="closeEditSessionModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="editSessionForm">
+            <input type="hidden" id="editSessionId">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="editSessionDate" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                        <input type="time" id="editStartTime" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                        <input type="time" id="editEndTime" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Session Type</label>
+                    <select id="editSessionType"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="training">Training</option>
+                        <option value="consultation">Consultation</option>
+                        <option value="assessment">Assessment</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea id="editSessionNotes" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="editSessionStatus"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                    Update Session
+                </button>
+                <button type="button" onclick="closeEditSessionModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+async function uploadPhoto(input) {
+    if (input.files && input.files[0]) {
+        const formData = new FormData();
+        formData.append('photo', input.files[0]);
+        formData.append('client_id', '{{ client.id }}');
+
+        try {
+            const response = await fetch('/api/upload-client-photo', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                location.reload(); // Refresh to show new photo
+            } else {
+                alert('Error uploading photo. Please try again.');
+            }
+        } catch (error) {
+            alert('Error uploading photo. Please try again.');
+        }
+    }
+}
+
+function formatDates() {
+    // Format workout dates
+    document.querySelectorAll('.workout-date').forEach(element => {
+        const dateStr = element.getAttribute('data-date');
+        if (dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = date.toLocaleDateString('en-US', options);
+            const dayNum = date.getDate();
+            let suffix = 'th';
+            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
+            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
+            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
+            element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
+        }
+    });
+
+    // Format session dates
+    document.querySelectorAll('.session-date').forEach(element => {
+        const dateStr = element.getAttribute('data-date');
+        if (dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = date.toLocaleDateString('en-US', options);
+            const dayNum = date.getDate();
+            let suffix = 'th';
+            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
+            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
+            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
+            element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
+        }
+    });
+
+    // Format session times
+    document.querySelectorAll('.session-time').forEach(element => {
+        const startTime = element.getAttribute('data-start');
+        const endTime = element.getAttribute('data-end');
+        if (startTime && endTime) {
+            const formatTime = (time) => {
+                const [hours, minutes] = time.split(':');
+                const hour = parseInt(hours);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const displayHour = hour % 12 || 12;
+                return `${displayHour}:${minutes} ${ampm}`;
+            };
+            element.textContent = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        }
+    });
+
+    // Format weight dates
+    document.querySelectorAll('.weight-date').forEach(element => {
+        const dateStr = element.getAttribute('data-date');
+        if (dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = date.toLocaleDateString('en-US', options);
+            const dayNum = date.getDate();
+            let suffix = 'th';
+            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
+            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
+            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
+            element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
+        }
+    });
+
+    // Format note dates
+    document.querySelectorAll('.note-date').forEach(element => {
+        const dateStr = element.getAttribute('data-date');
+        if (dateStr) {
+            const date = new Date(dateStr);
+            const options = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+            element.textContent = date.toLocaleDateString('en-US', options);
+        }
+    });
+}
+
+function switchTab(tab) {
+    const workoutsTab = document.getElementById('workoutsTab');
+    const notesTab = document.getElementById('notesTab');
+    const weightLogsTab = document.getElementById('weightLogsTab');
+    const workoutsContent = document.getElementById('workoutsContent');
+    const notesContent = document.getElementById('notesContent');
+    const weightLogsContent = document.getElementById('weightLogsContent');
+    const logWorkoutBtn = document.getElementById('logWorkoutBtn');
+    const addNoteBtn = document.getElementById('addNoteBtn');
+    const addWeightBtn = document.getElementById('addWeightBtn');
+
+    // Reset all tabs
+    workoutsTab.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
+    notesTab.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
+    weightLogsTab.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
+
+    // Hide all content
+    workoutsContent.classList.add('hidden');
+    notesContent.classList.add('hidden');
+    weightLogsContent.classList.add('hidden');
+
+    // Hide all buttons
+    logWorkoutBtn.classList.add('hidden');
+    addNoteBtn.classList.add('hidden');
+    addWeightBtn.classList.add('hidden');
+
+    if (tab === 'workouts') {
+        workoutsTab.className = 'px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white';
+        workoutsContent.classList.remove('hidden');
+        logWorkoutBtn.classList.remove('hidden');
+    } else if (tab === 'notes') {
+        notesTab.className = 'px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white';
+        notesContent.classList.remove('hidden');
+        addNoteBtn.classList.remove('hidden');
+    } else if (tab === 'weightLogs') {
+        weightLogsTab.className = 'px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white';
+        weightLogsContent.classList.remove('hidden');
+        addWeightBtn.classList.remove('hidden');
+    }
+}
+
+function openWeightModal() {
+    document.getElementById('weightModal').classList.remove('hidden');
+    document.getElementById('weightModal').classList.add('flex');
+    document.getElementById('weightDate').value = new Date().toISOString().split('T')[0];
+}
+
+function closeWeightModal() {
+    document.getElementById('weightModal').classList.add('hidden');
+    document.getElementById('weightModal').classList.remove('flex');
+    document.getElementById('weightForm').reset();
+}
+
+function openNoteModal() {
+    document.getElementById('noteModal').classList.remove('hidden');
+    document.getElementById('noteModal').classList.add('flex');
+}
+
+function closeNoteModal() {
+    document.getElementById('noteModal').classList.add('hidden');
+    document.getElementById('noteModal').classList.remove('flex');
+    document.getElementById('noteForm').reset();
+}
+
+function openBookingModal() {
+    document.getElementById('bookingModal').classList.remove('hidden');
+    document.getElementById('bookingModal').classList.add('flex');
+    document.getElementById('sessionDate').value = new Date().toISOString().split('T')[0];
+}
+
+function closeBookingModal() {
+    document.getElementById('bookingModal').classList.add('hidden');
+    document.getElementById('bookingModal').classList.remove('flex');
+    document.getElementById('bookingForm').reset();
+}
+
+async function markComplete(sessionId) {
+    if (!sessionId) {
+        alert('Invalid session ID');
+        return;
+    }
+
+    if (confirm('Mark this session as complete?')) {
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}/complete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error marking session complete');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error marking session complete');
+        }
+    }
+}
+
+async function cancelSession(sessionId) {
+    if (!sessionId) {
+        alert('Invalid session ID');
+        return;
+    }
+
+    if (confirm('Cancel this session?')) {
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error cancelling session');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error cancelling session');
+        }
+    }
+}
+
+async function removeSession(sessionId) {
+    if (!sessionId) {
+        alert('Invalid session ID');
+        return;
+    }
+
+    if (confirm('Remove this session permanently?')) {
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error removing session');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error removing session');
+        }
+    }
+}
+
+async function editSession(sessionId) {
+    if (!sessionId) {
+        alert('Invalid session ID');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/sessions/${sessionId}`);
+        if (response.ok) {
+            const session = await response.json();
+            document.getElementById('editSessionId').value = session.id;
+            document.getElementById('editSessionDate').value = session.session_date;
+            document.getElementById('editStartTime').value = session.start_time;
+            document.getElementById('editEndTime').value = session.end_time;
+            document.getElementById('editSessionType').value = session.session_type;
+            document.getElementById('editSessionNotes').value = session.notes || '';
+            document.getElementById('editSessionStatus').value = session.status || 'scheduled';
+
+            document.getElementById('editSessionModal').classList.remove('hidden');
+            document.getElementById('editSessionModal').classList.add('flex');
+        } else {
+            alert('Error loading session details');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading session details');
+    }
+}
+
+function closeEditSessionModal() {
+    document.getElementById('editSessionModal').classList.add('hidden');
+    document.getElementById('editSessionModal').classList.remove('flex');
+}
+
+document.getElementById('weightForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        client_id: '{{ client.id }}',
+        date: document.getElementById('weightDate').value,
+        weight: parseFloat(document.getElementById('weightValue').value),
+        notes: document.getElementById('weightNotes').value
+    };
+
+    try {
+        const response = await fetch('/api/weight-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            closeWeightModal();
+            location.reload();
+        } else {
+            alert('Error logging weight. Please try again.');
+        }
+    } catch (error) {
+        alert('Error logging weight. Please try again.');
+    }
+});
+
+document.getElementById('noteForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        client_id: '{{ client.id }}',
+        note_text: document.getElementById('noteText').value
+    };
+
+    try {
+        const response = await fetch('/api/client-notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            closeNoteModal();
+            location.reload();
+        } else {
+            alert('Error adding note. Please try again.');
+        }
+    } catch (error) {
+        alert('Error adding note. Please try again.');
+    }
+});
+
+document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        client_id: '{{ client.id }}',
+        session_date: document.getElementById('sessionDate').value,
+        start_time: document.getElementById('startTime').value,
+        end_time: document.getElementById('endTime').value,
+        session_type: document.getElementById('sessionType').value,
+        notes: document.getElementById('sessionNotes').value
+    };
+
+    try {
+        const response = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            closeBookingModal();
+            location.reload();
+        } else {
+            alert('Error booking session. Please try again.');
+        }
+    } catch (error) {
+        alert('Error booking session. Please try again.');
+    }
+});
+
+document.getElementById('editSessionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const sessionId = document.getElementById('editSessionId').value;
+    const formData = {
+        session_date: document.getElementById('editSessionDate').value,
+        start_time: document.getElementById('editStartTime').value,
+        end_time: document.getElementById('editEndTime').value,
+        session_type: document.getElementById('editSessionType').value,
+        notes: document.getElementById('editSessionNotes').value,
+        status: document.getElementById('editSessionStatus').value
+    };
+
+    try {
+        const response = await fetch(`/api/sessions/${sessionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            closeEditSessionModal();
+            location.reload();
+        } else {
+            alert('Error updating session');
+        }
+    } catch (error) {
+        alert('Error updating session');
+    }
+});
+
+// Initialize date formatting when page loads
+document.addEventListener('DOMContentLoaded', formatDates);
+</script>
+{% endblock %}

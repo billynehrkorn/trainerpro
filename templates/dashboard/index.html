@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - TrainerPro{% endblock %}
+
+{% block content %}
+<div class="p-4 lg:p-8">
+    <div class="mb-8">
+        <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Welcome back, {{ session.user_name }}!</h1>
+        <p class="text-gray-600 mt-2">Here's what's happening with your training business today.</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-blue-100 rounded-lg">
+                    <i class="fas fa-users text-blue-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total Clients</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_clients }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-green-100 rounded-lg">
+                    <i class="fas fa-user-check text-green-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Active Clients</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ active_clients }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-purple-100 rounded-lg">
+                    <i class="fas fa-calendar-check text-purple-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Today's Sessions</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ recent_sessions|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-orange-100 rounded-lg">
+                    <i class="fas fa-dumbbell text-orange-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">This Week</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ recent_sessions|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div class="space-y-3">
+                <a href="{{ url_for('new_client') }}" class="flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                    <i class="fas fa-user-plus text-blue-600 mr-3"></i>
+                    <span class="text-blue-800 font-medium">Add New Client</span>
+                </a>
+                <a href="{{ url_for('calendar') }}" class="flex items-center p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                    <i class="fas fa-calendar-plus text-green-600 mr-3"></i>
+                    <span class="text-green-800 font-medium">Schedule Session</span>
+                </a>
+                <a href="{{ url_for('clients') }}" class="flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                    <i class="fas fa-users text-purple-600 mr-3"></i>
+                    <span class="text-purple-800 font-medium">View All Clients</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Upcoming Sessions</h2>
+            {% if recent_sessions %}
+                <div class="space-y-3">
+                    {% for session in recent_sessions %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <p class="font-medium text-gray-900">{{ session.client_name }}</p>
+                            <p class="text-sm text-gray-600">{{ session.session_date }} at {{ session.start_time }}</p>
+                        </div>
+                        <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{{ session.session_type }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-8">No upcoming sessions scheduled</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

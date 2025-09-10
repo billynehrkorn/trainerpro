@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TrainerPro{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .mobile-nav-open { transform: translateX(0); }
+        .mobile-nav-closed { transform: translateX(-100%); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    {% if session.user_id %}
+    <!-- Mobile Navigation -->
+    <div id="mobile-nav" class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform mobile-nav-closed transition-transform duration-300 ease-in-out lg:hidden">
+        <div class="flex items-center justify-between p-4 border-b">
+            <h2 class="text-xl font-bold text-gray-800">TrainerPro</h2>
+            <button id="close-nav" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <nav class="mt-4">
+            <a href="{{ url_for('dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                <i class="fas fa-tachometer-alt mr-3"></i>
+                Dashboard
+            </a>
+            <a href="{{ url_for('clients') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                <i class="fas fa-users mr-3"></i>
+                Clients
+            </a>
+            <a href="{{ url_for('calendar') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                <i class="fas fa-calendar mr-3"></i>
+                Calendar
+            </a>
+            <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                <i class="fas fa-sign-out-alt mr-3"></i>
+                Logout
+            </a>
+        </nav>
+    </div>
+
+    <!-- Desktop Sidebar -->
+    <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+        <div class="flex min-h-0 flex-1 flex-col bg-white shadow-lg">
+            <div class="flex flex-1 flex-col pt-5 pb-4 overflow-y-auto">
+                <div class="flex items-center flex-shrink-0 px-4">
+                    <h1 class="text-2xl font-bold text-gray-800">TrainerPro</h1>
+                </div>
+                <nav class="mt-8 flex-1 px-2 space-y-1">
+                    <a href="{{ url_for('dashboard') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-tachometer-alt mr-3"></i>
+                        Dashboard
+                    </a>
+                    <a href="{{ url_for('clients') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-users mr-3"></i>
+                        Clients
+                    </a>
+                    <a href="{{ url_for('calendar') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-calendar mr-3"></i>
+                        Calendar
+                    </a>
+                </nav>
+            </div>
+            <div class="flex-shrink-0 flex border-t border-gray-200 p-4">
+                <div class="flex items-center">
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-700">{{ session.user_name }}</p>
+                        <a href="{{ url_for('logout') }}" class="text-xs text-gray-500 hover:text-gray-700">Sign out</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile header -->
+    <div class="lg:hidden bg-white shadow-sm border-b">
+        <div class="flex items-center justify-between p-4">
+            <button id="open-nav" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+            <h1 class="text-xl font-bold text-gray-800">TrainerPro</h1>
+            <div class="w-6"></div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="lg:pl-64 flex flex-col flex-1">
+        <main class="flex-1">
+            {% endif %}
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4 mx-4 mt-4">
+                        {% for message in messages %}
+                            <p class="text-blue-800">{{ message }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+            
+            {% if session.user_id %}
+        </main>
+    </div>
+    {% endif %}
+
+    <script>
+        // Mobile navigation toggle
+        const openNav = document.getElementById('open-nav');
+        const closeNav = document.getElementById('close-nav');
+        const mobileNav = document.getElementById('mobile-nav');
+
+        if (openNav) {
+            openNav.addEventListener('click', () => {
+                mobileNav.classList.remove('mobile-nav-closed');
+                mobileNav.classList.add('mobile-nav-open');
+            });
+        }
+
+        if (closeNav) {
+            closeNav.addEventListener('click', () => {
+                mobileNav.classList.remove('mobile-nav-open');
+                mobileNav.classList.add('mobile-nav-closed');
+            });
+        }
+
+        // Close mobile nav when clicking outside
+        document.addEventListener('click', (e) => {
+            if (mobileNav && !mobileNav.contains(e.target) && !openNav.contains(e.target)) {
+                mobileNav.classList.remove('mobile-nav-open');
+                mobileNav.classList.add('mobile-nav-closed');
+            }
+        });
+    </script>
+</body>
+</html>
