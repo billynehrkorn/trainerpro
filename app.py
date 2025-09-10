@@ -224,7 +224,7 @@ def client_detail(client_id):
     ''', (client_id,)).fetchall()
 
     weight_history = conn.execute('''
-        SELECT date, weight, notes 
+        SELECT id, date, weight, notes 
         FROM weight_logs 
         WHERE client_id = ? 
         ORDER BY date DESC 
@@ -301,7 +301,7 @@ def edit_client(client_id):
     return render_template('dashboard/clients/edit.html', client=client)
 
 
-@app.route('/clients/<client_id>/workouts')
+@app.route('/clients/<client_id>/workouts', methods=['GET', 'POST'])
 @login_required
 def client_workouts(client_id):
     conn = get_db()
@@ -309,8 +309,54 @@ def client_workouts(client_id):
                           (client_id, session['user_id'])).fetchone()
 
     if not client:
+        conn.close()
         flash('Client not found')
         return redirect(url_for('clients'))
+
+    if request.method == 'POST':
+        workout_date = request.form['date']
+        exercises = request.form.getlist('exercise_name[]')
+        notes_list = request.form.getlist('exercise_notes[]')
+
+        for i, exercise in enumerate(exercises):
+            if exercise.strip():  # Only save non-empty exercises
+                # Get sets for this specific exercise using the new field naming
+                exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
+                exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
+
+                # Build sets data for this exercise
+                exercise_sets = []
+                for j in range(len(exercise_weights)):
+                    weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
+                    reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
+
+                    exercise_sets.append({
+                        'weight': float(weight) if weight else None,
+                        'reps': int(reps) if reps else None
+                    })
+
+                # If no sets data, create a default set
+                if not exercise_sets:
+                    exercise_sets = [{'weight': None, 'reps': None}]
+
+                # Calculate totals for backward compatibility
+                total_sets = len(exercise_sets)
+                avg_reps = sum(s['reps'] for s in exercise_sets if s['reps']) // len(
+                    [s for s in exercise_sets if s['reps']]) if any(s['reps'] for s in exercise_sets) else None
+                avg_weight = sum(s['weight'] for s in exercise_sets if s['weight']) / len(
+                    [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
+
+                conn.execute('''
+                    INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise.strip(),
+                      total_sets, avg_reps, avg_weight,
+                      notes_list[i] if i < len(notes_list) else '',
+                      workout_date, json.dumps(exercise_sets), datetime.now()))
+
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
 
     workouts = conn.execute('''
         SELECT workout_date, COUNT(*) as exercise_count
@@ -321,7 +367,6 @@ def client_workouts(client_id):
     ''', (client_id,)).fetchall()
 
     conn.close()
-
     return render_template('dashboard/clients/workouts.html', client=client, workouts=workouts)
 
 
@@ -793,6 +838,67 @@ def add_weight_log():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/weight-log/<weight_id>', methods=['PUT'])
+@login_required
+def update_weight_log(weight_id):
+    data = request.json
+    date = data['date']
+    weight = data['weight']
+    notes = data.get('notes', '')
+
+    conn = get_db()
+
+    # Verify weight log belongs to current trainer's client
+    weight_log = conn.execute('''
+        SELECT wl.* FROM weight_logs wl
+        JOIN clients c ON wl.client_id = c.id
+        WHERE wl.id = ? AND c.trainer_id = ?
+    ''', (weight_id, session['user_id'])).fetchone()
+
+    if not weight_log:
+        conn.close()
+        return jsonify({'error': 'Weight log not found'}), 404
+
+    try:
+        conn.execute('''
+            UPDATE weight_logs 
+            SET date = ?, weight = ?, notes = ?, updated_at = ?
+            WHERE id = ?
+        ''', (date, weight, notes, datetime.now(), weight_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/weight-log/<weight_id>', methods=['DELETE'])
+@login_required
+def delete_weight_log(weight_id):
+    conn = get_db()
+
+    # Verify weight log belongs to current trainer's client
+    weight_log = conn.execute('''
+        SELECT wl.* FROM weight_logs wl
+        JOIN clients c ON wl.client_id = c.id
+        WHERE wl.id = ? AND c.trainer_id = ?
+    ''', (weight_id, session['user_id'])).fetchone()
+
+    if not weight_log:
+        conn.close()
+        return jsonify({'error': 'Weight log not found'}), 404
+
+    try:
+        conn.execute('DELETE FROM weight_logs WHERE id = ?', (weight_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/client-notes', methods=['POST'])
 @login_required
 def add_client_note():
@@ -940,6 +1046,31 @@ def delete_client(client_id):
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/clients/<client_id>/weight-logs')
+@login_required
+def client_weight_logs(client_id):
+    conn = get_db()
+    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+
+    if not client:
+        flash('Client not found')
+        return redirect(url_for('clients'))
+
+    weight_history = conn.execute('''
+        SELECT id, date, weight, notes 
+        FROM weight_logs 
+        WHERE client_id = ? 
+        ORDER BY date DESC
+    ''', (client_id,)).fetchall()
+
+    conn.close()
+
+    return render_template('dashboard/clients/weight_logs.html',
+                           client=client,
+                           weight_history=weight_history)
 
 
 if __name__ == '__main__':

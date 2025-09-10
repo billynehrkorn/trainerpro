@@ -6,14 +6,22 @@
 <div class="p-4 lg:p-8">
     <div class="max-w-6xl mx-auto">
         <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">{{ client.name }} - Workouts</h1>
-                <p class="text-gray-600 mt-2">Complete workout history and details</p>
+            <div class="flex items-center">
+                <!-- Added back arrow navigation to client detail page -->
+                <a href="{{ url_for('client_detail', client_id=client.id) }}"
+                   class="text-blue-600 hover:text-blue-800 mr-4">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">{{ client.name }} - Workouts</h1>
+                    <p class="text-gray-600 mt-2">Complete workout history and details</p>
+                </div>
             </div>
-            <a href="{{ url_for('new_workout', client_id=client.id) }}"
-               class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+            <!-- Changed from link to button that opens create workout modal -->
+            <button onclick="openCreateWorkoutModal()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
                 <i class="fas fa-plus mr-2"></i>Log Workout
-            </a>
+            </button>
         </div>
 
         {% if workouts %}
@@ -55,12 +63,61 @@
                 <i class="fas fa-dumbbell text-gray-400 text-6xl mb-4"></i>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No workouts logged yet</h3>
                 <p class="text-gray-600 mb-4">Start tracking {{ client.name }}'s fitness journey.</p>
-                <a href="{{ url_for('new_workout', client_id=client.id) }}"
-                   class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center">
+                <!-- Changed from link to button that opens create workout modal -->
+                <button onclick="openCreateWorkoutModal()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center">
                     <i class="fas fa-plus mr-2"></i>Log First Workout
-                </a>
+                </button>
             </div>
         {% endif %}
+    </div>
+</div>
+
+<!-- Added create workout modal -->
+<div id="createWorkoutModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900">Log New Workout</h2>
+                    <button onclick="closeCreateModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form id="createWorkoutForm" onsubmit="createWorkout(event, '{{ client.id }}')">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Workout Date</label>
+                        <!-- Added name="date" attribute to fix form submission -->
+                        <input type="date" id="createWorkoutDate" name="date" required
+                               class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div id="createExercisesList" class="space-y-6">
+                        <!-- Initial exercise will be added here -->
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                        <button type="button" onclick="addCreateExercise()"
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium">
+                            <i class="fas fa-plus mr-2"></i>Add Exercise
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                        <button type="submit"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                            Save Workout
+                        </button>
+                        <button type="button" onclick="closeCreateModal()"
+                                class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -84,6 +141,212 @@
 </div>
 
 <script>
+let createExerciseCount = 0;
+
+function openCreateWorkoutModal() {
+    const modal = document.getElementById('createWorkoutModal');
+    const dateInput = document.getElementById('createWorkoutDate');
+
+    // Set today's date as default
+    dateInput.value = new Date().toISOString().split('T')[0];
+
+    // Clear and add initial exercise
+    const exercisesList = document.getElementById('createExercisesList');
+    exercisesList.innerHTML = '';
+    createExerciseCount = 0;
+    addCreateExercise();
+
+    modal.classList.remove('hidden');
+}
+
+function closeCreateModal() {
+    document.getElementById('createWorkoutModal').classList.add('hidden');
+}
+
+function addCreateExercise() {
+    const exercisesList = document.getElementById('createExercisesList');
+
+    const exerciseHtml = `
+        <div class="exercise-row p-4 border border-gray-200 rounded-lg" data-exercise-index="${createExerciseCount}">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Exercise ${createExerciseCount + 1}</h3>
+                <button type="button" onclick="removeCreateExercise(this)" class="text-red-600 hover:text-red-800 ${createExerciseCount === 0 ? 'hidden' : ''}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Exercise Name</label>
+                <div class="relative">
+                    <input type="text" name="exercise_name[]"
+                           class="exercise-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Start typing exercise name..." required>
+                    <div class="exercise-suggestions hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1"></div>
+                </div>
+            </div>
+
+            <div class="sets-container mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Sets</label>
+                    <button type="button" onclick="addCreateSet(this)" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        <i class="fas fa-plus"></i> Add Set
+                    </button>
+                </div>
+                <div class="sets-list">
+                    <div class="set-row flex items-center gap-2 mb-2">
+                        <span class="text-sm font-medium text-gray-600 w-12">Set 1:</span>
+                        <input type="number" name="exercise_${createExerciseCount}_weight[]" step="0.5" min="0" placeholder="Weight"
+                               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-xs text-gray-500">lbs</span>
+                        <input type="number" name="exercise_${createExerciseCount}_reps[]" min="1" placeholder="Reps"
+                               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-xs text-gray-500">reps</span>
+                        <button type="button" onclick="removeCreateSet(this)" class="text-red-500 hover:text-red-700 text-sm hidden">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="exercise_notes[]" rows="2"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Optional notes for this exercise..."></textarea>
+            </div>
+        </div>
+    `;
+
+    exercisesList.insertAdjacentHTML('beforeend', exerciseHtml);
+
+    // Setup autocomplete for the new input
+    const newInput = exercisesList.lastElementChild.querySelector('.exercise-input');
+    setupExerciseAutocomplete(newInput);
+
+    createExerciseCount++;
+    updateCreateRemoveButtons();
+}
+
+function removeCreateExercise(button) {
+    const exercisesList = document.getElementById('createExercisesList');
+    button.closest('.exercise-row').remove();
+
+    const exercises = exercisesList.querySelectorAll('.exercise-row');
+    exercises.forEach((exercise, newIndex) => {
+        exercise.setAttribute('data-exercise-index', newIndex);
+
+        // Update field names for sets
+        const weightInputs = exercise.querySelectorAll('input[name*="_weight"]');
+        const repsInputs = exercise.querySelectorAll('input[name*="_reps"]');
+
+        weightInputs.forEach(input => {
+            input.name = `exercise_${newIndex}_weight[]`;
+        });
+
+        repsInputs.forEach(input => {
+            input.name = `exercise_${newIndex}_reps[]`;
+        });
+    });
+
+    // Update exercise numbers
+    updateCreateExerciseNumbers();
+    updateCreateRemoveButtons();
+}
+
+function addCreateSet(button) {
+    const setsContainer = button.closest('.sets-container');
+    const exerciseRow = button.closest('.exercise-row');
+    const exerciseIndex = exerciseRow.getAttribute('data-exercise-index');
+    const setsList = setsContainer.querySelector('.sets-list');
+    const setCount = setsList.children.length + 1;
+
+    const setRow = document.createElement('div');
+    setRow.className = 'set-row flex items-center gap-2 mb-2';
+    setRow.innerHTML = `
+        <span class="text-sm font-medium text-gray-600 w-12">Set ${setCount}:</span>
+        <input type="number" name="exercise_${exerciseIndex}_weight[]" step="0.5" min="0" placeholder="Weight"
+               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        <span class="text-xs text-gray-500">lbs</span>
+        <input type="number" name="exercise_${exerciseIndex}_reps[]" min="1" placeholder="Reps"
+               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        <span class="text-xs text-gray-500">reps</span>
+        <button type="button" onclick="removeCreateSet(this)" class="text-red-500 hover:text-red-700 text-sm">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    setsList.appendChild(setRow);
+    updateCreateSetNumbers(setsContainer);
+    updateCreateSetRemoveButtons(setsContainer);
+}
+
+function removeCreateSet(button) {
+    const setsContainer = button.closest('.sets-container');
+    button.closest('.set-row').remove();
+    updateCreateSetNumbers(setsContainer);
+    updateCreateSetRemoveButtons(setsContainer);
+}
+
+function updateCreateSetNumbers(setsContainer) {
+    const setRows = setsContainer.querySelectorAll('.set-row');
+    setRows.forEach((row, index) => {
+        row.querySelector('span').textContent = `Set ${index + 1}:`;
+    });
+}
+
+function updateCreateSetRemoveButtons(setsContainer) {
+    const removeButtons = setsContainer.querySelectorAll('.set-row button[onclick*="removeCreateSet"]');
+    removeButtons.forEach(button => {
+        if (removeButtons.length === 1) {
+            button.classList.add('hidden');
+        } else {
+            button.classList.remove('hidden');
+        }
+    });
+}
+
+function updateCreateRemoveButtons() {
+    const removeButtons = document.querySelectorAll('.exercise-row button[onclick*="removeCreateExercise"]');
+    removeButtons.forEach(button => {
+        if (removeButtons.length === 1) {
+            button.classList.add('hidden');
+        } else {
+            button.classList.remove('hidden');
+        }
+    });
+}
+
+function updateCreateExerciseNumbers() {
+    const exercises = document.querySelectorAll('#createExercisesList .exercise-row h3');
+    exercises.forEach((h3, index) => {
+        h3.textContent = `Exercise ${index + 1}`;
+    });
+}
+
+async function createWorkout(event, clientId) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+
+    try {
+        const response = await fetch(`/clients/${clientId}/workouts`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            closeCreateModal();
+            location.reload(); // Refresh to show new workout
+        } else {
+            alert('Error creating workout');
+        }
+    } catch (error) {
+        console.error('Error creating workout:', error);
+        alert('Error creating workout');
+    }
+}
+
+
 function formatWorkoutDates() {
     const workoutDates = document.querySelectorAll('.workout-date');
     workoutDates.forEach(element => {
@@ -142,8 +405,10 @@ function displayWorkoutExercises(container, exercises) {
             <div class="bg-gray-50 p-3 rounded border border-gray-200">
                 <h4 class="font-medium text-gray-900 mb-2">${exercise.exercise_name}</h4>
 
-                <!-- Display individual sets instead of set counter -->
-                <div class="space-y-1 mb-2">
+                <!-- Updated layout with sets on left and notes on right -->
+                <div class="flex gap-4">
+                    <!-- Sets container on the left -->
+                    <div class="flex-1">
         `;
 
         // Parse sets data - handle both individual sets and legacy format
@@ -163,22 +428,27 @@ function displayWorkoutExercises(container, exercises) {
 
         setsData.forEach((set, setIndex) => {
             html += `
-                <div class="flex items-center gap-2 text-sm">
-                    <span class="text-gray-600 w-12">Set ${setIndex + 1}:</span>
-                    <span class="bg-white px-2 py-1 rounded border text-gray-700">
-                        ${set.weight ? set.weight + ' lbs' : 'N/A'}
-                    </span>
-                    <span class="text-gray-400">×</span>
-                    <span class="bg-white px-2 py-1 rounded border text-gray-700">
-                        ${set.reps || 'N/A'} reps
+                <div class="mb-1 text-sm">
+                    <span class="text-gray-600">Set ${setIndex + 1}:</span>
+                    <span class="bg-white px-2 py-1 rounded border text-gray-700 ml-2">
+                        ${set.weight ? set.weight + ' lbs' : 'N/A'} × ${set.reps || 'N/A'} reps
                     </span>
                 </div>
             `;
         });
 
         html += `
+                    </div>
+
+                    <!-- Notes container on the right -->
+                    <div class="flex-1">
+                        ${exercise.notes ? `
+                            <div class="bg-white p-2 rounded border">
+                                <p class="text-sm text-gray-600 italic">"${exercise.notes}"</p>
+                            </div>
+                        ` : '<div class="text-sm text-gray-400">No notes</div>'}
+                    </div>
                 </div>
-                ${exercise.notes ? `<p class="text-sm text-gray-600 italic">"${exercise.notes}"</p>` : ''}
             </div>
         `;
     });

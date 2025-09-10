@@ -45,9 +45,11 @@
             </div>
         </div>
 
-        <!-- Client Information -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="lg:col-span-2">
+        <!-- Combined layout - Client Info, Notes, and Sessions/Actions -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left Column: Client Information and Notes -->
+            <div class="order-1 space-y-6">
+                <!-- Client Information -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">Client Information</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -78,9 +80,42 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Notes Section -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-sticky-note mr-2"></i>Notes
+                        </h2>
+                        <button onclick="openNoteModal()"
+                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-plus mr-1"></i>Add Note
+                        </button>
+                    </div>
+
+                    <!-- Notes Content -->
+                    <div id="notesContent">
+                        {% if client_notes %}
+                            <div class="h-64 overflow-y-auto pr-2 space-y-3">
+                                {% for note in client_notes %}
+                                <div class="p-3 bg-gray-50 rounded-lg">
+                                    <p class="text-gray-900">{{ note.note_text }}</p>
+                                    <p class="text-xs text-gray-500 mt-1 note-date" data-date="{{ note.created_at }}">{{ note.created_at }}</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="h-64 flex items-center justify-center">
+                                <p class="text-gray-500 text-center">No notes added yet</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
-            <div>
+            <!-- Right Column: Upcoming Sessions and Action Buttons -->
+            <div class="order-2 space-y-6">
+                <!-- Upcoming Sessions -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold text-gray-900">Upcoming Sessions</h2>
@@ -91,7 +126,8 @@
                         </button>
                     </div>
                     {% if upcoming_sessions %}
-                        <div class="space-y-3">
+                        <!-- Added fixed height container with scrolling for sessions -->
+                        <div class="h-80 overflow-y-auto pr-2 space-y-3">
                             {% for session in upcoming_sessions %}
                             <div class="p-3 bg-gray-50 rounded-lg
                                 {% if session.status == 'cancelled' %}bg-red-50 border border-red-200
@@ -123,105 +159,27 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-gray-500 text-center py-4">No upcoming sessions</p>
+                        <!-- Added fixed height to empty state to maintain consistent layout -->
+                        <div class="h-80 flex items-center justify-center">
+                            <p class="text-gray-500 text-center">No upcoming sessions</p>
+                        </div>
                     {% endif %}
                 </div>
-            </div>
-        </div>
 
-        <!-- Moved WorkoutsNotesWeight Logs container to replace the separate weight tracker -->
-        <!-- Enhanced Recent Workouts/Notes/Weight Logs Section with switchable content -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-4">
-                    <!-- Added switchable icons for workouts vs notes vs weight logs -->
-                    <div class="flex bg-gray-100 rounded-lg p-1">
-                        <button id="workoutsTab" onclick="switchTab('workouts')" class="px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white">
-                            <i class="fas fa-dumbbell mr-1"></i>Workouts
-                        </button>
-                        <button id="notesTab" onclick="switchTab('notes')" class="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900">
-                            <i class="fas fa-sticky-note mr-1"></i>Notes
-                        </button>
-                        <button id="weightLogsTab" onclick="switchTab('weightLogs')" class="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900">
-                            <i class="fas fa-weight mr-1"></i>Weight Logs
-                        </button>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <!-- Moved Log Workout button inside container and made it conditional -->
-                    <button id="logWorkoutBtn" onclick="window.location.href='{{ url_for('new_workout', client_id=client.id) }}'"
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
-                        <i class="fas fa-dumbbell mr-1"></i>Log Workout
+                <!-- Action Buttons -->
+                <div class="space-y-4">
+                    <!-- View Workout History Button -->
+                    <button onclick="window.location.href='{{ url_for('client_workouts', client_id=client.id) }}'"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-lg font-medium text-lg transition-colors">
+                        <i class="fas fa-dumbbell mr-3"></i>View Workout History
                     </button>
-                    <button id="addNoteBtn" onclick="openNoteModal()"
-                            class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm hidden">
-                        <i class="fas fa-plus mr-1"></i>Add Note
-                    </button>
-                    <!-- Added Add Weight button for weight logs tab -->
-                    <button id="addWeightBtn" onclick="openWeightModal()"
-                            class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm hidden">
-                        <i class="fas fa-plus mr-1"></i>Add Weight
+
+                    <!-- View Weight Logs Button -->
+                    <button onclick="window.location.href='{{ url_for('client_weight_logs', client_id=client.id) }}'"
+                            class="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 px-6 rounded-lg font-medium text-lg transition-colors">
+                        <i class="fas fa-weight mr-3"></i>View Weight Logs
                     </button>
                 </div>
-            </div>
-
-            <!-- Workouts Content -->
-            <div id="workoutsContent">
-                {% if recent_workouts %}
-                    <div class="space-y-3">
-                        {% for workout in recent_workouts %}
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                                <p class="font-medium text-gray-900 workout-date" data-date="{{ workout.workout_date }}">{{ workout.workout_date }}</p>
-                                <p class="text-sm text-gray-600">{{ workout.exercise_count }} exercises</p>
-                            </div>
-                            <a href="{{ url_for('client_workouts', client_id=client.id) }}"
-                               class="text-blue-600 hover:text-blue-800 text-sm">
-                                View Details
-                            </a>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-gray-500 text-center py-8">No workouts logged yet</p>
-                {% endif %}
-            </div>
-
-            <!-- Notes Content -->
-            <div id="notesContent" class="hidden">
-                {% if client_notes %}
-                    <div class="space-y-3">
-                        {% for note in client_notes %}
-                        <div class="p-3 bg-gray-50 rounded-lg">
-                            <p class="text-gray-900">{{ note.note_text }}</p>
-                            <p class="text-xs text-gray-500 mt-1 note-date" data-date="{{ note.created_at }}">{{ note.created_at }}</p>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-gray-500 text-center py-8">No notes added yet</p>
-                {% endif %}
-            </div>
-
-            <!-- Weight Logs Content -->
-            <div id="weightLogsContent" class="hidden">
-                {% if weight_history %}
-                    <div class="space-y-2">
-                        {% for entry in weight_history %}
-                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div>
-                                <span class="font-medium weight-date" data-date="{{ entry.date }}">{{ entry.date }}</span>
-                                <span class="text-gray-600 ml-2">{{ entry.weight }} lbs</span>
-                            </div>
-                            {% if entry.notes %}
-                            <span class="text-sm text-gray-500">{{ entry.notes }}</span>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-gray-500 text-center py-8">No weight entries yet</p>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -517,47 +475,6 @@ function formatDates() {
             element.textContent = date.toLocaleDateString('en-US', options);
         }
     });
-}
-
-function switchTab(tab) {
-    const workoutsTab = document.getElementById('workoutsTab');
-    const notesTab = document.getElementById('notesTab');
-    const weightLogsTab = document.getElementById('weightLogsTab');
-    const workoutsContent = document.getElementById('workoutsContent');
-    const notesContent = document.getElementById('notesContent');
-    const weightLogsContent = document.getElementById('weightLogsContent');
-    const logWorkoutBtn = document.getElementById('logWorkoutBtn');
-    const addNoteBtn = document.getElementById('addNoteBtn');
-    const addWeightBtn = document.getElementById('addWeightBtn');
-
-    // Reset all tabs
-    workoutsTab.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
-    notesTab.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
-    weightLogsTab.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
-
-    // Hide all content
-    workoutsContent.classList.add('hidden');
-    notesContent.classList.add('hidden');
-    weightLogsContent.classList.add('hidden');
-
-    // Hide all buttons
-    logWorkoutBtn.classList.add('hidden');
-    addNoteBtn.classList.add('hidden');
-    addWeightBtn.classList.add('hidden');
-
-    if (tab === 'workouts') {
-        workoutsTab.className = 'px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white';
-        workoutsContent.classList.remove('hidden');
-        logWorkoutBtn.classList.remove('hidden');
-    } else if (tab === 'notes') {
-        notesTab.className = 'px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white';
-        notesContent.classList.remove('hidden');
-        addNoteBtn.classList.remove('hidden');
-    } else if (tab === 'weightLogs') {
-        weightLogsTab.className = 'px-3 py-1 rounded text-sm font-medium bg-blue-600 text-white';
-        weightLogsContent.classList.remove('hidden');
-        addWeightBtn.classList.remove('hidden');
-    }
 }
 
 function openWeightModal() {
