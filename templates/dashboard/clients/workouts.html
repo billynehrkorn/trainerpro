@@ -94,6 +94,20 @@
                                class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
 
+                    <!-- Added import template section -->
+                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-sm font-medium text-gray-700">Import from Template</label>
+                            <button type="button" id="importTemplateBtn" onclick="loadTemplatesDropdown()"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium">
+                                <i class="fas fa-file-import mr-1"></i>Import
+                            </button>
+                        </div>
+                        <select id="templateSelect" class="hidden w-full mt-2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select a template...</option>
+                        </select>
+                    </div>
+
                     <div id="createExercisesList" class="space-y-6">
                         <!-- Initial exercise will be added here -->
                     </div>
@@ -142,6 +156,7 @@
 
 <script>
 let createExerciseCount = 0;
+let templatesLoaded = false;
 
 function openCreateWorkoutModal() {
     const modal = document.getElementById('createWorkoutModal');
@@ -196,10 +211,10 @@ function addCreateExercise() {
                     <div class="set-row flex items-center gap-2 mb-2">
                         <span class="text-sm font-medium text-gray-600 w-12">Set 1:</span>
                         <input type="number" name="exercise_${createExerciseCount}_weight[]" step="0.5" min="0" placeholder="Weight"
-                               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <span class="text-xs text-gray-500">lbs</span>
                         <input type="number" name="exercise_${createExerciseCount}_reps[]" min="1" placeholder="Reps"
-                               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <span class="text-xs text-gray-500">reps</span>
                         <button type="button" onclick="removeCreateSet(this)" class="text-red-500 hover:text-red-700 text-sm hidden">
                             <i class="fas fa-times"></i>
@@ -265,10 +280,10 @@ function addCreateSet(button) {
     setRow.innerHTML = `
         <span class="text-sm font-medium text-gray-600 w-12">Set ${setCount}:</span>
         <input type="number" name="exercise_${exerciseIndex}_weight[]" step="0.5" min="0" placeholder="Weight"
-               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
         <span class="text-xs text-gray-500">lbs</span>
         <input type="number" name="exercise_${exerciseIndex}_reps[]" min="1" placeholder="Reps"
-               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
         <span class="text-xs text-gray-500">reps</span>
         <button type="button" onclick="removeCreateSet(this)" class="text-red-500 hover:text-red-700 text-sm">
             <i class="fas fa-times"></i>
@@ -346,120 +361,116 @@ async function createWorkout(event, clientId) {
     }
 }
 
+async function loadTemplatesDropdown() {
+    const selectElement = document.getElementById('templateSelect');
+    const importBtn = document.getElementById('importTemplateBtn');
 
-function formatWorkoutDates() {
-    const workoutDates = document.querySelectorAll('.workout-date');
-    workoutDates.forEach(element => {
-        const dateStr = element.getAttribute('data-date');
-        if (dateStr) {
-            const date = new Date(dateStr + 'T00:00:00');
-            const options = {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            };
-            const formattedDate = date.toLocaleDateString('en-US', options);
-            const dayNum = date.getDate();
-            let suffix = 'th';
-            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
-            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
-            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
-
-            element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
-        }
-    });
-}
-
-async function loadWorkoutDetails() {
-    const workoutContainers = document.querySelectorAll('.workout-exercises');
-
-    for (const container of workoutContainers) {
-        const clientId = container.getAttribute('data-client-id');
-        const workoutDate = container.getAttribute('data-workout-date');
-
+    if (!templatesLoaded) {
         try {
-            const response = await fetch(`/api/workout-details/${clientId}/${workoutDate}`);
+            const response = await fetch('/api/templates/list');
             if (response.ok) {
-                const exercises = await response.json();
-                displayWorkoutExercises(container, exercises);
-            } else {
-                container.innerHTML = '<p class="text-red-500 text-center">Error loading workout details</p>';
+                const templates = await response.json();
+
+                selectElement.innerHTML = '<option value="">Select a template...</option>';
+                templates.forEach(template => {
+                    const option = document.createElement('option');
+                    option.value = template.id;
+                    option.textContent = template.name;
+                    selectElement.appendChild(option);
+                });
+
+                templatesLoaded = true;
             }
         } catch (error) {
-            console.error('Error loading workout:', error);
-            container.innerHTML = '<p class="text-red-500 text-center">Error loading workout details</p>';
+            console.error('Error loading templates:', error);
+            alert('Error loading templates');
+            return;
         }
+    }
+
+    // Toggle dropdown visibility
+    if (selectElement.classList.contains('hidden')) {
+        selectElement.classList.remove('hidden');
+        importBtn.textContent = 'Cancel';
+        importBtn.innerHTML = '<i class="fas fa-times mr-1"></i>Cancel';
+
+        // Add change event listener
+        selectElement.onchange = async function() {
+            if (this.value) {
+                await importTemplate(this.value);
+                selectElement.classList.add('hidden');
+                importBtn.innerHTML = '<i class="fas fa-file-import mr-1"></i>Import';
+            }
+        };
+    } else {
+        selectElement.classList.add('hidden');
+        importBtn.innerHTML = '<i class="fas fa-file-import mr-1"></i>Import';
     }
 }
 
-function displayWorkoutExercises(container, exercises) {
-    if (!exercises || exercises.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 text-center py-2">No exercises found</p>';
-        return;
-    }
+async function importTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/templates/${templateId}`);
+        if (response.ok) {
+            const template = await response.json();
 
-    let html = '<div class="space-y-3">';
+            // Clear existing exercises
+            const exercisesList = document.getElementById('createExercisesList');
+            exercisesList.innerHTML = '';
+            createExerciseCount = 0;
 
-    exercises.forEach((exercise, index) => {
-        html += `
-            <div class="bg-gray-50 p-3 rounded border border-gray-200">
-                <h4 class="font-medium text-gray-900 mb-2">${exercise.exercise_name}</h4>
+            // Add exercises from template
+            template.exercises.forEach((exercise, index) => {
+                addCreateExercise();
 
-                <!-- Updated layout with sets on left and notes on right -->
-                <div class="flex gap-4">
-                    <!-- Sets container on the left -->
-                    <div class="flex-1">
-        `;
+                const exerciseRow = exercisesList.children[index];
 
-        // Parse sets data - handle both individual sets and legacy format
-        let setsData = [];
-        if (exercise.sets_data && Array.isArray(exercise.sets_data)) {
-            setsData = exercise.sets_data;
-        } else {
-            // Legacy format - create sets from single values
-            const setCount = exercise.sets || 1;
-            for (let i = 0; i < setCount; i++) {
-                setsData.push({
-                    weight: exercise.weight,
-                    reps: exercise.reps
+                // Set exercise name
+                const nameInput = exerciseRow.querySelector('.exercise-input');
+                nameInput.value = exercise.name;
+
+                // Set notes
+                const notesInput = exerciseRow.querySelector('textarea[name="exercise_notes[]"]');
+                if (notesInput && exercise.notes) {
+                    notesInput.value = exercise.notes;
+                }
+
+                // Clear default set and add template sets
+                const setsList = exerciseRow.querySelector('.sets-list');
+                setsList.innerHTML = '';
+
+                exercise.sets.forEach((set, setIndex) => {
+                    const setRow = document.createElement('div');
+                    setRow.className = 'set-row flex items-center gap-2 mb-2';
+                    setRow.innerHTML = `
+                        <span class="text-sm font-medium text-gray-600 w-12">Set ${setIndex + 1}:</span>
+                        <input type="number" name="exercise_${index}_weight[]" step="0.5" min="0" placeholder="Weight" value="${set.weight || ''}"
+                               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-xs text-gray-500">lbs</span>
+                        <input type="number" name="exercise_${index}_reps[]" min="1" placeholder="Reps" value="${set.reps || ''}"
+                               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-xs text-gray-500">reps</span>
+                        <button type="button" onclick="removeCreateSet(this)" class="text-red-500 hover:text-red-700 text-sm ${exercise.sets.length === 1 ? 'hidden' : ''}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    setsList.appendChild(setRow);
                 });
-            }
+            });
+
+            alert(`Template "${template.name}" imported successfully!`);
+        } else {
+            alert('Error loading template');
         }
-
-        setsData.forEach((set, setIndex) => {
-            html += `
-                <div class="mb-1 text-sm">
-                    <span class="text-gray-600">Set ${setIndex + 1}:</span>
-                    <span class="bg-white px-2 py-1 rounded border text-gray-700 ml-2">
-                        ${set.weight ? set.weight + ' lbs' : 'N/A'} × ${set.reps || 'N/A'} reps
-                    </span>
-                </div>
-            `;
-        });
-
-        html += `
-                    </div>
-
-                    <!-- Notes container on the right -->
-                    <div class="flex-1">
-                        ${exercise.notes ? `
-                            <div class="bg-white p-2 rounded border">
-                                <p class="text-sm text-gray-600 italic">"${exercise.notes}"</p>
-                            </div>
-                        ` : '<div class="text-sm text-gray-400">No notes</div>'}
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
+    } catch (error) {
+        console.error('Error importing template:', error);
+        alert('Error importing template');
+    }
 }
 
 async function editWorkout(clientId, workoutDate) {
     try {
-        const response = await fetch(`/api/workout-details/${clientId}/${workoutDate}`);
+        const response = await fetch(`/clients/${clientId}/workouts/${workoutDate}`);
         if (response.ok) {
             const exercises = await response.json();
             showEditModal(clientId, workoutDate, exercises);
@@ -481,6 +492,20 @@ function showEditModal(clientId, workoutDate, exercises) {
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Workout Date</label>
                 <input type="date" value="${workoutDate}" class="w-full p-2 border border-gray-300 rounded-lg" readonly>
+            </div>
+
+            <!-- Added import template section -->
+            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <label class="block text-sm font-medium text-gray-700">Import from Template</label>
+                    <button type="button" id="importTemplateBtn" onclick="loadTemplatesDropdown()"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium">
+                        <i class="fas fa-file-import mr-1"></i>Import
+                    </button>
+                </div>
+                <select id="templateSelect" class="hidden w-full mt-2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Select a template...</option>
+                </select>
             </div>
 
             <div id="editExercisesList" class="space-y-6">
@@ -537,10 +562,10 @@ function showEditModal(clientId, workoutDate, exercises) {
                         <div class="set-row flex items-center gap-2 mb-2">
                             <span class="text-sm font-medium text-gray-600 w-12">Set ${setIndex + 1}:</span>
                             <input type="number" name="exercise_${index}_weight[]" step="0.5" min="0" placeholder="Weight" value="${set.weight || ''}"
-                                   class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                   class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                             <span class="text-xs text-gray-500">lbs</span>
                             <input type="number" name="exercise_${index}_reps[]" min="1" placeholder="Reps" value="${set.reps || ''}"
-                                   class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                   class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                             <span class="text-xs text-gray-500">reps</span>
                             <button type="button" onclick="removeSet(this)" class="text-red-500 hover:text-red-700 text-sm ${setsData.length === 1 ? 'hidden' : ''}">
                                 <i class="fas fa-times"></i>
@@ -636,10 +661,10 @@ function addExercise() {
                     <div class="set-row flex items-center gap-2 mb-2">
                         <span class="text-sm font-medium text-gray-600 w-12">Set 1:</span>
                         <input type="number" name="exercise_${exerciseCount}_weight[]" step="0.5" min="0" placeholder="Weight"
-                               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <span class="text-xs text-gray-500">lbs</span>
                         <input type="number" name="exercise_${exerciseCount}_reps[]" min="1" placeholder="Reps"
-                               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <span class="text-xs text-gray-500">reps</span>
                         <button type="button" onclick="removeSet(this)" class="text-red-500 hover:text-red-700 text-sm hidden">
                             <i class="fas fa-times"></i>
@@ -732,10 +757,10 @@ function addSet(button) {
     setRow.innerHTML = `
         <span class="text-sm font-medium text-gray-600 w-12">Set ${setCount}:</span>
         <input type="number" name="exercise_${exerciseIndex}_weight[]" step="0.5" min="0" placeholder="Weight"
-               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
         <span class="text-xs text-gray-500">lbs</span>
         <input type="number" name="exercise_${exerciseIndex}_reps[]" min="1" placeholder="Reps"
-               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+               class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
         <span class="text-xs text-gray-500">reps</span>
         <button type="button" onclick="removeSet(this)" class="text-red-500 hover:text-red-700 text-sm">
             <i class="fas fa-times"></i>
@@ -865,5 +890,68 @@ document.addEventListener('DOMContentLoaded', function() {
     formatWorkoutDates();
     loadWorkoutDetails();
 });
+
+function formatWorkoutDates() {
+    const dateElements = document.querySelectorAll('.workout-date');
+    dateElements.forEach(element => {
+        const dateStr = element.getAttribute('data-date');
+        if (dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            element.textContent = date.toLocaleDateString('en-US', options);
+        }
+    });
+}
+
+async function loadWorkoutDetails() {
+    const workoutContainers = document.querySelectorAll('.workout-exercises');
+
+    for (const container of workoutContainers) {
+        const clientId = container.getAttribute('data-client-id');
+        const workoutDate = container.getAttribute('data-workout-date');
+
+        try {
+            const response = await fetch(`/clients/${clientId}/workouts/${workoutDate}`);
+            if (response.ok) {
+                const exercises = await response.json();
+
+                let html = '<div class="space-y-3">';
+                exercises.forEach(exercise => {
+                    html += `
+                        <div class="border-l-4 border-blue-500 pl-3">
+                            <h4 class="font-medium text-gray-900">${exercise.exercise_name}</h4>
+                    `;
+
+                    if (exercise.sets_data && Array.isArray(exercise.sets_data)) {
+                        html += '<div class="text-sm text-gray-600 mt-1">';
+                        exercise.sets_data.forEach((set, index) => {
+                            html += `<div>Set ${index + 1}: ${set.weight || '—'} lbs × ${set.reps || '—'} reps</div>`;
+                        });
+                        html += '</div>';
+                    } else {
+                        html += `<p class="text-sm text-gray-600 mt-1">${exercise.sets || 0} sets`;
+                        if (exercise.weight) html += ` • ${exercise.weight} lbs`;
+                        if (exercise.reps) html += ` × ${exercise.reps} reps`;
+                        html += '</p>';
+                    }
+
+                    if (exercise.notes) {
+                        html += `<p class="text-sm text-gray-500 italic mt-1">${exercise.notes}</p>`;
+                    }
+
+                    html += '</div>';
+                });
+                html += '</div>';
+
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-red-500 text-sm">Error loading exercises</p>';
+            }
+        } catch (error) {
+            console.error('Error loading workout details:', error);
+            container.innerHTML = '<p class="text-red-500 text-sm">Error loading exercises</p>';
+        }
+    }
+}
 </script>
 {% endblock %}

@@ -9,15 +9,34 @@
     <style>
         .mobile-nav-open { transform: translateX(0); }
         .mobile-nav-closed { transform: translateX(-100%); }
+        /* Added backdrop overlay for better UX */
+        .mobile-nav-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .mobile-nav-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
     {% if session.user_id %}
+    <!-- Added backdrop overlay -->
+    <div id="mobile-nav-backdrop" class="mobile-nav-backdrop lg:hidden"></div>
+
     <!-- Mobile Navigation -->
-    <div id="mobile-nav" class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform mobile-nav-closed transition-transform duration-300 ease-in-out lg:hidden">
+    <div id="mobile-nav"
+         class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:hidden"
+         style="transform: translateX(-100%);">
         <div class="flex items-center justify-between p-4 border-b">
             <h2 class="text-xl font-bold text-gray-800">TrainerPro</h2>
-            <button id="close-nav" class="text-gray-500 hover:text-gray-700">
+            <button id="close-nav" class="text-gray-500 hover:text-gray-700 p-1">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
@@ -33,6 +52,11 @@
             <a href="{{ url_for('calendar') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
                 <i class="fas fa-calendar mr-3"></i>
                 Calendar
+            </a>
+            <!-- Added Templates link to mobile sidebar -->
+            <a href="{{ url_for('workout_templates') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                <i class="fas fa-puzzle-piece mr-3"></i>
+                Templates
             </a>
             <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
                 <i class="fas fa-sign-out-alt mr-3"></i>
@@ -61,6 +85,11 @@
                         <i class="fas fa-calendar mr-3"></i>
                         Calendar
                     </a>
+                    <!-- Added Templates link to desktop sidebar -->
+                    <a href="{{ url_for('workout_templates') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-puzzle-piece mr-3"></i>
+                        Templates
+                    </a>
                 </nav>
             </div>
             <div class="flex-shrink-0 flex border-t border-gray-200 p-4">
@@ -77,7 +106,7 @@
     <!-- Mobile header -->
     <div class="lg:hidden bg-white shadow-sm border-b">
         <div class="flex items-center justify-between p-4">
-            <button id="open-nav" class="text-gray-500 hover:text-gray-700">
+            <button id="open-nav" class="text-gray-500 hover:text-gray-700 p-1 -ml-1">
                 <i class="fas fa-bars text-xl"></i>
             </button>
             <h1 class="text-xl font-bold text-gray-800">TrainerPro</h1>
@@ -89,7 +118,7 @@
     <div class="lg:pl-64 flex flex-col flex-1">
         <main class="flex-1">
             {% endif %}
-            
+
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
                     <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4 mx-4 mt-4">
@@ -99,40 +128,69 @@
                     </div>
                 {% endif %}
             {% endwith %}
-            
+
             {% block content %}{% endblock %}
-            
+
             {% if session.user_id %}
         </main>
     </div>
     {% endif %}
 
     <script>
-        // Mobile navigation toggle
-        const openNav = document.getElementById('open-nav');
-        const closeNav = document.getElementById('close-nav');
-        const mobileNav = document.getElementById('mobile-nav');
+        console.log("[v0] Script starting - initializing mobile nav");
 
-        if (openNav) {
-            openNav.addEventListener('click', () => {
-                mobileNav.classList.remove('mobile-nav-closed');
-                mobileNav.classList.add('mobile-nav-open');
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("[v0] DOM loaded, finding elements");
+
+            const openNav = document.getElementById('open-nav');
+            const closeNav = document.querySelector('.fas.fa-times.text-xl');
+            const mobileNav = document.getElementById('mobile-nav');
+            const backdrop = document.getElementById('mobile-nav-backdrop');
+
+            console.log("[v0] Elements found:", {
+                openNav: !!openNav,
+                closeNav: !!closeNav,
+                mobileNav: !!mobileNav,
+                backdrop: !!backdrop
             });
-        }
 
-        if (closeNav) {
-            closeNav.addEventListener('click', () => {
-                mobileNav.classList.remove('mobile-nav-open');
-                mobileNav.classList.add('mobile-nav-closed');
-            });
-        }
-
-        // Close mobile nav when clicking outside
-        document.addEventListener('click', (e) => {
-            if (mobileNav && !mobileNav.contains(e.target) && !openNav.contains(e.target)) {
-                mobileNav.classList.remove('mobile-nav-open');
-                mobileNav.classList.add('mobile-nav-closed');
+            if (openNav) {
+                console.log("[v0] Open nav element:", openNav);
+                console.log("[v0] Open nav classes:", openNav.className);
+                console.log("[v0] Open nav parent:", openNav.parentElement);
             }
+
+            if (closeNav && mobileNav) {
+                console.log("[v0] Adding click listener to close nav button");
+                closeNav.addEventListener('click', function(e) {
+                    console.log("[v0] Close nav button clicked");
+                    e.preventDefault();
+                    mobileNav.style.transform = 'translateX(-100%)';
+                });
+            } else {
+                console.log("[v0] Close nav button not found!");
+            }
+
+            if (openNav && mobileNav) {
+                console.log("[v0] Adding click listener to open nav button");
+                openNav.addEventListener('click', function(e) {
+                    console.log("[v0] Open nav button clicked via click event");
+                    e.preventDefault();
+                    e.stopPropagation();
+                    mobileNav.style.transform = 'translateX(0)';
+                });
+
+                openNav.addEventListener('touchstart', function(e) {
+                    console.log("[v0] Open nav button touched via touchstart");
+                    e.preventDefault();
+                    e.stopPropagation();
+                    mobileNav.style.transform = 'translateX(0)';
+                });
+            } else {
+                console.log("[v0] Open nav button not found!");
+            }
+
+            console.log("[v0] Mobile nav script initialization complete");
         });
     </script>
 </body>

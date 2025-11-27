@@ -26,10 +26,7 @@
                 </a>
             </div>
         </div>
-        <button onclick="openQuickBookModal()"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
-            <i class="fas fa-plus mr-2"></i>Quick Book
-        </button>
+
     </div>
 
     <!-- Calendar Grid -->
@@ -51,7 +48,8 @@
         <div class="grid grid-cols-8 divide-x divide-gray-200">
             <!-- Time Column -->
             <div class="divide-y divide-gray-200">
-                {% for hour in range(6, 22) %}
+                <!-- Changed hour range from 6-22 to 5-22 to start at 5:00 AM -->
+                {% for hour in range(5, 22) %}
                     <div class="h-16 p-2 text-xs text-gray-500 bg-gray-50">
                         <!-- Convert military time to regular time format -->
                         <span class="time-display" data-hour="{{ hour }}">{{ '%02d:00'|format(hour) }}</span>
@@ -64,7 +62,8 @@
                 {% set day_date = week_dates[day_index] %}
                 {% set day_key = day_date.strftime('%Y-%m-%d') %}
                 <div class="divide-y divide-gray-200 relative">
-                    {% for hour in range(6, 22) %}
+                    <!-- Changed hour range from 6-22 to 5-22 to start at 5:00 AM -->
+                    {% for hour in range(5, 22) %}
                         <div class="h-16 p-1 hover:bg-gray-50 cursor-pointer relative"
                              onclick="openBookingModal('{{ day_key }}', '{{ '%02d:00'|format(hour) }}')">
                             <!-- Enhanced session display with proper positioning and actions -->

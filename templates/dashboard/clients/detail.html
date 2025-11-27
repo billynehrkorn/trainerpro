@@ -75,8 +75,9 @@
                             <p class="text-gray-900">{{ client.weight ~ ' lbs' if client.weight else 'Not provided' }}</p>
                         </div>
                         <div>
+                            <!-- Removed "inches" from height display since it's now text -->
                             <p class="text-sm font-medium text-gray-600">Height</p>
-                            <p class="text-gray-900">{{ client.height ~ ' inches' if client.height else 'Not provided' }}</p>
+                            <p class="text-gray-900">{{ client.height if client.height else 'Not provided' }}</p>
                         </div>
                     </div>
                 </div>
@@ -709,7 +710,7 @@ document.getElementById('editSessionForm').addEventListener('submit', async func
     const formData = {
         session_date: document.getElementById('editSessionDate').value,
         start_time: document.getElementById('editStartTime').value,
-        end_time: document.getElementById('editEndTime').value,
+        end_time: document.getElementById('editSessionEndTime').value,
         session_type: document.getElementById('editSessionType').value,
         notes: document.getElementById('editSessionNotes').value,
         status: document.getElementById('editSessionStatus').value

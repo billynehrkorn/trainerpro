@@ -164,7 +164,7 @@ def new_client():
         age = request.form.get('age', type=int)
         gender = request.form.get('gender', '')
         weight = request.form.get('weight', type=float)
-        height = request.form.get('height', type=float)
+        height = request.form.get('height', '')  # Changed height from float to string
         status = request.form['status']
         notes = request.form.get('notes', '')
 
@@ -253,10 +253,12 @@ def client_detail(client_id):
 @login_required
 def edit_client(client_id):
     conn = get_db()
-    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
-                          (client_id, session['user_id'])).fetchone()
+    client = conn.execute('''
+        SELECT * FROM clients WHERE id = ? AND trainer_id = ?
+    ''', (client_id, session['user_id'])).fetchone()
 
     if not client:
+        conn.close()
         flash('Client not found')
         return redirect(url_for('clients'))
 
@@ -267,7 +269,7 @@ def edit_client(client_id):
         age = request.form.get('age', type=int)
         gender = request.form.get('gender', '')
         weight = request.form.get('weight', type=float)
-        height = request.form.get('height', type=float)
+        height = request.form.get('height', '')  # Changed height from float to string
         status = request.form['status']
         notes = request.form.get('notes', '')
 
@@ -969,85 +971,6 @@ def upload_client_photo():
     return jsonify({'error': 'Invalid file'}), 400
 
 
-@app.route('/api/workout-details/<client_id>/<date>')
-@login_required
-def api_workout_details(client_id, date):
-    conn = get_db()
-    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
-                          (client_id, session['user_id'])).fetchone()
-
-    if not client:
-        conn.close()
-        return jsonify({'error': 'Client not found'}), 404
-
-    exercises = conn.execute('''
-        SELECT id, exercise_name, sets, reps, weight, notes, sets_data 
-        FROM workout_logs 
-        WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
-        ORDER BY created_at
-    ''', (client_id, date, session['user_id'])).fetchall()
-
-    conn.close()
-
-    result = []
-    for ex in exercises:
-        sets_data = None
-        if ex['sets_data']:
-            try:
-                sets_data = json.loads(ex['sets_data'])
-            except:
-                sets_data = None
-
-        result.append({
-            'id': ex['id'],
-            'exercise_name': ex['exercise_name'],
-            'sets': ex['sets'],
-            'reps': ex['reps'],
-            'weight': ex['weight'],
-            'notes': ex['notes'],
-            'sets_data': sets_data
-        })
-
-    return jsonify(result)
-
-
-@app.route('/clients/<client_id>/delete', methods=['POST'])
-@login_required
-def delete_client(client_id):
-    conn = get_db()
-    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
-                          (client_id, session['user_id'])).fetchone()
-
-    if not client:
-        conn.close()
-        return jsonify({'error': 'Client not found'}), 404
-
-    try:
-        # Delete client photo if it exists
-        if client['photo_url'] and os.path.exists(os.path.join('static', client['photo_url'])):
-            os.remove(os.path.join('static', client['photo_url']))
-
-        # Delete all related data
-        conn.execute('DELETE FROM sessions WHERE client_id = ? AND trainer_id = ?',
-                     (client_id, session['user_id']))
-        conn.execute('DELETE FROM workout_logs WHERE client_id = ? AND trainer_id = ?',
-                     (client_id, session['user_id']))
-        conn.execute('DELETE FROM weight_logs WHERE client_id = ?', (client_id,))
-        conn.execute('DELETE FROM client_notes WHERE client_id = ? AND trainer_id = ?',
-                     (client_id, session['user_id']))
-
-        # Finally delete the client
-        conn.execute('DELETE FROM clients WHERE id = ? AND trainer_id = ?',
-                     (client_id, session['user_id']))
-
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True})
-    except Exception as e:
-        conn.close()
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/clients/<client_id>/weight-logs')
 @login_required
 def client_weight_logs(client_id):
@@ -1071,6 +994,175 @@ def client_weight_logs(client_id):
     return render_template('dashboard/clients/weight_logs.html',
                            client=client,
                            weight_history=weight_history)
+
+
+@app.route('/templates')
+@login_required
+def workout_templates():
+    conn = get_db()
+    templates = conn.execute('''
+        SELECT id, name, created_at, 
+               (SELECT COUNT(*) FROM template_exercises WHERE template_id = workout_templates.id) as exercise_count
+        FROM workout_templates 
+        WHERE trainer_id = ? 
+        ORDER BY created_at DESC
+    ''', (session['user_id'],)).fetchall()
+    conn.close()
+
+    return render_template('dashboard/workout_templates.html', templates=templates)
+
+
+@app.route('/api/templates', methods=['POST'])
+@login_required
+def create_template():
+    data = request.json
+    template_name = data['name']
+    exercises = data['exercises']
+
+    template_id = str(uuid.uuid4())
+
+    conn = get_db()
+    try:
+        # Create template
+        conn.execute('''
+            INSERT INTO workout_templates (id, trainer_id, name, created_at)
+            VALUES (?, ?, ?, ?)
+        ''', (template_id, session['user_id'], template_name, datetime.now()))
+
+        # Add exercises to template
+        for exercise in exercises:
+            exercise_id = str(uuid.uuid4())
+            conn.execute('''
+                INSERT INTO template_exercises (id, template_id, exercise_name, sets_data, notes, exercise_order)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (exercise_id, template_id, exercise['name'],
+                  json.dumps(exercise['sets']), exercise.get('notes', ''), exercise['order']))
+
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'template_id': template_id})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/templates/<template_id>', methods=['GET'])
+@login_required
+def get_template(template_id):
+    conn = get_db()
+    template = conn.execute('''
+        SELECT * FROM workout_templates 
+        WHERE id = ? AND trainer_id = ?
+    ''', (template_id, session['user_id'])).fetchone()
+
+    if not template:
+        conn.close()
+        return jsonify({'error': 'Template not found'}), 404
+
+    exercises = conn.execute('''
+        SELECT exercise_name, sets_data, notes, exercise_order
+        FROM template_exercises 
+        WHERE template_id = ?
+        ORDER BY exercise_order
+    ''', (template_id,)).fetchall()
+
+    conn.close()
+
+    return jsonify({
+        'id': template['id'],
+        'name': template['name'],
+        'exercises': [{
+            'name': ex['exercise_name'],
+            'sets': json.loads(ex['sets_data']) if ex['sets_data'] else [],
+            'notes': ex['notes'],
+            'order': ex['exercise_order']
+        } for ex in exercises]
+    })
+
+
+@app.route('/api/templates/<template_id>', methods=['DELETE'])
+@login_required
+def delete_template(template_id):
+    conn = get_db()
+    template = conn.execute('''
+        SELECT * FROM workout_templates 
+        WHERE id = ? AND trainer_id = ?
+    ''', (template_id, session['user_id'])).fetchone()
+
+    if not template:
+        conn.close()
+        return jsonify({'error': 'Template not found'}), 404
+
+    try:
+        conn.execute('DELETE FROM template_exercises WHERE template_id = ?', (template_id,))
+        conn.execute('DELETE FROM workout_templates WHERE id = ? AND trainer_id = ?',
+                     (template_id, session['user_id']))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/templates/<template_id>', methods=['PUT'])
+@login_required
+def update_template(template_id):
+    conn = get_db()
+    template = conn.execute('''
+        SELECT * FROM workout_templates 
+        WHERE id = ? AND trainer_id = ?
+    ''', (template_id, session['user_id'])).fetchone()
+
+    if not template:
+        conn.close()
+        return jsonify({'error': 'Template not found'}), 404
+
+    data = request.json
+    template_name = data['name']
+    exercises = data['exercises']
+
+    try:
+        # Update template name
+        conn.execute('''
+            UPDATE workout_templates 
+            SET name = ?, updated_at = ?
+            WHERE id = ? AND trainer_id = ?
+        ''', (template_name, datetime.now(), template_id, session['user_id']))
+
+        # Delete existing exercises
+        conn.execute('DELETE FROM template_exercises WHERE template_id = ?', (template_id,))
+
+        # Add updated exercises
+        for exercise in exercises:
+            exercise_id = str(uuid.uuid4())
+            conn.execute('''
+                INSERT INTO template_exercises (id, template_id, exercise_name, sets_data, notes, exercise_order)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (exercise_id, template_id, exercise['name'],
+                  json.dumps(exercise['sets']), exercise.get('notes', ''), exercise['order']))
+
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/templates/list')
+@login_required
+def list_templates():
+    conn = get_db()
+    templates = conn.execute('''
+        SELECT id, name 
+        FROM workout_templates 
+        WHERE trainer_id = ? 
+        ORDER BY name
+    ''', (session['user_id'],)).fetchall()
+    conn.close()
+
+    return jsonify([{'id': t['id'], 'name': t['name']} for t in templates])
 
 
 if __name__ == '__main__':

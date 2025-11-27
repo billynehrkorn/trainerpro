@@ -124,6 +124,35 @@ def init_database():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS workout_templates (
+            id TEXT PRIMARY KEY,
+            trainer_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (trainer_id) REFERENCES users (id)
+        )
+    ''')
+
+    try:
+        cursor.execute('ALTER TABLE workout_templates ADD COLUMN updated_at TIMESTAMP')
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS template_exercises (
+            id TEXT PRIMARY KEY,
+            template_id TEXT NOT NULL,
+            exercise_name TEXT NOT NULL,
+            sets_data TEXT NOT NULL,
+            notes TEXT,
+            exercise_order INTEGER NOT NULL,
+            FOREIGN KEY (template_id) REFERENCES workout_templates (id)
+        )
+    ''')
+
     # Insert sample exercises if table is empty
     cursor.execute('SELECT COUNT(*) FROM exercises')
     if cursor.fetchone()[0] == 0:

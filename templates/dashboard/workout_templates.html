@@ -1,0 +1,781 @@
+{% extends "base.html" %}
+
+{% block title %}Workout Templates - TrainerPro{% endblock %}
+
+{% block content %}
+<div class="p-4 lg:p-8">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Workout Templates</h1>
+                <p class="text-gray-600 mt-2">Create reusable workout templates to quickly log workouts</p>
+            </div>
+            <button onclick="openCreateTemplateModal()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+                <i class="fas fa-plus mr-2"></i>Create Template
+            </button>
+        </div>
+
+        {% if templates %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for template in templates %}
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <h3 class="text-lg font-semibold text-gray-900">{{ template.name }}</h3>
+                        <!-- Added edit button and reorganized action buttons -->
+                        <div class="flex gap-2">
+                            <button onclick="editTemplate('{{ template.id }}')"
+                                    class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteTemplate('{{ template.id }}')"
+                                    class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm">{{ template.exercise_count }} exercises</p>
+                    <button onclick="viewTemplate('{{ template.id }}')"
+                            class="mt-3 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm font-medium">
+                        <i class="fas fa-eye mr-1"></i>View Details
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-12">
+                <i class="fas fa-puzzle-piece text-gray-400 text-6xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No templates created yet</h3>
+                <p class="text-gray-600 mb-4">Create your first workout template to speed up workout logging.</p>
+                <button onclick="openCreateTemplateModal()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center">
+                    <i class="fas fa-plus mr-2"></i>Create First Template
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Template Modal -->
+<div id="createTemplateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900">Create Workout Template</h2>
+                    <button onclick="closeCreateTemplateModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form id="createTemplateForm" onsubmit="createTemplate(event)">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Template Name</label>
+                        <input type="text" id="templateName" required
+                               placeholder="e.g., Chest Day, Leg Workout"
+                               class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div id="templateExercisesList" class="space-y-6">
+                        <!-- Exercises will be added here -->
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                        <button type="button" onclick="addTemplateExercise()"
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium">
+                            <i class="fas fa-plus mr-2"></i>Add Exercise
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                        <button type="submit"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                            Save Template
+                        </button>
+                        <button type="button" onclick="closeCreateTemplateModal()"
+                                class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Template Modal -->
+<div id="viewTemplateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900" id="viewTemplateName"></h2>
+                    <button onclick="closeViewTemplateModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="viewTemplateContent" class="p-6">
+                <!-- Template details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Template Modal -->
+<div id="editTemplateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900">Edit Workout Template</h2>
+                    <button onclick="closeEditTemplateModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form id="editTemplateForm" onsubmit="updateTemplate(event)">
+                    <input type="hidden" id="editTemplateId">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Template Name</label>
+                        <input type="text" id="editTemplateName" required
+                               placeholder="e.g., Chest Day, Leg Workout"
+                               class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div id="editTemplateExercisesList" class="space-y-6">
+                        <!-- Exercises will be loaded here -->
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                        <button type="button" onclick="addEditTemplateExercise()"
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium">
+                            <i class="fas fa-plus mr-2"></i>Add Exercise
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                        <button type="submit"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                            Update Template
+                        </button>
+                        <button type="button" onclick="closeEditTemplateModal()"
+                                class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let templateExerciseCount = 0;
+let editTemplateExerciseCount = 0;
+
+function openCreateTemplateModal() {
+    const modal = document.getElementById('createTemplateModal');
+    const exercisesList = document.getElementById('templateExercisesList');
+
+    // Clear form
+    document.getElementById('templateName').value = '';
+    exercisesList.innerHTML = '';
+    templateExerciseCount = 0;
+
+    // Add initial exercise
+    addTemplateExercise();
+
+    modal.classList.remove('hidden');
+}
+
+function closeCreateTemplateModal() {
+    document.getElementById('createTemplateModal').classList.add('hidden');
+}
+
+function addTemplateExercise() {
+    const exercisesList = document.getElementById('templateExercisesList');
+
+    const exerciseHtml = `
+        <div class="exercise-row p-4 border border-gray-200 rounded-lg" data-exercise-index="${templateExerciseCount}">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Exercise ${templateExerciseCount + 1}</h3>
+                <button type="button" onclick="removeTemplateExercise(this)" class="text-red-600 hover:text-red-800 ${templateExerciseCount === 0 ? 'hidden' : ''}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Exercise Name</label>
+                <div class="relative">
+                    <input type="text" name="exercise_name[]"
+                           class="exercise-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Start typing exercise name..." required>
+                    <div class="exercise-suggestions hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1"></div>
+                </div>
+            </div>
+
+            <div class="sets-container mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Sets</label>
+                    <button type="button" onclick="addTemplateSet(this)" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        <i class="fas fa-plus"></i> Add Set
+                    </button>
+                </div>
+                <div class="sets-list">
+                    <div class="set-row flex items-center gap-2 mb-2">
+                        <span class="text-sm font-medium text-gray-600 w-12">Set 1:</span>
+                        <input type="number" step="0.5" min="0" placeholder="Weight"
+                               class="set-weight w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-xs text-gray-500">lbs</span>
+                        <input type="number" min="1" placeholder="Reps"
+                               class="set-reps w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-xs text-gray-500">reps</span>
+                        <button type="button" onclick="removeTemplateSet(this)" class="text-red-500 hover:text-red-700 text-sm hidden">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="exercise_notes[]" rows="2"
+                          class="exercise-notes w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Optional notes for this exercise..."></textarea>
+            </div>
+        </div>
+    `;
+
+    exercisesList.insertAdjacentHTML('beforeend', exerciseHtml);
+
+    const newInput = exercisesList.lastElementChild.querySelector('.exercise-input');
+    setupExerciseAutocomplete(newInput);
+
+    templateExerciseCount++;
+    updateTemplateRemoveButtons();
+}
+
+function removeTemplateExercise(button) {
+    button.closest('.exercise-row').remove();
+    updateTemplateExerciseNumbers();
+    updateTemplateRemoveButtons();
+}
+
+function addTemplateSet(button) {
+    const setsContainer = button.closest('.sets-container');
+    const setsList = setsContainer.querySelector('.sets-list');
+    const setCount = setsList.children.length + 1;
+
+    const setRow = document.createElement('div');
+    setRow.className = 'set-row flex items-center gap-2 mb-2';
+    setRow.innerHTML = `
+        <span class="text-sm font-medium text-gray-600 w-12">Set ${setCount}:</span>
+        <input type="number" step="0.5" min="0" placeholder="Weight"
+               class="set-weight w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        <span class="text-xs text-gray-500">lbs</span>
+        <input type="number" min="1" placeholder="Reps"
+               class="set-reps w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        <span class="text-xs text-gray-500">reps</span>
+        <button type="button" onclick="removeTemplateSet(this)" class="text-red-500 hover:text-red-700 text-sm">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    setsList.appendChild(setRow);
+    updateTemplateSetNumbers(setsContainer);
+    updateTemplateSetRemoveButtons(setsContainer);
+}
+
+function removeTemplateSet(button) {
+    const setsContainer = button.closest('.sets-container');
+    button.closest('.set-row').remove();
+    updateTemplateSetNumbers(setsContainer);
+    updateTemplateSetRemoveButtons(setsContainer);
+}
+
+function updateTemplateSetNumbers(setsContainer) {
+    const setRows = setsContainer.querySelectorAll('.set-row');
+    setRows.forEach((row, index) => {
+        row.querySelector('span').textContent = `Set ${index + 1}:`;
+    });
+}
+
+function updateTemplateSetRemoveButtons(setsContainer) {
+    const removeButtons = setsContainer.querySelectorAll('.set-row button');
+    removeButtons.forEach(button => {
+        if (removeButtons.length === 1) {
+            button.classList.add('hidden');
+        } else {
+            button.classList.remove('hidden');
+        }
+    });
+}
+
+function updateTemplateRemoveButtons() {
+    const removeButtons = document.querySelectorAll('#templateExercisesList .exercise-row > div > button[onclick*="removeTemplateExercise"]');
+    removeButtons.forEach(button => {
+        if (removeButtons.length === 1) {
+            button.classList.add('hidden');
+        } else {
+            button.classList.remove('hidden');
+        }
+    });
+}
+
+function updateTemplateExerciseNumbers() {
+    const exercises = document.querySelectorAll('#templateExercisesList .exercise-row h3');
+    exercises.forEach((h3, index) => {
+        h3.textContent = `Exercise ${index + 1}`;
+    });
+}
+
+function setupExerciseAutocomplete(input) {
+    const suggestionsDiv = input.nextElementSibling;
+    let debounceTimer;
+
+    input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const query = this.value.trim();
+
+        if (query.length < 2) {
+            suggestionsDiv.classList.add('hidden');
+            return;
+        }
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`/api/exercises/search?q=${encodeURIComponent(query)}`);
+                const exercises = await response.json();
+
+                if (exercises.length > 0) {
+                    suggestionsDiv.innerHTML = exercises.map(exercise =>
+                        `<div class="exercise-suggestion p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" data-name="${exercise.name}">
+                            <div class="font-medium">${exercise.name}</div>
+                            <div class="text-sm text-gray-600">${exercise.muscle_group} • ${exercise.equipment}</div>
+                        </div>`
+                    ).join('');
+                    suggestionsDiv.classList.remove('hidden');
+                } else {
+                    suggestionsDiv.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Error fetching exercises:', error);
+                suggestionsDiv.classList.add('hidden');
+            }
+        }, 300);
+    });
+
+    suggestionsDiv.addEventListener('click', function(e) {
+        const suggestion = e.target.closest('.exercise-suggestion');
+        if (suggestion) {
+            input.value = suggestion.dataset.name;
+            suggestionsDiv.classList.add('hidden');
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+            suggestionsDiv.classList.add('hidden');
+        }
+    });
+}
+
+async function createTemplate(event) {
+    event.preventDefault();
+
+    const templateName = document.getElementById('templateName').value;
+    const exerciseRows = document.querySelectorAll('#templateExercisesList .exercise-row');
+
+    const exercises = [];
+    exerciseRows.forEach((row, index) => {
+        const name = row.querySelector('.exercise-input').value;
+        const notes = row.querySelector('.exercise-notes').value;
+
+        const setRows = row.querySelectorAll('.set-row');
+        const sets = [];
+        setRows.forEach(setRow => {
+            const weight = setRow.querySelector('.set-weight').value;
+            const reps = setRow.querySelector('.set-reps').value;
+            sets.push({
+                weight: weight ? parseFloat(weight) : null,
+                reps: reps ? parseInt(reps) : null
+            });
+        });
+
+        exercises.push({
+            name: name,
+            sets: sets,
+            notes: notes,
+            order: index
+        });
+    });
+
+    try {
+        const response = await fetch('/api/templates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: templateName,
+                exercises: exercises
+            })
+        });
+
+        if (response.ok) {
+            closeCreateTemplateModal();
+            location.reload();
+        } else {
+            alert('Error creating template');
+        }
+    } catch (error) {
+        console.error('Error creating template:', error);
+        alert('Error creating template');
+    }
+}
+
+async function viewTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/templates/${templateId}`);
+        if (response.ok) {
+            const template = await response.json();
+            displayTemplateDetails(template);
+        } else {
+            alert('Error loading template');
+        }
+    } catch (error) {
+        console.error('Error loading template:', error);
+        alert('Error loading template');
+    }
+}
+
+function displayTemplateDetails(template) {
+    const modal = document.getElementById('viewTemplateModal');
+    const nameElement = document.getElementById('viewTemplateName');
+    const content = document.getElementById('viewTemplateContent');
+
+    nameElement.textContent = template.name;
+
+    let html = '<div class="space-y-4">';
+
+    template.exercises.forEach((exercise, index) => {
+        html += `
+            <div class="bg-gray-50 p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-900 mb-3">${exercise.name}</h4>
+
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <h5 class="text-sm font-medium text-gray-700 mb-2">Sets:</h5>
+        `;
+
+        exercise.sets.forEach((set, setIndex) => {
+            html += `
+                <div class="mb-1 text-sm">
+                    <span class="text-gray-600">Set ${setIndex + 1}:</span>
+                    <span class="bg-white px-2 py-1 rounded border text-gray-700 ml-2">
+                        ${set.weight ? set.weight + ' lbs' : 'N/A'} × ${set.reps || 'N/A'} reps
+                    </span>
+                </div>
+            `;
+        });
+
+        html += `
+                    </div>
+                    <div class="flex-1">
+                        ${exercise.notes ? `
+                            <h5 class="text-sm font-medium text-gray-700 mb-2">Notes:</h5>
+                            <div class="bg-white p-2 rounded border">
+                                <p class="text-sm text-gray-600 italic">"${exercise.notes}"</p>
+                            </div>
+                        ` : '<div class="text-sm text-gray-400">No notes</div>'}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    content.innerHTML = html;
+
+    modal.classList.remove('hidden');
+}
+
+function closeViewTemplateModal() {
+    document.getElementById('viewTemplateModal').classList.add('hidden');
+}
+
+async function deleteTemplate(templateId) {
+    if (!confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/templates/${templateId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error deleting template');
+        }
+    } catch (error) {
+        console.error('Error deleting template:', error);
+        alert('Error deleting template');
+    }
+}
+
+async function editTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/templates/${templateId}`);
+        if (response.ok) {
+            const template = await response.json();
+            loadEditTemplateModal(template);
+        } else {
+            alert('Error loading template');
+        }
+    } catch (error) {
+        console.error('Error loading template:', error);
+        alert('Error loading template');
+    }
+}
+
+function loadEditTemplateModal(template) {
+    const modal = document.getElementById('editTemplateModal');
+    const exercisesList = document.getElementById('editTemplateExercisesList');
+
+    // Set template ID and name
+    document.getElementById('editTemplateId').value = template.id;
+    document.getElementById('editTemplateName').value = template.name;
+
+    // Clear exercises list
+    exercisesList.innerHTML = '';
+    editTemplateExerciseCount = 0;
+
+    // Load exercises
+    template.exercises.forEach((exercise) => {
+        addEditTemplateExercise(exercise);
+    });
+
+    modal.classList.remove('hidden');
+}
+
+function closeEditTemplateModal() {
+    document.getElementById('editTemplateModal').classList.add('hidden');
+}
+
+function addEditTemplateExercise(exerciseData = null) {
+    const exercisesList = document.getElementById('editTemplateExercisesList');
+
+    const exerciseHtml = `
+        <div class="exercise-row p-4 border border-gray-200 rounded-lg" data-exercise-index="${editTemplateExerciseCount}">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Exercise ${editTemplateExerciseCount + 1}</h3>
+                <button type="button" onclick="removeEditTemplateExercise(this)" class="text-red-600 hover:text-red-800">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Exercise Name</label>
+                <div class="relative">
+                    <input type="text" name="exercise_name[]"
+                           class="exercise-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Start typing exercise name..." required
+                           value="${exerciseData ? exerciseData.name : ''}">
+                    <div class="exercise-suggestions hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1"></div>
+                </div>
+            </div>
+
+            <div class="sets-container mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Sets</label>
+                    <button type="button" onclick="addEditTemplateSet(this)" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        <i class="fas fa-plus"></i> Add Set
+                    </button>
+                </div>
+                <div class="sets-list">
+                    ${exerciseData && exerciseData.sets.length > 0 ?
+                        exerciseData.sets.map((set, index) => `
+                            <div class="set-row flex items-center gap-2 mb-2">
+                                <span class="text-sm font-medium text-gray-600 w-12">Set ${index + 1}:</span>
+                                <input type="number" step="0.5" min="0" placeholder="Weight"
+                                       class="set-weight w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                       value="${set.weight || ''}">
+                                <span class="text-xs text-gray-500">lbs</span>
+                                <input type="number" min="1" placeholder="Reps"
+                                       class="set-reps w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                       value="${set.reps || ''}">
+                                <span class="text-xs text-gray-500">reps</span>
+                                <button type="button" onclick="removeEditTemplateSet(this)" class="text-red-500 hover:text-red-700 text-sm ${exerciseData.sets.length === 1 ? 'hidden' : ''}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `).join('') :
+                        `<div class="set-row flex items-center gap-2 mb-2">
+                            <span class="text-sm font-medium text-gray-600 w-12">Set 1:</span>
+                            <input type="number" step="0.5" min="0" placeholder="Weight"
+                                   class="set-weight w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <span class="text-xs text-gray-500">lbs</span>
+                            <input type="number" min="1" placeholder="Reps"
+                                   class="set-reps w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <span class="text-xs text-gray-500">reps</span>
+                            <button type="button" onclick="removeEditTemplateSet(this)" class="text-red-500 hover:text-red-700 text-sm hidden">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>`
+                    }
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="exercise_notes[]" rows="2"
+                          class="exercise-notes w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Optional notes for this exercise...">${exerciseData ? exerciseData.notes : ''}</textarea>
+            </div>
+        </div>
+    `;
+
+    exercisesList.insertAdjacentHTML('beforeend', exerciseHtml);
+
+    const newInput = exercisesList.lastElementChild.querySelector('.exercise-input');
+    setupExerciseAutocomplete(newInput);
+
+    editTemplateExerciseCount++;
+    updateEditTemplateRemoveButtons();
+}
+
+function removeEditTemplateExercise(button) {
+    button.closest('.exercise-row').remove();
+    updateEditTemplateExerciseNumbers();
+    updateEditTemplateRemoveButtons();
+}
+
+function addEditTemplateSet(button) {
+    const setsContainer = button.closest('.sets-container');
+    const setsList = setsContainer.querySelector('.sets-list');
+    const setCount = setsList.children.length + 1;
+
+    const setRow = document.createElement('div');
+    setRow.className = 'set-row flex items-center gap-2 mb-2';
+    setRow.innerHTML = `
+        <span class="text-sm font-medium text-gray-600 w-12">Set ${setCount}:</span>
+        <input type="number" step="0.5" min="0" placeholder="Weight"
+               class="set-weight w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        <span class="text-xs text-gray-500">lbs</span>
+        <input type="number" min="1" placeholder="Reps"
+               class="set-reps w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        <span class="text-xs text-gray-500">reps</span>
+        <button type="button" onclick="removeEditTemplateSet(this)" class="text-red-500 hover:text-red-700 text-sm">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    setsList.appendChild(setRow);
+    updateEditTemplateSetNumbers(setsContainer);
+    updateEditTemplateSetRemoveButtons(setsContainer);
+}
+
+function removeEditTemplateSet(button) {
+    const setsContainer = button.closest('.sets-container');
+    button.closest('.set-row').remove();
+    updateEditTemplateSetNumbers(setsContainer);
+    updateEditTemplateSetRemoveButtons(setsContainer);
+}
+
+function updateEditTemplateSetNumbers(setsContainer) {
+    const setRows = setsContainer.querySelectorAll('.set-row');
+    setRows.forEach((row, index) => {
+        row.querySelector('span').textContent = `Set ${index + 1}:`;
+    });
+}
+
+function updateEditTemplateSetRemoveButtons(setsContainer) {
+    const removeButtons = setsContainer.querySelectorAll('.set-row button');
+    removeButtons.forEach(button => {
+        if (removeButtons.length === 1) {
+            button.classList.add('hidden');
+        } else {
+            button.classList.remove('hidden');
+        }
+    });
+}
+
+function updateEditTemplateRemoveButtons() {
+    const removeButtons = document.querySelectorAll('#editTemplateExercisesList .exercise-row > div > button[onclick*="removeEditTemplateExercise"]');
+    removeButtons.forEach(button => {
+        if (removeButtons.length === 1) {
+            button.classList.add('hidden');
+        } else {
+            button.classList.remove('hidden');
+        }
+    });
+}
+
+function updateEditTemplateExerciseNumbers() {
+    const exercises = document.querySelectorAll('#editTemplateExercisesList .exercise-row h3');
+    exercises.forEach((h3, index) => {
+        h3.textContent = `Exercise ${index + 1}`;
+    });
+}
+
+async function updateTemplate(event) {
+    event.preventDefault();
+
+    const templateId = document.getElementById('editTemplateId').value;
+    const templateName = document.getElementById('editTemplateName').value;
+    const exerciseRows = document.querySelectorAll('#editTemplateExercisesList .exercise-row');
+
+    const exercises = [];
+    exerciseRows.forEach((row, index) => {
+        const name = row.querySelector('.exercise-input').value;
+        const notes = row.querySelector('.exercise-notes').value;
+
+        const setRows = row.querySelectorAll('.set-row');
+        const sets = [];
+        setRows.forEach(setRow => {
+            const weight = setRow.querySelector('.set-weight').value;
+            const reps = setRow.querySelector('.set-reps').value;
+            sets.push({
+                weight: weight ? parseFloat(weight) : null,
+                reps: reps ? parseInt(reps) : null
+            });
+        });
+
+        exercises.push({
+            name: name,
+            sets: sets,
+            notes: notes,
+            order: index
+        });
+    });
+
+    try {
+        const response = await fetch(`/api/templates/${templateId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: templateName,
+                exercises: exercises
+            })
+        });
+
+        if (response.ok) {
+            closeEditTemplateModal();
+            location.reload();
+        } else {
+            alert('Error updating template');
+        }
+    } catch (error) {
+        console.error('Error updating template:', error);
+        alert('Error updating template');
+    }
+}
+</script>
+{% endblock %}
