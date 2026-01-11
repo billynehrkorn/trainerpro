@@ -70,12 +70,31 @@
                             <p class="text-gray-900">{{ client.gender.title() if client.gender else 'Not provided' }}</p>
                         </div>
                         <div>
-                            <!-- Changed "Weight" to "Current Weight" -->
+                            <!-- Display weight from most recent weight log instead of manual client.weight -->
                             <p class="text-sm font-medium text-gray-600">Current Weight</p>
-                            <p class="text-gray-900">{{ client.weight ~ ' lbs' if client.weight else 'Not provided' }}</p>
+                            <!-- Enhanced debug logging for weight display -->
+                            <script>
+                                console.log("[v0] ===== WEIGHT DEBUG START =====");
+                                console.log("[v0] Latest weight raw data:", {{ latest_weight|tojson if latest_weight else 'null' }});
+                                console.log("[v0] Latest weight type:", typeof {{ latest_weight|tojson if latest_weight else 'null' }});
+                                {% if latest_weight %}
+                                console.log("[v0] Weight value:", "{{ latest_weight.weight }}");
+                                console.log("[v0] Date value:", "{{ latest_weight.date }}");
+                                console.log("[v0] Should display weight");
+                                {% else %}
+                                console.log("[v0] No latest_weight found - should show 'Not provided'");
+                                {% endif %}
+                                console.log("[v0] ===== WEIGHT DEBUG END =====");
+                            </script>
+                            {% if latest_weight %}
+                                <p class="text-gray-900">{{ latest_weight.weight }} lbs</p>
+                                <p class="text-xs text-gray-500">Logged on {{ latest_weight.date }}</p>
+                            {% else %}
+                                <p class="text-gray-900">Not provided</p>
+                                <a href="{{ url_for('client_weight_logs', client_id=client.id) }}" class="text-xs text-blue-600 hover:text-blue-800 underline">Add weight log</a>
+                            {% endif %}
                         </div>
                         <div>
-                            <!-- Removed "inches" from height display since it's now text -->
                             <p class="text-sm font-medium text-gray-600">Height</p>
                             <p class="text-gray-900">{{ client.height if client.height else 'Not provided' }}</p>
                         </div>
@@ -171,14 +190,26 @@
                 <div class="space-y-4">
                     <!-- View Workout History Button -->
                     <button onclick="window.location.href='{{ url_for('client_workouts', client_id=client.id) }}'"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-lg font-medium text-lg transition-colors">
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-medium text-lg transition-colors">
                         <i class="fas fa-dumbbell mr-3"></i>View Workout History
                     </button>
 
                     <!-- View Weight Logs Button -->
                     <button onclick="window.location.href='{{ url_for('client_weight_logs', client_id=client.id) }}'"
-                            class="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 px-6 rounded-lg font-medium text-lg transition-colors">
+                            class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg font-medium text-lg transition-colors">
                         <i class="fas fa-weight mr-3"></i>View Weight Logs
+                    </button>
+
+                    <!-- View Nutrition Logs Button -->
+                    <button onclick="window.location.href='{{ url_for('client_nutrition_logs', client_id=client.id) }}'"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg font-medium text-lg transition-colors">
+                        <i class="fas fa-utensils mr-3"></i>View Nutrition Logs
+                    </button>
+
+                    <!-- View Sleep Logs Button -->
+                    <button onclick="window.location.href='{{ url_for('client_sleep_logs', client_id=client.id) }}'"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg font-medium text-lg transition-colors">
+                        <i class="fas fa-moon mr-3"></i>View Sleep Logs
                     </button>
                 </div>
             </div>
@@ -337,7 +368,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-                        <input type="time" id="editEndTime" required
+                        <input type="time" id="editSessionEndTime" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 </div>
@@ -598,7 +629,7 @@ async function editSession(sessionId) {
             document.getElementById('editSessionId').value = session.id;
             document.getElementById('editSessionDate').value = session.session_date;
             document.getElementById('editStartTime').value = session.start_time;
-            document.getElementById('editEndTime').value = session.end_time;
+            document.getElementById('editSessionEndTime').value = session.end_time;
             document.getElementById('editSessionType').value = session.session_type;
             document.getElementById('editSessionNotes').value = session.notes || '';
             document.getElementById('editSessionStatus').value = session.status || 'scheduled';

@@ -24,23 +24,69 @@
             </button>
         </div>
 
+        <!-- Added muscle group filter buttons -->
+        <div class="mb-4 flex flex-wrap gap-2 items-center">
+            <span class="text-sm font-medium text-gray-700">Filter by:</span>
+            <button onclick="filterWorkouts('all')"
+                    class="filter-btn filter-active px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    data-filter="all">
+                All Workouts
+            </button>
+            <button onclick="filterWorkouts('Chest')"
+                    class="filter-btn px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    data-filter="Chest">
+                Chest
+            </button>
+            <button onclick="filterWorkouts('Back')"
+                    class="filter-btn px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    data-filter="Back">
+                Back
+            </button>
+            <button onclick="filterWorkouts('Biceps')"
+                    class="filter-btn px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    data-filter="Biceps">
+                Biceps
+            </button>
+            <button onclick="filterWorkouts('Triceps')"
+                    class="filter-btn px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    data-filter="Triceps">
+                Triceps
+            </button>
+            <button onclick="filterWorkouts('Shoulders')"
+                    class="filter-btn px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    data-filter="Shoulders">
+                Shoulders
+            </button>
+            <button onclick="filterWorkouts('Legs')"
+                    class="filter-btn px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    data-filter="Legs">
+                Legs
+            </button>
+        </div>
+
         {% if workouts %}
             <div class="space-y-4">
                 {% for workout in workouts %}
                 <!-- Compacted workout container with edit functionality -->
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 workout-card">
                     <div class="p-4">
                         <div class="flex items-center justify-between mb-3">
                             <div>
                                 <h3 class="text-lg font-semibold text-gray-900 workout-date" data-date="{{ workout.workout_date }}">{{ workout.workout_date }}</h3>
                                 <p class="text-gray-600 text-sm">{{ workout.exercise_count }} exercises</p>
+                                <!-- Add tags display in workout cards -->
+                                <div class="workout-tags mt-1" data-client-id="{{ client.id }}" data-workout-date="{{ workout.workout_date }}"></div>
                             </div>
                             <div class="flex items-center gap-2">
                                 <button onclick="editWorkout('{{ client.id }}', '{{ workout.workout_date }}')"
                                         class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-medium">
                                     <i class="fas fa-edit mr-1"></i>Edit
                                 </button>
-                                <!-- Added delete button with proper styling -->
+                                <!-- Added duplicate button -->
+                                <button onclick="duplicateWorkout('{{ client.id }}', '{{ workout.workout_date }}')"
+                                        class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-sm font-medium">
+                                    <i class="fas fa-copy mr-1"></i>Duplicate
+                                </button>
                                 <button onclick="deleteWorkout('{{ client.id }}', '{{ workout.workout_date }}')"
                                         class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm font-medium">
                                     <i class="fas fa-trash mr-1"></i>Delete
@@ -108,6 +154,40 @@
                         </select>
                     </div>
 
+                    <!-- Add workout tags section -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Workout Tags</label>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <button type="button" onclick="toggleCreateTag('Chest')" data-tag="Chest"
+                                    class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                                Chest
+                            </button>
+                            <button type="button" onclick="toggleCreateTag('Back')" data-tag="Back"
+                                    class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                                Back
+                            </button>
+                            <button type="button" onclick="toggleCreateTag('Biceps')" data-tag="Biceps"
+                                    class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                                Biceps
+                            </button>
+                            <button type="button" onclick="toggleCreateTag('Triceps')" data-tag="Triceps"
+                                    class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                                Triceps
+                            </button>
+                            <button type="button" onclick="toggleCreateTag('Shoulders')" data-tag="Shoulders"
+                                    class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                                Shoulders
+                            </button>
+                            <button type="button" onclick="toggleCreateTag('Legs')" data-tag="Legs"
+                                    class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                                Legs
+                            </button>
+                        </div>
+                        <!-- Selected tags display -->
+                        <div id="createSelectedTags" class="flex flex-wrap gap-2 min-h-[32px]"></div>
+                        <input type="hidden" id="createWorkoutTags" name="workout_tags" value="">
+                    </div>
+
                     <div id="createExercisesList" class="space-y-6">
                         <!-- Initial exercise will be added here -->
                     </div>
@@ -154,9 +234,154 @@
     </div>
 </div>
 
+<!-- Duplicate Workout Modal -->
+<div id="duplicateWorkoutModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg max-w-md w-full">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900">Duplicate Workout</h2>
+                    <button onclick="closeDuplicateModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form id="duplicateWorkoutForm" onsubmit="submitDuplicateWorkout(event)">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Date for Duplicate</label>
+                        <input type="date" id="duplicateWorkoutDate" required
+                               class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button type="submit"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                            Duplicate Workout
+                        </button>
+                        <button type="button" onclick="closeDuplicateModal()"
+                                class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+/* Filter button styles */
+.filter-btn {
+    background-color: #f3f4f6;
+    color: #4b5563;
+}
+
+.filter-btn:hover {
+    background-color: #e5e7eb;
+}
+
+.filter-active {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.filter-active:hover {
+    background-color: #2563eb;
+}
+</style>
+
 <script>
 let createExerciseCount = 0;
 let templatesLoaded = false;
+
+let createSelectedTags = [];
+
+function toggleCreateTag(tag) {
+    const index = createSelectedTags.indexOf(tag);
+    if (index > -1) {
+        createSelectedTags.splice(index, 1);
+    } else {
+        createSelectedTags.push(tag);
+    }
+    updateCreateTagsDisplay();
+}
+
+function updateCreateTagsDisplay() {
+    const container = document.getElementById('createSelectedTags');
+    const input = document.getElementById('createWorkoutTags');
+
+    // Update hidden input
+    input.value = createSelectedTags.join(',');
+
+    // Update visual display
+    container.innerHTML = createSelectedTags.map(tag => `
+        <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+            ${tag}
+            <button type="button" onclick="toggleCreateTag('${tag}')" class="hover:text-blue-900">
+                <i class="fas fa-times text-xs"></i>
+            </button>
+        </span>
+    `).join('');
+
+    // Update button styles
+    document.querySelectorAll('#createWorkoutModal .tag-btn').forEach(btn => {
+        const tag = btn.getAttribute('data-tag');
+        if (createSelectedTags.includes(tag)) {
+            btn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+            btn.classList.remove('border-gray-300', 'hover:bg-gray-50');
+        } else {
+            btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+            btn.classList.add('border-gray-300', 'hover:bg-gray-50');
+        }
+    });
+}
+
+let editSelectedTags = [];
+
+function toggleEditTag(tag) {
+    const index = editSelectedTags.indexOf(tag);
+    if (index > -1) {
+        editSelectedTags.splice(index, 1);
+    } else {
+        editSelectedTags.push(tag);
+    }
+    updateEditTagsDisplay();
+}
+
+function updateEditTagsDisplay() {
+    const container = document.getElementById('editSelectedTags');
+    const input = document.getElementById('editWorkoutTags');
+
+    if (!container || !input) return;
+
+    // Update hidden input
+    input.value = editSelectedTags.join(',');
+
+    // Update visual display
+    container.innerHTML = editSelectedTags.map(tag => `
+        <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+            ${tag}
+            <button type="button" onclick="toggleEditTag('${tag}')" class="hover:text-blue-900">
+                <i class="fas fa-times text-xs"></i>
+            </button>
+        </span>
+    `).join('');
+
+    // Update button styles
+    document.querySelectorAll('#editWorkoutModal .tag-btn').forEach(btn => {
+        const tag = btn.getAttribute('data-tag');
+        if (editSelectedTags.includes(tag)) {
+            btn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+            btn.classList.remove('border-gray-300', 'hover:bg-gray-50');
+        } else {
+            btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+            btn.classList.add('border-gray-300', 'hover:bg-gray-50');
+        }
+    });
+}
+
 
 function openCreateWorkoutModal() {
     const modal = document.getElementById('createWorkoutModal');
@@ -170,6 +395,9 @@ function openCreateWorkoutModal() {
     exercisesList.innerHTML = '';
     createExerciseCount = 0;
     addCreateExercise();
+
+    createSelectedTags = [];
+    updateCreateTagsDisplay();
 
     modal.classList.remove('hidden');
 }
@@ -341,7 +569,10 @@ function updateCreateExerciseNumbers() {
 async function createWorkout(event, clientId) {
     event.preventDefault();
 
-    const formData = new FormData(event.target);
+    const form = document.getElementById('createWorkoutForm');
+    const formData = new FormData(form);
+
+    formData.append('workout_tags', document.getElementById('createWorkoutTags').value);
 
     try {
         const response = await fetch(`/clients/${clientId}/workouts`, {
@@ -471,63 +702,74 @@ async function importTemplate(templateId) {
 async function editWorkout(clientId, workoutDate) {
     try {
         const response = await fetch(`/clients/${clientId}/workouts/${workoutDate}`);
-        if (response.ok) {
-            const exercises = await response.json();
-            showEditModal(clientId, workoutDate, exercises);
-        } else {
-            alert('Error loading workout for editing');
+        const exercises = await response.json();
+
+        editSelectedTags = [];
+        if (exercises.length > 0 && exercises[0].tags) {
+            editSelectedTags = exercises[0].tags.split(',').filter(t => t.trim());
         }
-    } catch (error) {
-        console.error('Error loading workout for edit:', error);
-        alert('Error loading workout for editing');
-    }
-}
 
-function showEditModal(clientId, workoutDate, exercises) {
-    const modal = document.getElementById('editWorkoutModal');
-    const content = document.getElementById('editWorkoutContent');
-
-    let html = `
-        <form id="editWorkoutForm" onsubmit="updateWorkout(event, '${clientId}', '${workoutDate}')">
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Workout Date</label>
-                <input type="date" value="${workoutDate}" class="w-full p-2 border border-gray-300 rounded-lg" readonly>
-            </div>
-
-            <!-- Added import template section -->
-            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div class="flex items-center justify-between">
-                    <label class="block text-sm font-medium text-gray-700">Import from Template</label>
-                    <button type="button" id="importTemplateBtn" onclick="loadTemplatesDropdown()"
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium">
-                        <i class="fas fa-file-import mr-1"></i>Import
-                    </button>
+        let formHtml = `
+            <form id="editWorkoutForm" onsubmit="submitEditWorkout(event, '${clientId}', '${workoutDate}')">
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Workout Date</label>
+                    <input type="date" id="editWorkoutDate" name="date" value="${workoutDate}" required
+                           class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
-                <select id="templateSelect" class="hidden w-full mt-2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Select a template...</option>
-                </select>
-            </div>
 
-            <div id="editExercisesList" class="space-y-6">
-    `;
+                <!-- Add tags section to edit modal -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Workout Tags</label>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button type="button" onclick="toggleEditTag('Chest')" data-tag="Chest"
+                                class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                            Chest
+                        </button>
+                        <button type="button" onclick="toggleEditTag('Back')" data-tag="Back"
+                                class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                            Back
+                        </button>
+                        <button type="button" onclick="toggleEditTag('Biceps')" data-tag="Biceps"
+                                class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                            Biceps
+                        </button>
+                        <button type="button" onclick="toggleEditTag('Triceps')" data-tag="Triceps"
+                                class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                            Triceps
+                        </button>
+                        <button type="button" onclick="toggleEditTag('Shoulders')" data-tag="Shoulders"
+                                class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                            Shoulders
+                        </button>
+                        <button type="button" onclick="toggleEditTag('Legs')" data-tag="Legs"
+                                class="tag-btn px-3 py-1 border border-gray-300 rounded-full text-sm hover:bg-gray-50">
+                            Legs
+                        </button>
+                    </div>
+                    <div id="editSelectedTags" class="flex flex-wrap gap-2 min-h-[32px]"></div>
+                    <input type="hidden" id="editWorkoutTags" name="workout_tags" value="">
+                </div>
 
-    exercises.forEach((exercise, index) => {
-        // Parse sets data for editing
-        let setsData = [];
-        if (exercise.sets_data && Array.isArray(exercise.sets_data)) {
-            setsData = exercise.sets_data;
-        } else {
-            // Legacy format - create sets from single values
-            const setCount = exercise.sets || 1;
-            for (let i = 0; i < setCount; i++) {
-                setsData.push({
-                    weight: exercise.weight || '',
-                    reps: exercise.reps || ''
-                });
+                <div id="editExercisesList" class="space-y-6">
+        `;
+
+        exercises.forEach((exercise, index) => {
+            // Parse sets data for editing
+            let setsData = [];
+            if (exercise.sets_data && Array.isArray(exercise.sets_data)) {
+                setsData = exercise.sets_data;
+            } else {
+                // Legacy format - create sets from single values
+                const setCount = exercise.sets || 1;
+                for (let i = 0; i < setCount; i++) {
+                    setsData.push({
+                        weight: exercise.weight || '',
+                        reps: exercise.reps || ''
+                    });
+                }
             }
-        }
 
-        html += `
+            formHtml += `
             <div class="exercise-row p-4 border border-gray-200 rounded-lg" data-exercise-index="${index}">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-medium text-gray-900">Exercise ${index + 1}</h3>
@@ -557,8 +799,8 @@ function showEditModal(clientId, workoutDate, exercises) {
                     <div class="sets-list">
         `;
 
-        setsData.forEach((set, setIndex) => {
-            html += `
+            setsData.forEach((set, setIndex) => {
+                formHtml += `
                         <div class="set-row flex items-center gap-2 mb-2">
                             <span class="text-sm font-medium text-gray-600 w-12">Set ${setIndex + 1}:</span>
                             <input type="number" name="exercise_${index}_weight[]" step="0.5" min="0" placeholder="Weight" value="${set.weight || ''}"
@@ -572,9 +814,9 @@ function showEditModal(clientId, workoutDate, exercises) {
                             </button>
                         </div>
             `;
-        });
+            });
 
-        html += `
+            formHtml += `
                     </div>
                 </div>
 
@@ -588,9 +830,9 @@ function showEditModal(clientId, workoutDate, exercises) {
                 <input type="hidden" name="exercise_id[]" value="${exercise.id}">
             </div>
         `;
-    });
+        });
 
-    html += `
+        formHtml += `
             </div>
 
             <div class="flex flex-col sm:flex-row gap-3 mb-6">
@@ -613,28 +855,37 @@ function showEditModal(clientId, workoutDate, exercises) {
         </form>
     `;
 
-    content.innerHTML = html;
-    modal.classList.remove('hidden');
+        document.getElementById('editWorkoutContent').innerHTML = formHtml;
+        document.getElementById('editWorkoutModal').classList.remove('hidden');
 
-    // Setup autocomplete for existing inputs
-    const exerciseInputs = content.querySelectorAll('.exercise-input');
-    exerciseInputs.forEach(input => setupExerciseAutocomplete(input));
+        updateEditTagsDisplay();
+
+        // Setup autocomplete for all exercise inputs
+        document.querySelectorAll('#editWorkoutModal .exercise-input').forEach(input => {
+            setupExerciseAutocomplete(input);
+        });
+
+        editExerciseCount = exercises.length;
+    } catch (error) {
+        console.error('Error loading workout:', error);
+        alert('Failed to load workout details');
+    }
 }
 
 function closeEditModal() {
     document.getElementById('editWorkoutModal').classList.add('hidden');
 }
 
-let exerciseCount = 0;
+let exerciseCount = 0; // This seems to be for the edit modal
 
 function addExercise() {
     const exercisesList = document.getElementById('editExercisesList');
-    exerciseCount = exercisesList.children.length;
+    // exerciseCount = exercisesList.children.length; // This variable seems redundant if using data-exercise-index
 
     const exerciseHtml = `
-        <div class="exercise-row p-4 border border-gray-200 rounded-lg" data-exercise-index="${exerciseCount}">
+        <div class="exercise-row p-4 border border-gray-200 rounded-lg" data-exercise-index="${exercisesList.children.length}">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-medium text-gray-900">Exercise ${exerciseCount + 1}</h3>
+                <h3 class="text-lg font-medium text-gray-900">Exercise ${exercisesList.children.length + 1}</h3>
                 <button type="button" onclick="removeExercise(this)" class="text-red-600 hover:text-red-800">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -660,10 +911,10 @@ function addExercise() {
                 <div class="sets-list">
                     <div class="set-row flex items-center gap-2 mb-2">
                         <span class="text-sm font-medium text-gray-600 w-12">Set 1:</span>
-                        <input type="number" name="exercise_${exerciseCount}_weight[]" step="0.5" min="0" placeholder="Weight"
+                        <input type="number" name="exercise_${exercisesList.children.length}_weight[]" step="0.5" min="0" placeholder="Weight"
                                class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <span class="text-xs text-gray-500">lbs</span>
-                        <input type="number" name="exercise_${exerciseCount}_reps[]" min="1" placeholder="Reps"
+                        <input type="number" name="exercise_${exercisesList.children.length}_reps[]" min="1" placeholder="Reps"
                                class="w-16 sm:w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         <span class="text-xs text-gray-500">reps</span>
                         <button type="button" onclick="removeSet(this)" class="text-red-500 hover:text-red-700 text-sm hidden">
@@ -690,7 +941,7 @@ function addExercise() {
     const newInput = exercisesList.lastElementChild.querySelector('.exercise-input');
     setupExerciseAutocomplete(newInput);
 
-    updateRemoveButtons();
+    updateRemoveButtons(); // Ensure the single exercise remove button is hidden if needed
 }
 
 function setupExerciseAutocomplete(input) {
@@ -815,20 +1066,24 @@ function updateExerciseNumbers() {
     });
 }
 
-async function updateWorkout(event, clientId, workoutDate) {
+async function submitEditWorkout(event, clientId, originalDate) {
     event.preventDefault();
 
-    const formData = new FormData(event.target);
+    const form = document.getElementById('editWorkoutForm');
+    const formData = new FormData(form);
+    const newDate = document.getElementById('editWorkoutDate').value;
+
+    formData.append('workout_tags', document.getElementById('editWorkoutTags').value);
 
     try {
-        const response = await fetch(`/api/update-workout/${clientId}/${workoutDate}`, {
+        const response = await fetch(`/api/update-workout/${clientId}/${originalDate}?new_date=${newDate}`, {
             method: 'POST',
             body: formData
         });
 
         if (response.ok) {
             closeEditModal();
-            location.reload(); // Refresh to show updated workout
+            loadWorkouts(); // Reload the workouts list
         } else {
             alert('Error updating workout');
         }
@@ -889,6 +1144,7 @@ function removeExercise(button) {
 document.addEventListener('DOMContentLoaded', function() {
     formatWorkoutDates();
     loadWorkoutDetails();
+    loadWorkoutTags();
 });
 
 function formatWorkoutDates() {
@@ -952,6 +1208,139 @@ async function loadWorkoutDetails() {
             container.innerHTML = '<p class="text-red-500 text-sm">Error loading exercises</p>';
         }
     }
+}
+
+async function loadWorkouts() {
+    // This function would reload the workouts list from the backend
+    // For simplicity, we'll just reload the page
+    location.reload();
+}
+
+async function loadWorkoutTags() {
+    const workoutTagContainers = document.querySelectorAll('.workout-tags');
+
+    for (const container of workoutTagContainers) {
+        const clientId = container.getAttribute('data-client-id');
+        const workoutDate = container.getAttribute('data-workout-date');
+
+        try {
+            const response = await fetch(`/clients/${clientId}/workouts/${workoutDate}`);
+            const exercises = await response.json();
+
+            // Get tags from first exercise (all exercises in same workout have same tags)
+            if (exercises.length > 0 && exercises[0].tags) {
+                const tags = exercises[0].tags.split(',').filter(t => t.trim());
+                container.innerHTML = tags.map(tag => `
+                    <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs mr-1">
+                        ${tag}
+                    </span>
+                `).join('');
+            }
+        } catch (error) {
+            console.error('[v0] Error loading workout tags:', error);
+        }
+    }
+}
+
+let duplicateWorkoutClientId = null;
+let duplicateWorkoutDate = null;
+
+function duplicateWorkout(clientId, workoutDate) {
+    duplicateWorkoutClientId = clientId;
+    duplicateWorkoutDate = workoutDate;
+
+    const modal = document.getElementById('duplicateWorkoutModal');
+    const dateInput = document.getElementById('duplicateWorkoutDate');
+
+    const today = new Date();
+    dateInput.value = today.toISOString().split('T')[0];
+
+    modal.classList.remove('hidden');
+}
+
+function closeDuplicateModal() {
+    document.getElementById('duplicateWorkoutModal').classList.add('hidden');
+    duplicateWorkoutClientId = null;
+    duplicateWorkoutDate = null;
+}
+
+async function submitDuplicateWorkout(event) {
+    event.preventDefault();
+
+    const newDate = document.getElementById('duplicateWorkoutDate').value;
+
+    console.log('[v0] Duplicate workout - Client ID:', duplicateWorkoutClientId);
+    console.log('[v0] Duplicate workout - Original date:', duplicateWorkoutDate);
+    console.log('[v0] Duplicate workout - New date:', newDate);
+
+    if (!newDate) {
+        alert('Please select a date');
+        return;
+    }
+
+    try {
+        const url = `/clients/${duplicateWorkoutClientId}/workouts/duplicate`;
+        console.log('[v0] Sending request to:', url);
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                original_date: duplicateWorkoutDate,
+                new_date: newDate
+            })
+        });
+
+        console.log('[v0] Response status:', response.status);
+
+        if (response.ok) {
+            closeDuplicateModal();
+            loadWorkouts();
+        } else {
+            const errorData = await response.json();
+            console.error('[v0] Error response:', errorData);
+            alert('Failed to duplicate workout: ' + (errorData.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('[v0] Error duplicating workout:', error);
+        alert('An error occurred while duplicating the workout');
+    }
+}
+
+// Added filter functionality for workouts by muscle group
+let currentFilter = 'all';
+let allWorkoutData = [];
+
+function filterWorkouts(filter) {
+    currentFilter = filter;
+
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-filter') === filter) {
+            btn.classList.add('filter-active');
+        } else {
+            btn.classList.remove('filter-active');
+        }
+    });
+
+    // Show/hide workout cards based on filter
+    const workoutCards = document.querySelectorAll('.workout-card');
+    workoutCards.forEach(card => {
+        if (filter === 'all') {
+            card.style.display = 'block';
+        } else {
+            const tagsContainer = card.querySelector('.workout-tags');
+            const tagsText = tagsContainer ? tagsContainer.textContent : '';
+
+            if (tagsText.includes(filter)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        }
+    });
 }
 </script>
 {% endblock %}

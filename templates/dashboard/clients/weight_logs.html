@@ -4,11 +4,11 @@
 
 {% block content %}
 <div class="p-4 lg:p-8">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
         <!-- Header -->
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
             <div class="flex items-center mb-4 lg:mb-0">
-                <a href="{{ url_for('client_detail', client_id=client.id) }}" 
+                <a href="{{ url_for('client_detail', client_id=client.id) }}"
                    class="text-blue-600 hover:text-blue-800 mr-4">
                     <i class="fas fa-arrow-left text-xl"></i>
                 </a>
@@ -22,6 +22,28 @@
                 <i class="fas fa-plus mr-2"></i>Add Weight Entry
             </button>
         </div>
+
+        <!-- Weight Progress Chart Section -->
+        {% if weight_history %}
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4">
+                <h2 class="text-xl font-semibold text-gray-900 mb-2 lg:mb-0">Weight Progress</h2>
+                <div class="flex gap-2">
+                    <button id="view30Btn" onclick="changeView(30)"
+                            class="px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors">
+                        Last 30
+                    </button>
+                    <button id="viewAllBtn" onclick="changeView('all')"
+                            class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">
+                        All Time
+                    </button>
+                </div>
+            </div>
+            <div class="relative" style="height: 300px;">
+                <canvas id="weightChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Weight Logs Content -->
         <div class="bg-white rounded-lg shadow p-6">
@@ -44,7 +66,6 @@
                                 <p class="text-sm text-gray-700 italic">"{{ entry.notes }}"</p>
                             </div>
                             {% endif %}
-                            <!-- Added edit and delete icons -->
                             <div class="flex items-center space-x-2">
                                 <button onclick="editWeightEntry('{{ entry.id }}', '{{ entry.date }}', '{{ entry.weight }}', '{{ entry.notes or '' }}')"
                                         class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors"
@@ -159,6 +180,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 function formatDates() {
     // Format weight dates
@@ -224,6 +246,158 @@ function deleteWeightEntry(id) {
     }
 }
 
+let weightChart = null;
+let currentView = 30;
+const weightData = {{ weight_history | tojson }};
+
+function initializeChart() {
+    if (!weightData || weightData.length === 0) return;
+
+    // Sort data by date ascending
+    const sortedData = [...weightData].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    renderChart(sortedData);
+}
+
+function renderChart(data) {
+    const ctx = document.getElementById('weightChart');
+    if (!ctx) return;
+
+    // Apply view filter
+    let displayData = data;
+    if (currentView !== 'all' && data.length > currentView) {
+        displayData = data.slice(-currentView);
+    }
+
+    const labels = displayData.map(entry => {
+        const date = new Date(entry.date + 'T00:00:00');
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    });
+
+    const weights = displayData.map(entry => entry.weight);
+
+    // Calculate min and max for better y-axis scaling
+    const minWeight = Math.min(...weights);
+    const maxWeight = Math.max(...weights);
+    const padding = (maxWeight - minWeight) * 0.1 || 5;
+
+    // Destroy existing chart if it exists
+    if (weightChart) {
+        weightChart.destroy();
+    }
+
+    weightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Weight (lbs)',
+                data: weights,
+                borderColor: '#9333ea',
+                backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#9333ea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverBackgroundColor: '#9333ea',
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 14
+                    },
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
+                        label: function(context) {
+                            return context.parsed.y + ' lbs';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: minWeight - padding,
+                    max: maxWeight + padding,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + ' lbs';
+                        },
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        font: {
+                            size: 11
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+function changeView(view) {
+    currentView = view;
+
+    // Update button styles
+    const view30Btn = document.getElementById('view30Btn');
+    const viewAllBtn = document.getElementById('viewAllBtn');
+
+    if (view === 30) {
+        view30Btn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors';
+        viewAllBtn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors';
+    } else {
+        view30Btn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors';
+        viewAllBtn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors';
+    }
+
+    // Re-render chart with new view
+    const sortedData = [...weightData].sort((a, b) => new Date(a.date) - new Date(b.date));
+    renderChart(sortedData);
+}
+
+// Initialize chart when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    formatDates();
+    initializeChart();
+});
+
 document.getElementById('weightForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
@@ -280,8 +454,5 @@ document.getElementById('editWeightForm').addEventListener('submit', async funct
         alert('Error updating weight entry. Please try again.');
     }
 });
-
-// Initialize date formatting when page loads
-document.addEventListener('DOMContentLoaded', formatDates);
 </script>
 {% endblock %}

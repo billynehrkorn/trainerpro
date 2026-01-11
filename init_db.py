@@ -88,6 +88,12 @@ def init_database():
         # Column already exists
         pass
 
+    try:
+        cursor.execute('ALTER TABLE workout_logs ADD COLUMN tags TEXT')
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+
     # Create exercises table for autocomplete
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS exercises (
@@ -150,6 +156,38 @@ def init_database():
             notes TEXT,
             exercise_order INTEGER NOT NULL,
             FOREIGN KEY (template_id) REFERENCES workout_templates (id)
+        )
+    ''')
+
+    # Create nutrition_logs table for tracking meals and nutrition data
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS nutrition_logs (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            date DATE NOT NULL,
+            diet TEXT NOT NULL,
+            estimated_calories INTEGER,
+            estimated_sodium INTEGER,
+            estimated_saturated_fat INTEGER,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES clients (id),
+            UNIQUE(client_id, date)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sleep_logs (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            date DATE NOT NULL,
+            hours REAL NOT NULL,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES clients (id),
+            UNIQUE(client_id, date)
         )
     ''')
 

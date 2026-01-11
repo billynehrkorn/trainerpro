@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Exports - TrainerPro{% endblock %}
+
+{% block content %}
+<div class="py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="md:flex md:items-center md:justify-between mb-6">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Export Client Data
+                </h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Export workout history and weight logs for selected clients
+                </p>
+            </div>
+        </div>
+
+        <!-- Added new section for exporting all client information -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Export All Client Information</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Export a complete list of all clients with their profile information (Name, Email, Phone, Age, Gender, Weight, Height, Status)
+            </p>
+            <form method="POST" action="{{ url_for('export_all_clients') }}">
+                <button type="submit"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                    <i class="fas fa-file-excel mr-2"></i>
+                    Export All Client Info
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-6">
+            <form id="exportForm" method="POST" action="{{ url_for('generate_export') }}">
+                <!-- Client Selection Section -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Select Clients</h3>
+                        <button type="button" id="selectAllBtn" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            Select All
+                        </button>
+                    </div>
+
+                    <!-- Search Clients -->
+                    <div class="mb-4">
+                        <input type="text" id="clientSearch" placeholder="Search clients by name..."
+                               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Client list now hidden by default until search is performed -->
+                    <!-- Client List -->
+                    <div id="clientList" class="space-y-2 max-h-96 overflow-y-auto border border-gray-200 rounded-md p-4">
+                        <p class="text-sm text-gray-500 text-center py-8" id="searchPrompt">
+                            Search for clients above to select them for export
+                        </p>
+                        {% for client in clients %}
+                        <label class="hidden flex items-center p-3 hover:bg-gray-50 rounded-md cursor-pointer client-item" data-name="{{ client.name|lower }}">
+                            <input type="checkbox" name="client_ids" value="{{ client.id }}"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded client-checkbox">
+                            <span class="ml-3 text-sm font-medium text-gray-900">{{ client.name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">
+                        <span id="selectedCount">0</span> client(s) selected
+                    </p>
+                </div>
+
+                <!-- Export Options Section -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Export Options</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center">
+                            <input type="checkbox" name="export_workouts" value="true" checked
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded export-option">
+                            <span class="ml-3 text-sm font-medium text-gray-700">Workout History</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="export_weight_logs" value="true" checked
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded export-option">
+                            <span class="ml-3 text-sm font-medium text-gray-700">Weight Logs</span>
+                        </label>
+                        <!-- Added nutrition logs export option -->
+                        <label class="flex items-center">
+                            <input type="checkbox" name="export_nutrition_logs" value="true" checked
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded export-option">
+                            <span class="ml-3 text-sm font-medium text-gray-700">Nutrition Logs</span>
+                        </label>
+                        <!-- Added sleep logs export option -->
+                        <label class="flex items-center">
+                            <input type="checkbox" name="export_sleep_logs" value="true" checked
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded export-option">
+                            <span class="ml-3 text-sm font-medium text-gray-700">Sleep Logs</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Export Button -->
+                <div class="flex items-center justify-end space-x-3">
+                    <button type="button" onclick="window.location.href='{{ url_for('dashboard') }}'"
+                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" id="exportBtn"
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-download mr-2"></i>
+                        Generate Export
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const clientCheckboxes = document.querySelectorAll('.client-checkbox');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const clientSearch = document.getElementById('clientSearch');
+    const clientItems = document.querySelectorAll('.client-item');
+    const exportBtn = document.getElementById('exportBtn');
+    const exportOptions = document.querySelectorAll('.export-option');
+    const exportForm = document.getElementById('exportForm');
+    const searchPrompt = document.getElementById('searchPrompt');
+
+    // Update selected count
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.client-checkbox:checked').length;
+        selectedCountSpan.textContent = count;
+
+        // Disable export button if no clients or no options selected
+        const hasClients = count > 0;
+        const hasOptions = Array.from(exportOptions).some(option => option.checked);
+        exportBtn.disabled = !hasClients || !hasOptions;
+    }
+
+    // Select all toggle
+    let allSelected = false;
+    selectAllBtn.addEventListener('click', () => {
+        const visibleCheckboxes = Array.from(clientCheckboxes).filter(
+            checkbox => !checkbox.closest('.client-item').classList.contains('hidden')
+        );
+
+        if (visibleCheckboxes.length === 0) return;
+
+        allSelected = !allSelected;
+        visibleCheckboxes.forEach(checkbox => {
+            checkbox.checked = allSelected;
+        });
+        selectAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
+        updateSelectedCount();
+    });
+
+    // Search functionality
+    clientSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+
+        if (searchTerm === '') {
+            // Hide all clients and show search prompt when search is empty
+            clientItems.forEach(item => {
+                item.classList.add('hidden');
+            });
+            searchPrompt.classList.remove('hidden');
+        } else {
+            // Hide search prompt and filter clients
+            searchPrompt.classList.add('hidden');
+            clientItems.forEach(item => {
+                const clientName = item.dataset.name;
+                if (clientName.includes(searchTerm)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        }
+    });
+
+    // Update count when checkboxes change
+    clientCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+
+    // Update button state when export options change
+    exportOptions.forEach(option => {
+        option.addEventListener('change', updateSelectedCount);
+    });
+
+    // Form submission with loading state
+    exportForm.addEventListener('submit', (e) => {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+    });
+
+    // Initial count update
+    updateSelectedCount();
+</script>
+{% endblock %}

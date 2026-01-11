@@ -58,6 +58,11 @@
                 <i class="fas fa-puzzle-piece mr-3"></i>
                 Templates
             </a>
+            <!-- Added Exports link to mobile sidebar -->
+            <a href="{{ url_for('exports') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                <i class="fas fa-file-export mr-3"></i>
+                Exports
+            </a>
             <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
                 <i class="fas fa-sign-out-alt mr-3"></i>
                 Logout
@@ -89,6 +94,11 @@
                     <a href="{{ url_for('workout_templates') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                         <i class="fas fa-puzzle-piece mr-3"></i>
                         Templates
+                    </a>
+                    <!-- Added Exports link to desktop sidebar -->
+                    <a href="{{ url_for('exports') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-file-export mr-3"></i>
+                        Exports
                     </a>
                 </nav>
             </div>
