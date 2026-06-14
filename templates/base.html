@@ -4,12 +4,220 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}TrainerPro{% endblock %}</title>
+
+    <!-- Apply saved theme BEFORE paint to avoid a flash of the wrong theme -->
+    <script>
+        (function () {
+            try {
+                {% if session.theme %}
+                var serverTheme = "{{ session.theme }}";
+                localStorage.setItem('theme', serverTheme);
+                if (serverTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                }
+                {% else %}
+                localStorage.removeItem('theme');
+                document.documentElement.classList.remove('dark');
+                {% endif %}
+            } catch (e) {}
+        })();
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <style>
-        .mobile-nav-open { transform: translateX(0); }
-        .mobile-nav-closed { transform: translateX(-100%); }
-        /* Added backdrop overlay for better UX */
+        html.dark {
+            --navy:        #F1F5F9;
+            --slate-600:   #CBD5E1;
+            --slate-400:   #94A3B8;
+            --slate-300:   #64748B;
+            --slate-200:   #334155;
+            --slate-100:   #1E293B;
+            --slate-50:    #0F172A;
+
+            --emerald-light: #064E3B;
+            --emerald-text:  #6EE7B7;
+            --blue-light:    #1E3A5F;
+            --blue-mid:      #1D4ED8;
+            --red-light:     #4C1D24;
+            --red-mid:       #7F1D1D;
+            --red-text:      #FCA5A5;
+            --amber-light:   #422E0B;
+            --amber-text:    #FCD34D;
+            --green-light:   #064E3B;
+            --green-mid:     #065F46;
+            --green-text:    #6EE7B7;
+
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+            color-scheme: dark;
+        }
+
+        html.dark body { background: var(--slate-50); }
+
+        html.dark .card,
+        html.dark .modal-box,
+        html.dark .filter-card,
+        html.dark .client-card,
+        html.dark .workout-card,
+        html.dark .template-card,
+        html.dark .view-exercise-card,
+        html.dark .session-card,
+        html.dark .entry-card,
+        html.dark .cal-card,
+        html.dark .week-nav,
+        html.dark .back-btn,
+        html.dark .back-link,
+        html.dark .btn-ghost,
+        html.dark .filter-pill,
+        html.dark .tag-toggle-btn,
+        html.dark .toggle-btn,
+        html.dark .option-item,
+        html.dark .search-input,
+        html.dark .form-input,
+        html.dark .form-select,
+        html.dark .form-textarea,
+        html.dark .set-input,
+        html.dark .filter-input,
+        html.dark .filter-select,
+        html.dark .exercise-row,
+        html.dark .prompt-block,
+        html.dark .copy-prompt-btn,
+        html.dark .exercise-suggestions,
+        html.dark .client-avatar-ph {
+            background: #1E293B;
+            color: var(--navy);
+            border-color: var(--slate-200);
+        }
+
+        html.dark .note-card,
+        html.dark .form-section,
+        html.dark .cal-head-time,
+        html.dark .cal-head-day,
+        html.dark .cal-time-cell,
+        html.dark .filter-btn,
+        html.dark .modal-btn-secondary {
+            background: #0F172A;
+            color: var(--navy);
+            border-color: var(--slate-200);
+        }
+
+        html.dark .cal-day-cell:hover,
+        html.dark .client-item:hover,
+        html.dark .option-item:hover,
+        html.dark .btn-ghost:hover { background: #1E293B; }
+
+        html.dark .cal-head-day.today { background: var(--blue-light); }
+
+        html.dark .cal-day-cell,
+        html.dark .cal-time-cell { border-bottom-color: var(--slate-200); }
+
+        html.dark .filter-pill.active {
+            background: var(--blue-mid);
+            border-color: var(--blue-mid);
+            color: #fff;
+        }
+        html.dark .tag-toggle-btn.selected {
+            background: var(--blue-mid);
+            border-color: var(--blue-mid);
+            color: #fff;
+        }
+
+        html.dark .bg-blue-50 { background: #1E3A5F !important; border-color: #1D4ED8 !important; }
+        html.dark .text-blue-800 { color: #BFDBFE !important; }
+
+        /* ── Theme toggle ── */
+        .theme-toggle {
+            display: flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; border-radius: 8px;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--slate-400, #94A3B8);
+            transition: background 0.15s, color 0.15s;
+        }
+        .theme-toggle:hover { background: rgba(148,163,184,0.15); }
+        .theme-toggle .fa-sun { display: none; }
+        html.dark .theme-toggle .fa-moon { display: none; }
+        html.dark .theme-toggle .fa-sun { display: inline; }
+
+        /* ── Sidebar — section labels and active state (both modes) ── */
+        .sidebar-section-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94A3B8;
+            padding: 0 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .sidebar-link { position: relative; border-radius: 6px; }
+        .sidebar-link.active::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 60%;
+            background: #059669;
+            border-radius: 0 3px 3px 0;
+        }
+
+        /* ── Light mode sidebar active link ── */
+        .sidebar-link.active {
+            background: #f0fdf4;
+            color: #059669 !important;
+            font-weight: 600;
+        }
+        .sidebar-link:hover {
+            background: #f1f5f9;
+        }
+
+        /* ── Dark mode sidebar — only kicks in when html.dark is set ── */
+        html.dark .sidebar-inner {
+            background: #0F172A !important;
+        }
+        html.dark .sidebar-inner .sidebar-logo-text {
+            color: #F1F5F9;
+        }
+        html.dark .sidebar-section-label {
+            color: #475569;
+        }
+        html.dark .sidebar-inner .sidebar-link {
+            color: rgba(255,255,255,0.55) !important;
+        }
+        html.dark .sidebar-inner .sidebar-link:hover {
+            background: rgba(255,255,255,0.07) !important;
+            color: rgba(255,255,255,0.9) !important;
+        }
+        html.dark .sidebar-inner .sidebar-link.active {
+            background: rgba(5,150,105,0.18) !important;
+            color: #34D399 !important;
+        }
+        html.dark .sidebar-inner .sidebar-footer {
+            border-top-color: rgba(255,255,255,0.08) !important;
+        }
+        html.dark .sidebar-inner .sidebar-footer .user-name {
+            color: #F1F5F9 !important;
+        }
+        html.dark .sidebar-inner .sidebar-footer .sign-out-link {
+            color: #64748B !important;
+        }
+        html.dark .sidebar-inner .sidebar-footer .sign-out-link:hover {
+            color: #94A3B8 !important;
+        }
+        html.dark .sidebar-inner .theme-toggle {
+            color: rgba(255,255,255,0.4);
+        }
+        html.dark .sidebar-inner .theme-toggle:hover {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.8);
+        }
+    </style>
+
+    <style>
         .mobile-nav-backdrop {
             position: fixed;
             inset: 0;
@@ -25,102 +233,113 @@
         }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50 dark:bg-gray-900">
     {% if session.user_id %}
-    <!-- Added backdrop overlay -->
     <div id="mobile-nav-backdrop" class="mobile-nav-backdrop lg:hidden"></div>
 
     <!-- Mobile Navigation -->
     <div id="mobile-nav"
-         class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:hidden"
-         style="transform: translateX(-100%);">
-        <div class="flex items-center justify-between p-4 border-b">
-            <h2 class="text-xl font-bold text-gray-800">TrainerPro</h2>
-            <button id="close-nav" class="text-gray-500 hover:text-gray-700 p-1">
+         class="sidebar-inner fixed inset-y-0 left-0 z-[9999] w-64 shadow-lg lg:hidden"
+         style="transform: translateX(-100%); transition: transform 0.3s ease-in-out;">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-xl font-bold text-gray-800 sidebar-logo-text">TrainerPro</h2>
+            <button id="close-nav" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 p-1">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
-        <nav class="mt-4">
-            <a href="{{ url_for('dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
-                <i class="fas fa-tachometer-alt mr-3"></i>
-                Dashboard
+        <nav class="mt-2 px-2 space-y-1">
+            <p class="sidebar-section-label mt-3 mb-1">Main</p>
+            <a href="{{ url_for('dashboard') }}"
+               class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt mr-3 w-4 text-center"></i>Dashboard
             </a>
-            <a href="{{ url_for('clients') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
-                <i class="fas fa-users mr-3"></i>
-                Clients
+            <a href="{{ url_for('clients') }}"
+               class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint in ['clients','client_detail','new_client','edit_client'] %}active{% endif %}">
+                <i class="fas fa-users mr-3 w-4 text-center"></i>Clients
             </a>
-            <a href="{{ url_for('calendar') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
-                <i class="fas fa-calendar mr-3"></i>
-                Calendar
+            <a href="{{ url_for('calendar') }}"
+               class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'calendar' %}active{% endif %}">
+                <i class="fas fa-calendar mr-3 w-4 text-center"></i>Calendar
             </a>
-            <!-- Added Templates link to mobile sidebar -->
-            <a href="{{ url_for('workout_templates') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
-                <i class="fas fa-puzzle-piece mr-3"></i>
-                Templates
+            <p class="sidebar-section-label mt-4 mb-1">Tools</p>
+            <a href="{{ url_for('workout_templates') }}"
+               class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'workout_templates' %}active{% endif %}">
+                <i class="fas fa-puzzle-piece mr-3 w-4 text-center"></i>Templates
             </a>
-            <!-- Added Exports link to mobile sidebar -->
-            <a href="{{ url_for('exports') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
-                <i class="fas fa-file-export mr-3"></i>
-                Exports
+            <a href="{{ url_for('exports') }}"
+               class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'exports' %}active{% endif %}">
+                <i class="fas fa-file-export mr-3 w-4 text-center"></i>Exports
             </a>
-            <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
-                <i class="fas fa-sign-out-alt mr-3"></i>
-                Logout
+            <a href="{{ url_for('logout') }}"
+               class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 mt-2">
+                <i class="fas fa-sign-out-alt mr-3 w-4 text-center"></i>Logout
             </a>
         </nav>
     </div>
 
     <!-- Desktop Sidebar -->
     <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div class="flex min-h-0 flex-1 flex-col bg-white shadow-lg">
+        <div class="sidebar-inner flex min-h-0 flex-1 flex-col shadow-lg">
             <div class="flex flex-1 flex-col pt-5 pb-4 overflow-y-auto">
-                <div class="flex items-center flex-shrink-0 px-4">
-                    <h1 class="text-2xl font-bold text-gray-800">TrainerPro</h1>
+                <!-- Logo -->
+                <div class="flex items-center flex-shrink-0 px-4 mb-2">
+                    <h1 class="text-2xl font-bold text-gray-800 sidebar-logo-text">TrainerPro</h1>
                 </div>
-                <nav class="mt-8 flex-1 px-2 space-y-1">
-                    <a href="{{ url_for('dashboard') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-tachometer-alt mr-3"></i>
-                        Dashboard
+
+                <nav class="mt-4 flex-1 px-2 space-y-1">
+                    <p class="sidebar-section-label mt-2 mb-1">Main</p>
+                    <a href="{{ url_for('dashboard') }}"
+                       class="sidebar-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <i class="fas fa-tachometer-alt mr-3 w-4 text-center"></i>Dashboard
                     </a>
-                    <a href="{{ url_for('clients') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-users mr-3"></i>
-                        Clients
+                    <a href="{{ url_for('clients') }}"
+                       class="sidebar-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint in ['clients','client_detail','new_client','edit_client'] %}active{% endif %}">
+                        <i class="fas fa-users mr-3 w-4 text-center"></i>Clients
                     </a>
-                    <a href="{{ url_for('calendar') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-calendar mr-3"></i>
-                        Calendar
+                    <a href="{{ url_for('calendar') }}"
+                       class="sidebar-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'calendar' %}active{% endif %}">
+                        <i class="fas fa-calendar mr-3 w-4 text-center"></i>Calendar
                     </a>
-                    <!-- Added Templates link to desktop sidebar -->
-                    <a href="{{ url_for('workout_templates') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-puzzle-piece mr-3"></i>
-                        Templates
+
+                    <p class="sidebar-section-label mt-4 mb-1">Tools</p>
+                    <a href="{{ url_for('workout_templates') }}"
+                       class="sidebar-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'workout_templates' %}active{% endif %}">
+                        <i class="fas fa-puzzle-piece mr-3 w-4 text-center"></i>Templates
                     </a>
-                    <!-- Added Exports link to desktop sidebar -->
-                    <a href="{{ url_for('exports') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-file-export mr-3"></i>
-                        Exports
+                    <a href="{{ url_for('exports') }}"
+                       class="sidebar-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'exports' %}active{% endif %}">
+                        <i class="fas fa-file-export mr-3 w-4 text-center"></i>Exports
                     </a>
                 </nav>
             </div>
-            <div class="flex-shrink-0 flex border-t border-gray-200 p-4">
-                <div class="flex items-center">
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-700">{{ session.user_name }}</p>
-                        <a href="{{ url_for('logout') }}" class="text-xs text-gray-500 hover:text-gray-700">Sign out</a>
+
+            <!-- User footer -->
+            <div class="sidebar-footer flex-shrink-0 flex border-t border-gray-200 p-4">
+                <div class="flex items-center justify-between w-full">
+                    <div class="ml-1">
+                        <p class="text-sm font-medium user-name">{{ session.user_name }}</p>
+                        <a href="{{ url_for('logout') }}" class="sign-out-link text-xs">Sign out</a>
                     </div>
+                    <button type="button" class="theme-toggle js-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+                        <i class="fas fa-moon"></i>
+                        <i class="fas fa-sun"></i>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Mobile header -->
-    <div class="lg:hidden bg-white shadow-sm border-b">
+    <!-- Mobile header — unchanged from working version -->
+    <div class="lg:hidden bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div class="flex items-center justify-between p-4">
-            <button id="open-nav" class="text-gray-500 hover:text-gray-700 p-1 -ml-1">
+            <button id="open-nav" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 p-1 -ml-1">
                 <i class="fas fa-bars text-xl"></i>
             </button>
-            <h1 class="text-xl font-bold text-gray-800">TrainerPro</h1>
-            <div class="w-6"></div>
+            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">TrainerPro</h1>
+            <button type="button" class="theme-toggle js-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+                <i class="fas fa-moon"></i>
+                <i class="fas fa-sun"></i>
+            </button>
         </div>
     </div>
 
@@ -147,60 +366,47 @@
     {% endif %}
 
     <script>
-        console.log("[v0] Script starting - initializing mobile nav");
-
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("[v0] DOM loaded, finding elements");
-
             const openNav = document.getElementById('open-nav');
-            const closeNav = document.querySelector('.fas.fa-times.text-xl');
+            const closeNav = document.getElementById('close-nav');
             const mobileNav = document.getElementById('mobile-nav');
             const backdrop = document.getElementById('mobile-nav-backdrop');
 
-            console.log("[v0] Elements found:", {
-                openNav: !!openNav,
-                closeNav: !!closeNav,
-                mobileNav: !!mobileNav,
-                backdrop: !!backdrop
-            });
+            function openMobileNav() {
+                mobileNav.style.transform = 'translateX(0)';
+                if (backdrop) backdrop.classList.add('active');
+            }
+            function closeMobileNav() {
+                mobileNav.style.transform = 'translateX(-100%)';
+                if (backdrop) backdrop.classList.remove('active');
+            }
 
+            if (openNav)  openNav.addEventListener('click', openMobileNav);
+            if (closeNav) closeNav.addEventListener('click', closeMobileNav);
+            if (backdrop) backdrop.addEventListener('click', closeMobileNav);
+
+            // Also support touchstart for open button
             if (openNav) {
-                console.log("[v0] Open nav element:", openNav);
-                console.log("[v0] Open nav classes:", openNav.className);
-                console.log("[v0] Open nav parent:", openNav.parentElement);
-            }
-
-            if (closeNav && mobileNav) {
-                console.log("[v0] Adding click listener to close nav button");
-                closeNav.addEventListener('click', function(e) {
-                    console.log("[v0] Close nav button clicked");
-                    e.preventDefault();
-                    mobileNav.style.transform = 'translateX(-100%)';
-                });
-            } else {
-                console.log("[v0] Close nav button not found!");
-            }
-
-            if (openNav && mobileNav) {
-                console.log("[v0] Adding click listener to open nav button");
-                openNav.addEventListener('click', function(e) {
-                    console.log("[v0] Open nav button clicked via click event");
-                    e.preventDefault();
-                    e.stopPropagation();
-                    mobileNav.style.transform = 'translateX(0)';
-                });
-
                 openNav.addEventListener('touchstart', function(e) {
-                    console.log("[v0] Open nav button touched via touchstart");
                     e.preventDefault();
                     e.stopPropagation();
-                    mobileNav.style.transform = 'translateX(0)';
+                    openMobileNav();
                 });
-            } else {
-                console.log("[v0] Open nav button not found!");
             }
 
-            console.log("[v0] Mobile nav script initialization complete");
+            // Dark mode toggle
+            document.querySelectorAll('.js-theme-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var isDark = document.documentElement.classList.toggle('dark');
+                    var theme = isDark ? 'dark' : 'light';
+                    try { localStorage.setItem('theme', theme); } catch (e) {}
+                    fetch('/api/theme', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ theme: theme })
+                    }).catch(function () {});
+                });
+            });
         });
     </script>
 </body>

@@ -3,239 +3,420 @@
 {% block title %}{{ client.name }} - Sleep Logs - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="max-w-6xl mx-auto">
-        <!-- Header -->
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-            <div class="flex items-center mb-4 lg:mb-0">
-                <a href="{{ url_for('client_detail', client_id=client.id) }}" 
-                   class="text-blue-600 hover:text-blue-800 mr-4">
-                    <i class="fas fa-arrow-left text-xl"></i>
-                </a>
-                <div>
-                    <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">{{ client.name }} - Sleep Logs</h1>
-                    <p class="text-gray-600">Track sleep patterns over time</p>
-                </div>
-            </div>
-            <div class="flex gap-3">
-                <!-- Added bulk import button -->
-                <button onclick="openImportModal()"
-                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium">
-                    <i class="fas fa-file-import mr-2"></i>Import CSV/Excel
-                </button>
-                <button onclick="openSleepModal()"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-medium">
-                    <i class="fas fa-plus mr-2"></i>Add Sleep Entry
-                </button>
-            </div>
-        </div>
+<style>
+  :root {
+    --navy: #0F172A;
+    --slate-600: #475569;
+    --slate-400: #94A3B8;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50: #F8FAFC;
+    --emerald: #059669;
+    --emerald-hover: #047857;
+    --indigo: #6366F1;
+    --indigo-hover: #4F46E5;
+    --indigo-light: #E0E7FF;
+    --indigo-text: #3730A3;
+    --blue: #2563EB;
+    --red-light: #FEE2E2;
+    --radius: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
 
-        <!-- Sleep Progress Chart Section -->
-        {% if sleep_history %}
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4">
-                <h2 class="text-xl font-semibold text-gray-900 mb-2 lg:mb-0">Sleep Progress</h2>
-                <div class="flex gap-2">
-                    <button id="view30Btn" onclick="changeView(30)"
-                            class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
-                        Last 30
-                    </button>
-                    <button id="viewAllBtn" onclick="changeView('all')"
-                            class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">
-                        All Time
-                    </button>
-                </div>
-            </div>
-            <div class="relative" style="height: 300px;">
-                <canvas id="sleepChart"></canvas>
-            </div>
-            <!-- Added average sleep display below chart -->
-            <div class="mt-4 text-center">
-                <p class="text-sm text-gray-600">Average Sleep: <span id="averageSleep" class="font-semibold text-indigo-600">-</span></p>
-            </div>
-        </div>
-        {% endif %}
+  body { background: var(--slate-50); }
 
-        <!-- Sleep Logs Content -->
-        <div class="bg-white rounded-lg shadow p-6">
-            {% if sleep_history %}
-                <div class="space-y-3">
-                    {% for entry in sleep_history %}
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                                <i class="fas fa-moon text-indigo-600"></i>
-                            </div>
-                            <div>
-                                <p class="font-semibold text-lg text-gray-900">{{ entry.hours }} hours</p>
-                                <p class="text-sm text-gray-600 sleep-date" data-date="{{ entry.date }}">{{ entry.date }}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            {% if entry.notes %}
-                            <div class="text-right">
-                                <p class="text-sm text-gray-700 italic">"{{ entry.notes }}"</p>
-                            </div>
-                            {% endif %}
-                            <div class="flex items-center space-x-2">
-                                <!-- Add logging to see what ID is being rendered -->
-                                <button onclick="console.log('[v0] Edit clicked for entry:', '{{ entry.id }}', '{{ entry.date }}', '{{ entry.hours }}'); editSleepEntry('{{ entry.id }}', '{{ entry.date }}', '{{ entry.hours }}', '{{ entry.notes or '' }}')"
-                                        class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors"
-                                        title="Edit sleep entry">
-                                    <i class="fas fa-pencil-alt"></i>
-                                </button>
-                                <button onclick="console.log('[v0] Delete clicked for entry:', '{{ entry.id }}'); deleteSleepEntry('{{ entry.id }}')"
-                                        class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50 transition-colors"
-                                        title="Delete sleep entry">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-center py-12">
-                    <i class="fas fa-moon text-gray-300 text-6xl mb-4"></i>
-                    <h3 class="text-xl font-medium text-gray-900 mb-2">No sleep entries yet</h3>
-                    <p class="text-gray-600 mb-6">Start tracking {{ client.name }}'s sleep patterns</p>
-                    <button onclick="openSleepModal()"
-                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-medium">
-                        <i class="fas fa-plus mr-2"></i>Add First Sleep Entry
-                    </button>
-                </div>
-            {% endif %}
-        </div>
+  .page-wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* ── Header ── */
+  .sl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .sl-header-left { display: flex; align-items: center; gap: 1rem; }
+  .back-link {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 8px;
+    color: var(--slate-600); text-decoration: none; flex-shrink: 0;
+    border: 1.5px solid var(--slate-200); background: white;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .back-link:hover { background: var(--slate-50); border-color: var(--slate-400); color: var(--navy); }
+  .sl-title { font-size: 1.75rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .sl-subtitle { font-size: 0.85rem; color: var(--slate-400); margin-top: 0.15rem; }
+
+  .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1rem; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    border: none; text-decoration: none; transition: background 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--indigo); color: white; }
+  .btn-primary:hover { background: var(--indigo-hover); }
+  .btn-secondary { background: var(--emerald); color: white; }
+  .btn-secondary:hover { background: var(--emerald-hover); }
+
+  /* ── Cards ── */
+  .card {
+    background: white;
+    border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.25rem;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1.5px solid var(--slate-100);
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .card-title {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--slate-400);
+  }
+
+  /* ── Chart Toggles ── */
+  .view-toggle { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .toggle-btn {
+    padding: 0.4rem 0.85rem; border-radius: 7px;
+    font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--slate-200); background: white; color: var(--slate-600);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .toggle-btn:hover { background: var(--slate-50); }
+  .toggle-btn.active { background: var(--indigo); color: white; border-color: var(--indigo); }
+  .chart-wrap { position: relative; height: 300px; }
+  .chart-average {
+    margin-top: 1rem; text-align: center;
+    font-size: 0.82rem; color: var(--slate-600);
+  }
+  .chart-average span { font-weight: 700; color: var(--indigo); }
+
+  /* ── Sleep Entries ── */
+  .entries-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .entry-card {
+    display: flex; align-items: stretch;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    overflow: hidden; background: white;
+    transition: border-color 0.15s;
+  }
+  .entry-card:hover { border-color: var(--slate-400); }
+  .entry-accent { width: 4px; flex-shrink: 0; background: var(--indigo); }
+  .entry-body {
+    flex: 1; padding: 0.85rem 0.95rem;
+    display: flex; align-items: flex-start; gap: 0.85rem;
+  }
+  .entry-icon {
+    width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+    background: var(--indigo-light); color: var(--indigo);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem;
+  }
+  .entry-main { flex: 1; min-width: 0; }
+  .entry-hours { font-size: 0.95rem; font-weight: 700; color: var(--navy); }
+  .entry-date-text { font-size: 0.78rem; color: var(--slate-400); margin-top: 0.15rem; }
+  .entry-notes {
+    font-size: 0.82rem; color: var(--slate-600); margin-top: 0.4rem;
+    font-style: italic; white-space: pre-wrap; line-height: 1.5;
+  }
+  .entry-actions {
+    display: flex; align-items: center; gap: 0.25rem; padding: 0.6rem;
+  }
+  .entry-icon-btn {
+    background: none; border: none; cursor: pointer; padding: 0.4rem;
+    color: var(--slate-400); border-radius: 5px; font-size: 0.8rem;
+    transition: color 0.15s, background 0.15s;
+  }
+  .entry-icon-btn.edit:hover { color: var(--blue); background: #EFF6FF; }
+  .entry-icon-btn.remove:hover { color: #EF4444; background: var(--red-light); }
+
+  /* ── Empty States ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 3rem 1rem; text-align: center;
+    color: var(--slate-400);
+  }
+  .empty-state i { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.5; }
+  .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--navy); margin-bottom: 0.35rem; }
+  .empty-state p { font-size: 0.85rem; margin-bottom: 1.25rem; }
+
+  /* ── Modals ── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45);
+    display: none; align-items: center; justify-content: center;
+    z-index: 50; padding: 1rem;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-box {
+    background: white; border-radius: 14px;
+    padding: 1.75rem; width: 100%; max-width: 480px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  }
+  .modal-box.sm { max-width: 440px; }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .modal-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--slate-400); font-size: 1rem; padding: 0.25rem;
+    border-radius: 5px; transition: color 0.15s;
+  }
+  .modal-close:hover { color: var(--navy); }
+
+  .form-group { margin-bottom: 1rem; }
+  .form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-600); margin-bottom: 0.35rem; }
+  .form-label .req { color: #EF4444; }
+  .form-input, .form-textarea {
+    width: 100%; padding: 0.55rem 0.75rem;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    font-size: 0.875rem; color: var(--navy);
+    outline: none; transition: border-color 0.15s;
+    box-sizing: border-box; font-family: inherit;
+  }
+  .form-input:focus, .form-textarea:focus {
+    border-color: var(--indigo);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+  }
+
+  .import-help {
+    background: var(--slate-50); border: 1.5px solid var(--slate-100);
+    border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1rem;
+  }
+  .import-help p { font-size: 0.8rem; color: var(--slate-600); margin-bottom: 0.5rem; }
+  .import-help ul { list-style: disc; padding-left: 1.1rem; }
+  .import-help li { font-size: 0.78rem; color: var(--slate-600); line-height: 1.6; }
+
+  .progress-wrap { margin-top: 1rem; }
+  .progress-track { width: 100%; height: 8px; background: var(--slate-200); border-radius: 999px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--indigo); width: 0%; transition: width 0.2s; }
+  .progress-text { font-size: 0.78rem; color: var(--slate-600); margin-top: 0.5rem; text-align: center; }
+
+  .modal-footer { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
+  .modal-btn {
+    flex: 1; padding: 0.6rem; border-radius: 8px; border: none;
+    font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .modal-btn-primary { background: var(--indigo); color: white; }
+  .modal-btn-primary:hover { background: var(--indigo-hover); }
+  .modal-btn-import { background: var(--emerald); color: white; }
+  .modal-btn-import:hover { background: var(--emerald-hover); }
+  .modal-btn-secondary {
+    background: var(--slate-100); color: var(--slate-600);
+    border: 1.5px solid var(--slate-200);
+  }
+  .modal-btn-secondary:hover { background: var(--slate-200); }
+  .modal-btn-danger { background: #EF4444; color: white; }
+  .modal-btn-danger:hover { background: #DC2626; }
+  .modal-text { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
+
+  @media (max-width: 680px) {
+    .page-wrap { padding: 1rem; }
+    .sl-header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+
+<div class="page-wrap">
+
+  <!-- ── Header ── -->
+  <div class="sl-header">
+    <div class="sl-header-left">
+      <a href="{{ url_for('client_detail', client_id=client.id) }}" class="back-link" title="Back to client">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <div>
+        <div class="sl-title">{{ client.name }} &mdash; Sleep Logs</div>
+        <div class="sl-subtitle">Track sleep patterns over time</div>
+      </div>
     </div>
+    <div class="header-actions">
+      <button onclick="openImportModal()" class="btn btn-secondary">
+        <i class="fas fa-file-import"></i> Import CSV/Excel
+      </button>
+      <button onclick="openSleepModal()" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Sleep Entry
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Sleep Progress Chart ── -->
+  {% if sleep_history %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Sleep Progress</div>
+      <div class="view-toggle">
+        <button id="view30Btn" onclick="changeView(30)" class="toggle-btn active">Last 30</button>
+        <button id="viewAllBtn" onclick="changeView('all')" class="toggle-btn">All Time</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="sleepChart"></canvas>
+    </div>
+    <div class="chart-average">Average Sleep: <span id="averageSleep">-</span></div>
+  </div>
+  {% endif %}
+
+  <!-- ── Sleep Entries ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Sleep History</div>
+    </div>
+    {% if sleep_history %}
+      <div class="entries-list">
+        {% for entry in sleep_history %}
+        <div class="entry-card">
+          <div class="entry-accent"></div>
+          <div class="entry-body">
+            <div class="entry-icon"><i class="fas fa-moon"></i></div>
+            <div class="entry-main">
+              <div class="entry-hours">{{ entry.hours }} hours</div>
+              <div class="entry-date-text sleep-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
+              {% if entry.notes %}
+              <div class="entry-notes">"{{ entry.notes }}"</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="entry-actions">
+            <button onclick="editSleepEntry('{{ entry.id }}', '{{ entry.date }}', '{{ entry.hours }}', '{{ entry.notes or '' }}')"
+                    class="entry-icon-btn edit" title="Edit sleep entry">
+              <i class="fas fa-pencil-alt"></i>
+            </button>
+            <button onclick="deleteSleepEntry('{{ entry.id }}')"
+                    class="entry-icon-btn remove" title="Delete sleep entry">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-moon"></i>
+        <h3>No sleep entries yet</h3>
+        <p>Start tracking {{ client.name }}'s sleep patterns</p>
+        <button onclick="openSleepModal()" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Add First Sleep Entry
+        </button>
+      </div>
+    {% endif %}
+  </div>
 </div>
 
-<!-- Add Sleep Modal -->
-<div id="sleepModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Add Sleep Entry</h3>
-            <button onclick="closeSleepModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="sleepForm">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" id="sleepDate" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Hours of Sleep</label>
-                    <input type="number" id="sleepHours" step="0.5" min="0" max="24" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                    <textarea id="sleepNotes" rows="3"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                              placeholder="Any notes about sleep quality..."></textarea>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md font-medium">
-                    Save Sleep
-                </button>
-                <button type="button" onclick="closeSleepModal()"
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
-                    Cancel
-                </button>
-            </div>
-        </form>
+<!-- ── Add Sleep Modal ── -->
+<div id="sleepModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Add Sleep Entry</div>
+      <button onclick="closeSleepModal()" class="modal-close"><i class="fas fa-times"></i></button>
     </div>
+    <form id="sleepForm">
+      <div class="form-group">
+        <label class="form-label">Date <span class="req">*</span></label>
+        <input type="date" id="sleepDate" required class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hours of Sleep <span class="req">*</span></label>
+        <input type="number" id="sleepHours" step="0.5" min="0" max="24" required class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea id="sleepNotes" rows="3" class="form-textarea" placeholder="Any notes about sleep quality..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="modal-btn modal-btn-primary">Save Sleep</button>
+        <button type="button" onclick="closeSleepModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- Edit Sleep Modal -->
-<div id="editSleepModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Edit Sleep Entry</h3>
-            <button onclick="closeEditSleepModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="editSleepForm">
-            <input type="hidden" id="editSleepId">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" id="editSleepDate" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Hours of Sleep</label>
-                    <input type="number" id="editSleepHours" step="0.5" min="0" max="24" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                    <textarea id="editSleepNotes" rows="3"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                              placeholder="Any notes about sleep quality..."></textarea>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md font-medium">
-                    Update Sleep
-                </button>
-                <button type="button" onclick="closeEditSleepModal()"
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
-                    Cancel
-                </button>
-            </div>
-        </form>
+<!-- ── Edit Sleep Modal ── -->
+<div id="editSleepModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Edit Sleep Entry</div>
+      <button onclick="closeEditSleepModal()" class="modal-close"><i class="fas fa-times"></i></button>
     </div>
+    <form id="editSleepForm">
+      <input type="hidden" id="editSleepId">
+      <div class="form-group">
+        <label class="form-label">Date <span class="req">*</span></label>
+        <input type="date" id="editSleepDate" required class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hours of Sleep <span class="req">*</span></label>
+        <input type="number" id="editSleepHours" step="0.5" min="0" max="24" required class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea id="editSleepNotes" rows="3" class="form-textarea" placeholder="Any notes about sleep quality..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="modal-btn modal-btn-primary">Update Sleep</button>
+        <button type="button" onclick="closeEditSleepModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- Import Sleep Modal -->
-<div id="importModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Import Sleep Data</h3>
-            <button onclick="closeImportModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="mb-4">
-            <p class="text-sm text-gray-600 mb-2">Upload a CSV or Excel file with the following format:</p>
-            <ul class="text-sm text-gray-600 list-disc list-inside space-y-1 bg-gray-50 p-3 rounded">
-                <li>No header row</li>
-                <li>Column 1: Date (MM/DD/YYYY format)</li>
-                <li>Column 2: Hours of sleep (number)</li>
-                <li>Column 3: Notes (optional)</li>
-            </ul>
-        </div>
-        <form id="importForm" enctype="multipart/form-data">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Select File</label>
-                    <input type="file" id="importFile" accept=".csv,.xlsx,.xls" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div id="importProgress" class="hidden">
-                    <div class="w-full bg-gray-200 rounded-full h-2.5">
-                        <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
-                    </div>
-                    <p id="progressText" class="text-sm text-gray-600 mt-2 text-center"></p>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <button type="button" onclick="submitImport()"
-                        class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium">
-                    <i class="fas fa-upload mr-2"></i>Import
-                </button>
-                <button type="button" onclick="closeImportModal()"
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
-                    Cancel
-                </button>
-            </div>
-        </form>
+<!-- ── Import Sleep Modal ── -->
+<div id="importModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Import Sleep Data</div>
+      <button onclick="closeImportModal()" class="modal-close"><i class="fas fa-times"></i></button>
     </div>
+    <div class="import-help">
+      <p>Upload a CSV or Excel file with the following format:</p>
+      <ul>
+        <li>No header row</li>
+        <li>Column 1: Date (MM/DD/YYYY format)</li>
+        <li>Column 2: Hours of sleep (number)</li>
+        <li>Column 3: Notes (optional)</li>
+      </ul>
+    </div>
+    <form id="importForm" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label">Select File</label>
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" required class="form-input">
+      </div>
+      <div id="importProgress" class="progress-wrap" style="display: none;">
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        <p id="progressText" class="progress-text"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="submitImport()" class="modal-btn modal-btn-import">
+          <i class="fas fa-upload"></i> Import
+        </button>
+        <button type="button" onclick="closeImportModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Delete Confirmation Modal ── -->
+<div id="deleteModal" class="modal-backdrop">
+  <div class="modal-box sm">
+    <div class="modal-header">
+      <div class="modal-title">Delete Sleep Entry</div>
+      <button onclick="closeDeleteModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <p class="modal-text">Are you sure you want to delete this sleep entry? This action cannot be undone.</p>
+    <div class="modal-footer">
+      <button type="button" onclick="confirmDelete()" class="modal-btn modal-btn-danger">Delete</button>
+      <button type="button" onclick="closeDeleteModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -257,15 +438,16 @@ function formatDates() {
     });
 }
 
+/* ── Modal helpers ── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
 function openSleepModal() {
-    document.getElementById('sleepModal').classList.remove('hidden');
-    document.getElementById('sleepModal').classList.add('flex');
+    openModal('sleepModal');
     document.getElementById('sleepDate').value = new Date().toISOString().split('T')[0];
 }
-
 function closeSleepModal() {
-    document.getElementById('sleepModal').classList.add('hidden');
-    document.getElementById('sleepModal').classList.remove('flex');
+    closeModal('sleepModal');
     document.getElementById('sleepForm').reset();
 }
 
@@ -274,46 +456,52 @@ function editSleepEntry(id, date, hours, notes) {
     document.getElementById('editSleepDate').value = date;
     document.getElementById('editSleepHours').value = hours;
     document.getElementById('editSleepNotes').value = notes;
-
-    document.getElementById('editSleepModal').classList.remove('hidden');
-    document.getElementById('editSleepModal').classList.add('flex');
+    openModal('editSleepModal');
 }
-
 function closeEditSleepModal() {
-    document.getElementById('editSleepModal').classList.add('hidden');
-    document.getElementById('editSleepModal').classList.remove('flex');
+    closeModal('editSleepModal');
     document.getElementById('editSleepForm').reset();
 }
 
+let pendingDeleteId = null;
 function deleteSleepEntry(id) {
-    if (confirm('Are you sure you want to delete this sleep entry?')) {
-        fetch(`/api/sleep-log/${id}`, {
-            method: 'DELETE'
-        })
+    pendingDeleteId = id;
+    openModal('deleteModal');
+}
+function closeDeleteModal() {
+    pendingDeleteId = null;
+    closeModal('deleteModal');
+}
+function confirmDelete() {
+    if (!pendingDeleteId) return;
+    fetch(`/api/sleep-log/${pendingDeleteId}`, { method: 'DELETE' })
         .then(response => {
             if (response.ok) {
                 location.reload();
             } else {
+                closeDeleteModal();
                 alert('Error deleting sleep entry. Please try again.');
             }
         })
-        .catch(error => {
+        .catch(() => {
+            closeDeleteModal();
             alert('Error deleting sleep entry. Please try again.');
         });
-    }
 }
 
-function openImportModal() {
-    document.getElementById('importModal').classList.remove('hidden');
-    document.getElementById('importModal').classList.add('flex');
-}
-
+function openImportModal() { openModal('importModal'); }
 function closeImportModal() {
-    document.getElementById('importModal').classList.add('hidden');
-    document.getElementById('importModal').classList.remove('flex');
+    closeModal('importModal');
     document.getElementById('importForm').reset();
-    document.getElementById('importProgress').classList.add('hidden');
+    document.getElementById('importProgress').style.display = 'none';
 }
+
+/* Backdrop click-to-dismiss */
+document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', function(e) {
+        if (e.target === backdrop) backdrop.classList.remove('open');
+    });
+});
 
 let sleepChart = null;
 let currentView = 30;
@@ -321,9 +509,7 @@ const sleepData = {{ sleep_history | tojson }};
 
 function initializeChart() {
     if (!sleepData || sleepData.length === 0) return;
-
     const sortedData = [...sleepData].sort((a, b) => new Date(a.date) - new Date(b.date));
-
     renderChart(sortedData);
 }
 
@@ -349,9 +535,7 @@ function renderChart(data) {
     const maxHours = Math.max(...hours);
     const padding = (maxHours - minHours) * 0.1 || 1;
 
-    if (sleepChart) {
-        sleepChart.destroy();
-    }
+    if (sleepChart) sleepChart.destroy();
 
     sleepChart = new Chart(ctx, {
         type: 'line',
@@ -379,25 +563,15 @@ function renderChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    display: false
-                },
+                legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
                     padding: 12,
-                    titleFont: {
-                        size: 14
-                    },
-                    bodyFont: {
-                        size: 14
-                    },
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 14 },
                     callbacks: {
-                        title: function(context) {
-                            return context[0].label;
-                        },
-                        label: function(context) {
-                            return context.parsed.y + ' hours';
-                        }
+                        title: function(context) { return context[0].label; },
+                        label: function(context) { return context.parsed.y + ' hours'; }
                     }
                 }
             },
@@ -407,52 +581,32 @@ function renderChart(data) {
                     min: minHours - padding,
                     max: maxHours + padding,
                     ticks: {
-                        callback: function(value) {
-                            return value.toFixed(1) + ' hrs';
-                        },
-                        font: {
-                            size: 12
-                        }
+                        callback: function(value) { return value.toFixed(1) + ' hrs'; },
+                        font: { size: 12 }
                     },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
                 },
                 x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        font: {
-                            size: 11
-                        }
-                    },
-                    grid: {
-                        display: false
-                    }
+                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } },
+                    grid: { display: false }
                 }
             },
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            }
+            interaction: { intersect: false, mode: 'index' }
         }
     });
 }
 
 function changeView(view) {
     currentView = view;
-
     const view30Btn = document.getElementById('view30Btn');
     const viewAllBtn = document.getElementById('viewAllBtn');
-
     if (view === 30) {
-        view30Btn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors';
-        viewAllBtn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors';
+        view30Btn.classList.add('active');
+        viewAllBtn.classList.remove('active');
     } else {
-        view30Btn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors';
-        viewAllBtn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors';
+        view30Btn.classList.remove('active');
+        viewAllBtn.classList.add('active');
     }
-
     const sortedData = [...sleepData].sort((a, b) => new Date(a.date) - new Date(b.date));
     renderChart(sortedData);
 }
@@ -460,27 +614,22 @@ function changeView(view) {
 document.addEventListener('DOMContentLoaded', function() {
     formatDates();
     initializeChart();
-    console.log('[v0] Sleep logs page loaded');
-    console.log('[v0] Sleep history data:', {{ sleep_history|tojson|safe }});
 });
 
 document.getElementById('sleepForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-
     const formData = {
         client_id: '{{ client.id }}',
         date: document.getElementById('sleepDate').value,
         hours: parseFloat(document.getElementById('sleepHours').value),
         notes: document.getElementById('sleepNotes').value
     };
-
     try {
         const response = await fetch('/api/sleep-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
-
         if (response.ok) {
             closeSleepModal();
             location.reload();
@@ -494,22 +643,18 @@ document.getElementById('sleepForm').addEventListener('submit', async function(e
 
 document.getElementById('editSleepForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-
     const formData = {
         date: document.getElementById('editSleepDate').value,
         hours: parseFloat(document.getElementById('editSleepHours').value),
         notes: document.getElementById('editSleepNotes').value
     };
-
     const id = document.getElementById('editSleepId').value;
-
     try {
         const response = await fetch(`/api/sleep-log/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
-
         if (response.ok) {
             closeEditSleepModal();
             location.reload();
@@ -524,20 +669,18 @@ document.getElementById('editSleepForm').addEventListener('submit', async functi
 function submitImport() {
     const fileInput = document.getElementById('importFile');
     const file = fileInput.files[0];
-
     if (!file) {
         alert('Please select a file to import');
         return;
     }
-
     const formData = new FormData();
     formData.append('file', file);
     formData.append('client_id', '{{ client.id }}');
 
     const uploadingDiv = document.getElementById('importProgress');
-    const importButton = document.querySelector('#importModal button[onclick="submitImport()"]');
+    const importButton = document.querySelector('#importModal .modal-btn-import');
 
-    uploadingDiv.classList.remove('hidden');
+    uploadingDiv.style.display = 'block';
     importButton.disabled = true;
 
     fetch('/api/sleep-log/import', {
@@ -551,16 +694,15 @@ function submitImport() {
             closeImportModal();
             window.location.reload();
         } else {
-            uploadingDiv.classList.add('hidden');
+            uploadingDiv.style.display = 'none';
             importButton.disabled = false;
             alert('Error: ' + (data.error || 'Unknown error occurred'));
         }
     })
-    .catch(error => {
-        uploadingDiv.classList.add('hidden');
+    .catch(() => {
+        uploadingDiv.style.display = 'none';
         importButton.disabled = false;
         alert('Error importing file. Please check the format and try again.');
-        console.error('[v0] Import error:', error);
     });
 }
 </script>

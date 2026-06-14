@@ -14,9 +14,17 @@ def init_database():
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             business_name TEXT,
+            theme TEXT DEFAULT 'light',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # Add theme column for existing databases (safe no-op if it already exists)
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'light'")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
 
     # Create clients table
     cursor.execute('''

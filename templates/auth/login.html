@@ -3,48 +3,191 @@
 {% block title %}Login - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <div>
-            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                Sign in to TrainerPro
-            </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
-                Manage your clients and grow your fitness business
-            </p>
+<style>
+    .auth-wrap {
+        --navy: #0F172A;
+        --bg: #F8FAFC;
+        --emerald: #059669;
+        --emerald-dark: #047857;
+        --border: #E2E8F0;
+        --muted: #64748B;
+        --faint: #94A3B8;
+        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+        --radius: 10px;
+        min-height: calc(100vh - 4rem);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 1rem;
+        background: var(--bg);
+    }
+
+    .auth-card {
+        width: 100%;
+        max-width: 420px;
+        background: #FFFFFF;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .auth-brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        padding: 1.75rem 2rem 0;
+    }
+
+    .auth-brand-mark {
+        width: 38px;
+        height: 38px;
+        border-radius: var(--radius);
+        background: var(--emerald);
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .auth-brand-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--navy);
+        letter-spacing: -0.01em;
+    }
+
+    .auth-head {
+        padding: 1.25rem 2rem 1.5rem;
+        text-align: center;
+        border-bottom: 1.5px solid var(--border);
+    }
+
+    .auth-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--faint);
+        margin-bottom: 0.5rem;
+    }
+
+    .auth-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--navy);
+        letter-spacing: -0.02em;
+        margin: 0 0 0.4rem;
+    }
+
+    .auth-sub {
+        font-size: 0.875rem;
+        color: var(--muted);
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .auth-body {
+        padding: 1.75rem 2rem 2rem;
+    }
+
+    .auth-field {
+        margin-bottom: 1.1rem;
+    }
+
+    .auth-field label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--navy);
+        margin-bottom: 0.4rem;
+    }
+
+    .auth-input {
+        width: 100%;
+        padding: 0.65rem 0.85rem;
+        font-size: 0.9rem;
+        color: var(--navy);
+        background: var(--bg);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+        box-sizing: border-box;
+    }
+
+    .auth-input::placeholder { color: var(--faint); }
+
+    .auth-input:focus {
+        outline: none;
+        background: #FFFFFF;
+        border-color: var(--emerald);
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+    }
+
+    .auth-btn {
+        width: 100%;
+        padding: 0.7rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #FFFFFF;
+        background: var(--emerald);
+        border: none;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: background 0.15s;
+        margin-top: 0.4rem;
+    }
+
+    .auth-btn:hover { background: var(--emerald-dark); }
+
+    .auth-foot {
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-top: 1.4rem;
+    }
+
+    .auth-foot a {
+        color: var(--emerald);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .auth-foot a:hover { color: var(--emerald-dark); text-decoration: underline; }
+</style>
+
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <span class="auth-brand-mark"><i class="fas fa-dumbbell"></i></span>
+            <span class="auth-brand-name">TrainerPro</span>
         </div>
-        <form class="mt-8 space-y-6" method="POST">
-            <div class="rounded-md shadow-sm -space-y-px">
-                <div>
-                    <label for="email" class="sr-only">Email address</label>
-                    <input id="email" name="email" type="email" required 
-                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
-                           placeholder="Email address">
+        <div class="auth-head">
+            <div class="auth-label">Welcome Back</div>
+            <h2 class="auth-title">Sign in to your account</h2>
+            <p class="auth-sub">Manage your clients and grow your fitness business</p>
+        </div>
+        <div class="auth-body">
+            <form method="POST">
+                <div class="auth-field">
+                    <label for="email">Email Address</label>
+                    <input id="email" name="email" type="email" required
+                           class="auth-input" placeholder="your@email.com">
                 </div>
-                <div>
-                    <label for="password" class="sr-only">Password</label>
-                    <input id="password" name="password" type="password" required 
-                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
-                           placeholder="Password">
+                <div class="auth-field">
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" required
+                           class="auth-input" placeholder="Enter your password">
                 </div>
+                <button type="submit" class="auth-btn">Sign In</button>
+            </form>
+            <div class="auth-foot">
+                Don&apos;t have an account?
+                <a href="{{ url_for('signup') }}">Sign up here</a>
             </div>
-
-            <div>
-                <button type="submit" 
-                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Sign in
-                </button>
-            </div>
-
-            <div class="text-center">
-                <p class="text-sm text-gray-600">
-                    Don't have an account? 
-                    <a href="{{ url_for('signup') }}" class="font-medium text-blue-600 hover:text-blue-500">
-                        Sign up here
-                    </a>
-                </p>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}

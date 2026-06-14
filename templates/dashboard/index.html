@@ -3,101 +3,270 @@
 {% block title %}Dashboard - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="mb-8">
-        <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Welcome back, {{ session.user_name }}!</h1>
-        <p class="text-gray-600 mt-2">Here's what's happening with your training business today.</p>
+<style>
+  :root {
+    --navy: #0F172A;
+    --slate-600: #475569;
+    --slate-400: #94A3B8;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50:  #F8FAFC;
+    --emerald:       #059669;
+    --emerald-hover: #047857;
+    --emerald-light: #D1FAE5;
+    --emerald-text:  #065F46;
+    --blue:       #2563EB;
+    --blue-hover: #1D4ED8;
+    --blue-light: #EFF6FF;
+    --purple:       #7C3AED;
+    --purple-light: #F3E8FF;
+    --amber-light:  #FEF3C7;
+    --amber-text:   #92400E;
+    --orange-light: #FFEDD5;
+    --orange-text:  #9A3412;
+    --radius: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body { background: var(--slate-50); }
+  .page-wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* ── Header ── */
+  .dash-header { margin-bottom: 2rem; }
+  .dash-greeting { font-size: 1.75rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .dash-subtitle { font-size: 0.875rem; color: var(--slate-400); margin-top: 0.25rem; }
+
+  /* ── Stat cards ── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: white; border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius); padding: 1.1rem 1.25rem;
+    box-shadow: var(--shadow-sm);
+    display: flex; align-items: center; gap: 0.9rem;
+  }
+  .stat-icon {
+    width: 42px; height: 42px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .stat-icon.blue   { background: var(--blue-light);   color: var(--blue); }
+  .stat-icon.green  { background: var(--emerald-light); color: var(--emerald); }
+  .stat-icon.purple { background: var(--purple-light);  color: var(--purple); }
+  .stat-icon.orange { background: var(--orange-light);  color: #EA580C; }
+  .stat-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--slate-400); }
+  .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--navy); line-height: 1.1; margin-top: 0.1rem; }
+
+  /* ── Main grid ── */
+  .main-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: white; border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem; padding-bottom: 0.75rem;
+    border-bottom: 1.5px solid var(--slate-100);
+  }
+  .card-title {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--slate-400);
+  }
+
+  /* ── Quick actions ── */
+  .action-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .action-link {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.75rem 0.9rem; border-radius: 8px;
+    text-decoration: none; font-size: 0.875rem; font-weight: 600;
+    transition: background 0.13s;
+  }
+  .action-link-icon {
+    width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+  }
+  .action-link.blue   { color: var(--blue);    background: var(--blue-light); }
+  .action-link.blue:hover   { background: #DBEAFE; }
+  .action-link.blue   .action-link-icon { background: rgba(37,99,235,0.15); color: var(--blue); }
+  .action-link.green  { color: var(--emerald); background: var(--emerald-light); }
+  .action-link.green:hover  { background: #A7F3D0; }
+  .action-link.green  .action-link-icon { background: rgba(5,150,105,0.15); color: var(--emerald); }
+  .action-link.purple { color: var(--purple);  background: var(--purple-light); }
+  .action-link.purple:hover { background: #EDE9FE; }
+  .action-link.purple .action-link-icon { background: rgba(124,58,237,0.15); color: var(--purple); }
+
+  /* ── Session list ── */
+  .session-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .session-item {
+    display: flex; align-items: stretch;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    overflow: hidden; transition: border-color 0.15s;
+  }
+  .session-item:hover { border-color: var(--slate-400); }
+  .session-accent { width: 4px; flex-shrink: 0; background: var(--emerald); }
+  .session-body {
+    flex: 1; padding: 0.6rem 0.85rem;
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  }
+  .session-client { font-size: 0.875rem; font-weight: 600; color: var(--navy); }
+  .session-time   { font-size: 0.75rem; color: var(--slate-400); margin-top: 0.1rem; }
+  .session-type-badge {
+    padding: 0.18rem 0.55rem; border-radius: 99px;
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    background: var(--blue-light); color: var(--blue); flex-shrink: 0;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 2.5rem 1rem; text-align: center;
+    color: var(--slate-400);
+  }
+  .empty-state i { font-size: 1.5rem; margin-bottom: 0.5rem; opacity: 0.4; }
+  .empty-state p { font-size: 0.82rem; }
+
+  @media (max-width: 700px) {
+    .page-wrap { padding: 1rem; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .main-grid  { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 420px) {
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+
+    /* ════════════════════════════════════════════════
+     DARK MODE — dashboard-only surfaces.
+     These classes aren't in base.html's dark list, so
+     we theme them here the same way base.html does for
+     shared classes like .card / .template-card.
+  ════════════════════════════════════════════════ */
+  html.dark .stat-card {
+    background: #1E293B;
+    border-color: var(--slate-200);
+  }
+
+  /* Icon chips that use light token backgrounds base.html doesn't remap */
+  html.dark .stat-icon.blue   { background: rgba(37,99,235,0.18);  color: #93C5FD; }
+  html.dark .stat-icon.green  { background: rgba(5,150,105,0.18);  color: #6EE7B7; }
+  html.dark .stat-icon.purple { background: rgba(124,58,237,0.22); color: #C4B5FD; }
+  html.dark .stat-icon.orange { background: rgba(234,88,12,0.20);  color: #FDBA74; }
+
+  /* Quick-action links */
+  html.dark .action-link.blue   { background: rgba(37,99,235,0.15);  color: #93C5FD; }
+  html.dark .action-link.blue:hover   { background: rgba(37,99,235,0.25); }
+  html.dark .action-link.blue   .action-link-icon { background: rgba(37,99,235,0.25); color: #93C5FD; }
+  html.dark .action-link.green  { background: rgba(5,150,105,0.15);  color: #6EE7B7; }
+  html.dark .action-link.green:hover  { background: rgba(5,150,105,0.25); }
+  html.dark .action-link.green  .action-link-icon { background: rgba(5,150,105,0.25); color: #6EE7B7; }
+  html.dark .action-link.purple { background: rgba(124,58,237,0.18); color: #C4B5FD; }
+  html.dark .action-link.purple:hover { background: rgba(124,58,237,0.28); }
+  html.dark .action-link.purple .action-link-icon { background: rgba(124,58,237,0.28); color: #C4B5FD; }
+
+  /* Session list + badge */
+  html.dark .session-item { border-color: var(--slate-200); }
+  html.dark .session-item:hover { border-color: var(--slate-400); }
+  html.dark .session-type-badge { background: rgba(37,99,235,0.18); color: #93C5FD; }
+</style>
+
+<div class="page-wrap">
+
+  <!-- ── Header ── -->
+  <div class="dash-header">
+    <div class="dash-greeting">Welcome back, {{ session.user_name }}!</div>
+    <div class="dash-subtitle">Here's what's happening with your training business today.</div>
+  </div>
+
+  <!-- ── Stats ── -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+      <div>
+        <div class="stat-label">Total Clients</div>
+        <div class="stat-value">{{ total_clients }}</div>
+      </div>
     </div>
-
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-2 bg-blue-100 rounded-lg">
-                    <i class="fas fa-users text-blue-600 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Total Clients</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ total_clients }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-2 bg-green-100 rounded-lg">
-                    <i class="fas fa-user-check text-green-600 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Active Clients</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ active_clients }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-2 bg-purple-100 rounded-lg">
-                    <i class="fas fa-calendar-check text-purple-600 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Today's Sessions</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ recent_sessions|length }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-2 bg-orange-100 rounded-lg">
-                    <i class="fas fa-dumbbell text-orange-600 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">This Week</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ recent_sessions|length }}</p>
-                </div>
-            </div>
-        </div>
+    <div class="stat-card">
+      <div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+      <div>
+        <div class="stat-label">Active Clients</div>
+        <div class="stat-value">{{ active_clients }}</div>
+      </div>
     </div>
+    <div class="stat-card">
+      <div class="stat-icon purple"><i class="fas fa-calendar-check"></i></div>
+      <div>
+        <div class="stat-label">Today's Sessions</div>
+        <div class="stat-value">{{ recent_sessions|length }}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange"><i class="fas fa-dumbbell"></i></div>
+      <div>
+        <div class="stat-label">This Week</div>
+        <div class="stat-value">{{ recent_sessions|length }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main grid ── -->
+  <div class="main-grid">
 
     <!-- Quick Actions -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div class="space-y-3">
-                <a href="{{ url_for('new_client') }}" class="flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                    <i class="fas fa-user-plus text-blue-600 mr-3"></i>
-                    <span class="text-blue-800 font-medium">Add New Client</span>
-                </a>
-                <a href="{{ url_for('calendar') }}" class="flex items-center p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-                    <i class="fas fa-calendar-plus text-green-600 mr-3"></i>
-                    <span class="text-green-800 font-medium">Schedule Session</span>
-                </a>
-                <a href="{{ url_for('clients') }}" class="flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-                    <i class="fas fa-users text-purple-600 mr-3"></i>
-                    <span class="text-purple-800 font-medium">View All Clients</span>
-                </a>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Upcoming Sessions</h2>
-            {% if recent_sessions %}
-                <div class="space-y-3">
-                    {% for session in recent_sessions %}
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                            <p class="font-medium text-gray-900">{{ session.client_name }}</p>
-                            <p class="text-sm text-gray-600">{{ session.session_date }} at {{ session.start_time }}</p>
-                        </div>
-                        <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{{ session.session_type }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="text-gray-500 text-center py-8">No upcoming sessions scheduled</p>
-            {% endif %}
-        </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Quick Actions</span>
+      </div>
+      <div class="action-list">
+        <a href="{{ url_for('new_client') }}" class="action-link blue">
+          <div class="action-link-icon"><i class="fas fa-user-plus"></i></div>
+          Add New Client
+        </a>
+        <a href="{{ url_for('calendar') }}" class="action-link green">
+          <div class="action-link-icon"><i class="fas fa-calendar-plus"></i></div>
+          Schedule Session
+        </a>
+        <a href="{{ url_for('clients') }}" class="action-link purple">
+          <div class="action-link-icon"><i class="fas fa-users"></i></div>
+          View All Clients
+        </a>
+      </div>
     </div>
+
+    <!-- Upcoming Sessions -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Upcoming Sessions</span>
+      </div>
+      {% if recent_sessions %}
+        <div class="session-list">
+          {% for session in recent_sessions %}
+          <div class="session-item">
+            <div class="session-accent"></div>
+            <div class="session-body">
+              <div>
+                <div class="session-client">{{ session.client_name }}</div>
+                <div class="session-time">{{ session.session_date }} &middot; {{ session.start_time }}</div>
+              </div>
+              <span class="session-type-badge">{{ session.session_type }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <i class="fas fa-calendar-xmark"></i>
+          <p>No upcoming sessions scheduled</p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
 </div>
 {% endblock %}

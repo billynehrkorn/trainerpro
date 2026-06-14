@@ -3,102 +3,217 @@
 {% block title %}Session History - {{ client.name }} - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="max-w-4xl mx-auto">
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center">
-                <a href="{{ url_for('client_detail', client_id=client.id) }}" 
-                   class="text-gray-600 hover:text-gray-800 mr-4">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
-                <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Session History - {{ client.name }}</h1>
-            </div>
-        </div>
+<style>
+  /* ── All variables live at :root so html.dark in base.html remaps them ── */
+  :root {
+    --navy: #0F172A;
+    --slate-600: #475569;
+    --slate-400: #94A3B8;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50:  #F8FAFC;
+    --emerald:       #059669;
+    --red:           #DC2626;
+    --radius: 10px;
+    --shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
+  }
 
-        <!-- Session History -->
-        <div class="bg-white rounded-lg shadow">
-            {% if all_sessions %}
-                <div class="divide-y divide-gray-200">
-                    {% for session in all_sessions %}
-                    <div class="p-4 
-                        {% if session.status == 'completed' %}bg-green-50
-                        {% elif session.status == 'cancelled' %}bg-red-50
-                        {% else %}bg-white{% endif %}">
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1">
-                                <div class="flex items-center gap-4">
-                                    <div>
-                                        <p class="font-medium text-gray-900 session-date" data-date="{{ session.session_date }}">{{ session.session_date }}</p>
-                                        <p class="text-sm text-gray-600 session-time" data-start="{{ session.start_time }}" data-end="{{ session.end_time }}">{{ session.start_time }} - {{ session.end_time }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">{{ session.session_type }}</span>
-                                        <span class="text-xs px-2 py-1 rounded-full
-                                            {% if session.status == 'completed' %}bg-green-100 text-green-800
-                                            {% elif session.status == 'cancelled' %}bg-red-100 text-red-800
-                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                            {{ session.status.title() }}
-                                        </span>
-                                        {% if session.notes %}
-                                        <i class="fas fa-exclamation-circle text-red-500 text-sm" title="Has notes"></i>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% if session.notes %}
-                                <div class="mt-2 text-sm text-gray-600">
-                                    <strong>Notes:</strong> {{ session.notes }}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="p-8 text-center">
-                    <p class="text-gray-500">No session history found</p>
-                </div>
-            {% endif %}
-        </div>
+  body { background: var(--slate-50); }
+
+  .sh-wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  /* ── Header ── */
+  .sh-header {
+    display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .sh-back {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px;
+    border: 1.5px solid var(--slate-200); border-radius: var(--radius);
+    color: var(--slate-600); background: white; text-decoration: none;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .sh-back:hover { border-color: var(--slate-400); color: var(--navy); }
+  .sh-label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+    font-weight: 700; color: var(--slate-400); margin: 0 0 0.15rem;
+  }
+  .sh-title {
+    font-size: 1.75rem; font-weight: 700; color: var(--navy);
+    margin: 0; line-height: 1.2;
+  }
+
+  /* ── Card ── */
+  .sh-card {
+    background: white; border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .sh-card-head {
+    padding: 1rem 1.25rem; border-bottom: 1.5px solid var(--slate-200);
+  }
+  .sh-card-head h2 {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+    font-weight: 700; color: var(--slate-400); margin: 0;
+  }
+
+  /* ── Session items ── */
+  .sh-list { display: flex; flex-direction: column; }
+  .sh-item {
+    position: relative;
+    padding: 1rem 1.25rem 1rem 1.5rem;
+    border-bottom: 1.5px solid var(--slate-200);
+  }
+  .sh-item:last-child { border-bottom: none; }
+
+  /* accent strip */
+  .sh-item::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--slate-400);
+  }
+  .sh-item.is-completed::before { background: var(--emerald); }
+  .sh-item.is-cancelled::before { background: var(--red); }
+
+  .sh-item-top {
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+  .sh-date { font-weight: 600; font-size: 0.875rem; color: var(--navy); margin: 0; }
+  .sh-time { font-size: 0.8rem; color: var(--slate-600); margin: 0.1rem 0 0; }
+
+  /* ── Badges ── */
+  .sh-badges { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .sh-badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.7rem; font-weight: 600;
+    padding: 0.25rem 0.6rem; border-radius: 999px; text-transform: capitalize;
+  }
+  .sh-badge-type     { background: #EFF6FF; color: #1D4ED8; }
+  .sh-badge-status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .sh-badge-completed { background: #ECFDF5; color: #047857; }
+  .sh-badge-cancelled { background: #FEF2F2; color: #B91C1C; }
+  .sh-badge-scheduled { background: var(--slate-100); color: var(--slate-600); }
+
+  .sh-notes-flag { color: var(--red); font-size: 0.8rem; }
+  .sh-notes {
+    margin-top: 0.6rem; font-size: 0.8rem;
+    color: var(--slate-600); line-height: 1.5;
+  }
+  .sh-notes strong { color: var(--navy); font-weight: 600; }
+
+  /* ── Empty ── */
+  .sh-empty { padding: 3rem 1.25rem; text-align: center; color: var(--slate-400); }
+  .sh-empty i { font-size: 1.75rem; margin-bottom: 0.6rem; display: block; }
+  .sh-empty p { font-size: 0.875rem; margin: 0; }
+
+  /* ── Dark mode ──
+     .sh-card and .sh-back use literal `white`; everything else reads tokens
+     that base.html already remaps via html.dark :root. */
+  html.dark .sh-card,
+  html.dark .sh-back {
+    background: #1E293B;
+    border-color: var(--slate-200);
+  }
+  html.dark .sh-back { color: var(--slate-600); }
+  html.dark .sh-back:hover { border-color: var(--slate-400); color: var(--navy); }
+  html.dark .sh-card-head,
+  html.dark .sh-item { border-bottom-color: var(--slate-200); }
+
+  /* Badge tints — the light hex values don't remap via tokens, so we theme them */
+  html.dark .sh-badge-type      { background: rgba(37,99,235,0.18);  color: #93C5FD; }
+  html.dark .sh-badge-completed { background: rgba(5,150,105,0.18);  color: #6EE7B7; }
+  html.dark .sh-badge-cancelled { background: rgba(220,38,38,0.18);  color: #FCA5A5; }
+  html.dark .sh-badge-scheduled { background: rgba(148,163,184,0.18); color: #CBD5E1; }
+</style>
+
+<div class="sh-wrap">
+  <div class="sh-header">
+    <a href="{{ url_for('client_detail', client_id=client.id) }}" class="sh-back" aria-label="Back to client">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <div>
+      <p class="sh-label">Session History</p>
+      <h1 class="sh-title">{{ client.name }}</h1>
     </div>
+  </div>
+
+  <div class="sh-card">
+    <div class="sh-card-head">
+      <h2>All Sessions</h2>
+    </div>
+
+    {% if all_sessions %}
+      <div class="sh-list">
+        {% for session in all_sessions %}
+        <div class="sh-item
+          {% if session.status == 'completed' %}is-completed
+          {% elif session.status == 'cancelled' %}is-cancelled{% endif %}">
+          <div class="sh-item-top">
+            <div>
+              <p class="sh-date session-date" data-date="{{ session.session_date }}">{{ session.session_date }}</p>
+              <p class="sh-time session-time" data-start="{{ session.start_time }}" data-end="{{ session.end_time }}">{{ session.start_time }} - {{ session.end_time }}</p>
+            </div>
+            <div class="sh-badges">
+              <span class="sh-badge sh-badge-type">{{ session.session_type }}</span>
+              <span class="sh-badge sh-badge-status
+                {% if session.status == 'completed' %}sh-badge-completed
+                {% elif session.status == 'cancelled' %}sh-badge-cancelled
+                {% else %}sh-badge-scheduled{% endif %}">
+                <span class="dot"></span>{{ session.status.title() }}
+              </span>
+              {% if session.notes %}
+              <i class="fas fa-exclamation-circle sh-notes-flag" title="Has notes"></i>
+              {% endif %}
+            </div>
+          </div>
+          {% if session.notes %}
+          <div class="sh-notes">
+            <strong>Notes:</strong> {{ session.notes }}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="sh-empty">
+        <i class="fas fa-calendar-day"></i>
+        <p>No session history found</p>
+      </div>
+    {% endif %}
+  </div>
 </div>
 
 <script>
 function formatDates() {
-    // Format session dates
-    document.querySelectorAll('.session-date').forEach(element => {
-        const dateStr = element.getAttribute('data-date');
-        if (dateStr) {
-            const date = new Date(dateStr + 'T00:00:00');
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            const formattedDate = date.toLocaleDateString('en-US', options);
-            const dayNum = date.getDate();
-            let suffix = 'th';
-            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
-            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
-            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
-            element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
-        }
-    });
+  document.querySelectorAll('.session-date').forEach(el => {
+    const d = el.dataset.date;
+    if (!d) return;
+    const date = new Date(d + 'T00:00:00');
+    const opts = { year: 'numeric', month: 'long', day: 'numeric' };
+    const str = date.toLocaleDateString('en-US', opts);
+    const day = date.getDate();
+    let sfx = 'th';
+    if (day % 10 === 1 && day !== 11) sfx = 'st';
+    else if (day % 10 === 2 && day !== 12) sfx = 'nd';
+    else if (day % 10 === 3 && day !== 13) sfx = 'rd';
+    el.textContent = str.replace(/(\d+),/, `$1${sfx},`);
+  });
 
-    // Format session times
-    document.querySelectorAll('.session-time').forEach(element => {
-        const startTime = element.getAttribute('data-start');
-        const endTime = element.getAttribute('data-end');
-        if (startTime && endTime) {
-            const formatTime = (time) => {
-                const [hours, minutes] = time.split(':');
-                const hour = parseInt(hours);
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const displayHour = hour % 12 || 12;
-                return `${displayHour}:${minutes} ${ampm}`;
-            };
-            element.textContent = `${formatTime(startTime)} - ${formatTime(endTime)}`;
-        }
-    });
+  document.querySelectorAll('.session-time').forEach(el => {
+    const s = el.dataset.start, e = el.dataset.end;
+    if (!s || !e) return;
+    const fmt = t => {
+      const [h, m] = t.split(':');
+      const hr = parseInt(h);
+      return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+    };
+    el.textContent = `${fmt(s)} – ${fmt(e)}`;
+  });
 }
-
 document.addEventListener('DOMContentLoaded', formatDates);
 </script>
 {% endblock %}

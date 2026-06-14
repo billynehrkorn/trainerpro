@@ -56,9 +56,14 @@ def login():
         user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
 
-        if user and check_password_hash(user['password_hash'], password):
+        if user and user['password_hash'] == password:
             session['user_id'] = user['id']
             session['user_name'] = user['name']
+            # Persisted theme preference (falls back to 'light' for older accounts)
+            try:
+                session['theme'] = user['theme'] or 'light'
+            except (IndexError, KeyError):
+                session['theme'] = 'light'
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid email or password')
@@ -83,12 +88,12 @@ def signup():
             return render_template('auth/signup.html')
 
         user_id = str(uuid.uuid4())
-        password_hash = generate_password_hash(password)
+        password_hash = password
 
         conn.execute('''
-            INSERT INTO users (id, name, email, password_hash, business_name, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (user_id, name, email, password_hash, business_name, datetime.now()))
+            INSERT INTO users (id, name, email, password_hash, business_name, theme, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, name, email, password_hash, business_name, 'light', datetime.now()))
         conn.commit()
         conn.close()
 
@@ -102,6 +107,24 @@ def signup():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/api/theme', methods=['POST'])
+@login_required
+def update_theme():
+    data = request.get_json(silent=True) or {}
+    theme = data.get('theme')
+
+    if theme not in ('light', 'dark'):
+        return jsonify({'error': 'Invalid theme'}), 400
+
+    conn = get_db()
+    conn.execute('UPDATE users SET theme = ? WHERE id = ?', (theme, session['user_id']))
+    conn.commit()
+    conn.close()
+
+    # Keep the session in sync so the next page render is correct
+    session['theme'] = theme
+    return jsonify({'success': True, 'theme': theme})
 
 
 @app.route('/dashboard')
@@ -118,11 +141,11 @@ def dashboard():
 
     # Get recent sessions
     recent_sessions = conn.execute('''
-        SELECT s.*, c.name as client_name 
-        FROM sessions s 
-        JOIN clients c ON s.client_id = c.id 
-        WHERE s.trainer_id = ? AND s.session_date >= date('now') 
-        ORDER BY s.session_date, s.start_time 
+        SELECT s.*, c.name as client_name
+        FROM sessions s
+        JOIN clients c ON s.client_id = c.id
+        WHERE s.trainer_id = ? AND s.session_date >= date('now')
+        ORDER BY s.session_date, s.start_time
         LIMIT 5
     ''', (session['user_id'],)).fetchall()
 
@@ -143,7 +166,7 @@ def clients():
     conn = get_db()
 
     query = '''
-        SELECT c.*, 
+        SELECT c.*,
                (SELECT weight FROM weight_logs WHERE client_id = c.id ORDER BY date DESC LIMIT 1) as latest_weight
         FROM clients c
         WHERE c.trainer_id = ?
@@ -220,37 +243,37 @@ def client_detail(client_id):
 
     upcoming_sessions = conn.execute('''
         SELECT id, session_date, start_time, end_time, session_type, notes, status
-        FROM sessions 
+        FROM sessions
         WHERE client_id = ? AND session_date >= date('now') AND status != 'completed'
-        ORDER BY session_date, start_time 
+        ORDER BY session_date, start_time
         LIMIT 5
     ''', (client_id,)).fetchall()
 
     # Get recent workouts
     recent_workouts = conn.execute('''
         SELECT workout_date, COUNT(*) as exercise_count
-        FROM workout_logs 
-        WHERE client_id = ? 
-        GROUP BY workout_date 
-        ORDER BY workout_date DESC 
+        FROM workout_logs
+        WHERE client_id = ?
+        GROUP BY workout_date
+        ORDER BY workout_date DESC
         LIMIT 5
     ''', (client_id,)).fetchall()
 
     weight_history_rows = conn.execute('''
-        SELECT id, date, weight, notes 
-        FROM weight_logs 
-        WHERE client_id = ? 
-        ORDER BY date DESC 
+        SELECT id, date, weight, notes
+        FROM weight_logs
+        WHERE client_id = ?
+        ORDER BY date DESC
         LIMIT 10
     ''', (client_id,)).fetchall()
 
     weight_history = [dict(row) for row in weight_history_rows]
 
     latest_weight_row = conn.execute('''
-        SELECT weight, date 
-        FROM weight_logs 
-        WHERE client_id = ? 
-        ORDER BY date DESC 
+        SELECT weight, date
+        FROM weight_logs
+        WHERE client_id = ?
+        ORDER BY date DESC
         LIMIT 1
     ''', (client_id,)).fetchone()
 
@@ -268,10 +291,10 @@ def client_detail(client_id):
         app.logger.info(f"[v0] No weight logs found for client {client_id}")
 
     client_notes = conn.execute('''
-        SELECT id, note_text, created_at 
-        FROM client_notes 
-        WHERE client_id = ? 
-        ORDER BY created_at DESC 
+        SELECT id, note_text, created_at
+        FROM client_notes
+        WHERE client_id = ?
+        ORDER BY created_at DESC
         LIMIT 5
     ''', (client_id,)).fetchall()
 
@@ -324,8 +347,8 @@ def edit_client(client_id):
                 photo_url = f"uploads/{filename}"
 
         conn.execute('''
-            UPDATE clients 
-            SET name = ?, email = ?, phone = ?, age = ?, gender = ?, height = ?, 
+            UPDATE clients
+            SET name = ?, email = ?, phone = ?, age = ?, gender = ?, height = ?,
                 status = ?, notes = ?, photo_url = ?
             WHERE id = ? AND trainer_id = ?
         ''', (name, email, phone, age, gender, height, status, notes, photo_url,
@@ -337,7 +360,7 @@ def edit_client(client_id):
         return redirect(url_for('client_detail', client_id=client_id))
 
     latest_weight_log = conn.execute('''
-        SELECT weight, date FROM weight_logs 
+        SELECT weight, date FROM weight_logs
         WHERE client_id = ?
         ORDER BY date DESC
         LIMIT 1
@@ -446,9 +469,9 @@ def client_workouts(client_id):
 
     workouts = conn.execute('''
         SELECT workout_date, COUNT(*) as exercise_count
-        FROM workout_logs 
-        WHERE client_id = ? 
-        GROUP BY workout_date 
+        FROM workout_logs
+        WHERE client_id = ?
+        GROUP BY workout_date
         ORDER BY workout_date DESC
     ''', (client_id,)).fetchall()
 
@@ -525,10 +548,10 @@ def search_exercises():
 
     conn = get_db()
     exercises = conn.execute('''
-        SELECT name, muscle_group, equipment 
-        FROM exercises 
-        WHERE LOWER(name) LIKE ? 
-        ORDER BY name 
+        SELECT name, muscle_group, equipment
+        FROM exercises
+        WHERE LOWER(name) LIKE ?
+        ORDER BY name
         LIMIT 10
     ''', (f'%{query}%',)).fetchall()
     conn.close()
@@ -558,9 +581,9 @@ def calendar():
 
     conn = get_db()
     sessions_data = conn.execute('''
-        SELECT s.*, c.name as client_name 
-        FROM sessions s 
-        JOIN clients c ON s.client_id = c.id 
+        SELECT s.*, c.name as client_name
+        FROM sessions s
+        JOIN clients c ON s.client_id = c.id
         WHERE s.trainer_id = ? AND s.session_date BETWEEN ? AND ?
         ORDER BY s.session_date, s.start_time
     ''', (user_id, start_of_week, end_of_week)).fetchall()
@@ -620,7 +643,7 @@ def create_session():
 def get_session(session_id):
     conn = get_db()
     session_data = conn.execute('''
-        SELECT * FROM sessions 
+        SELECT * FROM sessions
         WHERE id = ? AND trainer_id = ?
     ''', (session_id, session['user_id'])).fetchone()
 
@@ -640,7 +663,7 @@ def update_session(session_id):
     conn = get_db()
     # Verify session belongs to current trainer
     session_data = conn.execute('''
-        SELECT * FROM sessions 
+        SELECT * FROM sessions
         WHERE id = ? AND trainer_id = ?
     ''', (session_id, session['user_id'])).fetchone()
 
@@ -649,8 +672,8 @@ def update_session(session_id):
         return jsonify({'error': 'Session not found'}), 404
 
     conn.execute('''
-        UPDATE sessions 
-        SET session_date = ?, start_time = ?, end_time = ?, session_type = ?, 
+        UPDATE sessions
+        SET session_date = ?, start_time = ?, end_time = ?, session_type = ?,
             notes = ?, status = ?, updated_at = ?
         WHERE id = ? AND trainer_id = ?
     ''', (data['session_date'], data['start_time'], data['end_time'],
@@ -670,7 +693,7 @@ def delete_session(session_id):
     conn = get_db()
     # Verify session belongs to current trainer
     session_data = conn.execute('''
-        SELECT * FROM sessions 
+        SELECT * FROM sessions
         WHERE id = ? AND trainer_id = ?
     ''', (session_id, session['user_id'])).fetchone()
 
@@ -693,7 +716,7 @@ def complete_session(session_id):
     conn = get_db()
     # Verify session belongs to current trainer
     session_data = conn.execute('''
-        SELECT * FROM sessions 
+        SELECT * FROM sessions
         WHERE id = ? AND trainer_id = ?
     ''', (session_id, session['user_id'])).fetchone()
 
@@ -702,7 +725,7 @@ def complete_session(session_id):
         return jsonify({'error': 'Session not found'}), 404
 
     conn.execute('''
-        UPDATE sessions 
+        UPDATE sessions
         SET status = 'completed', updated_at = ?
         WHERE id = ? AND trainer_id = ?
     ''', (datetime.now(), session_id, session['user_id']))
@@ -719,7 +742,7 @@ def cancel_session(session_id):
     conn = get_db()
     # Verify session belongs to current trainer
     session_data = conn.execute('''
-        SELECT * FROM sessions 
+        SELECT * FROM sessions
         WHERE id = ? AND trainer_id = ?
     ''', (session_id, session['user_id'])).fetchone()
 
@@ -728,7 +751,7 @@ def cancel_session(session_id):
         return jsonify({'error': 'Session not found'}), 404
 
     conn.execute('''
-        UPDATE sessions 
+        UPDATE sessions
         SET status = 'cancelled', updated_at = ?
         WHERE id = ? AND trainer_id = ?
     ''', (datetime.now(), session_id, session['user_id']))
@@ -751,7 +774,7 @@ def session_history(client_id):
         return redirect(url_for('clients'))
 
     all_sessions = conn.execute('''
-        SELECT * FROM sessions 
+        SELECT * FROM sessions
         WHERE client_id = ? AND trainer_id = ?
         ORDER BY session_date DESC, start_time DESC
     ''', (client_id, session['user_id'])).fetchall()
@@ -775,7 +798,7 @@ def workout_detail(client_id, date):
 
     exercises = conn.execute('''
         SELECT id, exercise_name, sets_data, notes, tags
-        FROM workout_logs 
+        FROM workout_logs
         WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
         ORDER BY created_at
     ''', (client_id, date, session['user_id'])).fetchall()
@@ -822,7 +845,7 @@ def update_workout(client_id, date):
 
     # Delete existing exercises for this workout date
     conn.execute('''
-        DELETE FROM workout_logs 
+        DELETE FROM workout_logs
         WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
     ''', (client_id, date, session['user_id']))
 
@@ -883,7 +906,7 @@ def delete_workout(client_id, date):
 
     # Delete all exercises for this workout date
     conn.execute('''
-        DELETE FROM workout_logs 
+        DELETE FROM workout_logs
         WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
     ''', (client_id, date, session['user_id']))
 
@@ -922,7 +945,7 @@ def duplicate_workout(client_id):
     # Fetch all exercises from the original workout
     exercises = conn.execute('''
         SELECT exercise_name, sets_data, notes
-        FROM workout_logs 
+        FROM workout_logs
         WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
         ORDER BY created_at
     ''', (client_id, original_date, session['user_id'])).fetchall()
@@ -1015,7 +1038,7 @@ def update_weight_log(weight_id):
 
     try:
         conn.execute('''
-            UPDATE weight_logs 
+            UPDATE weight_logs
             SET date = ?, weight = ?, notes = ?, updated_at = ?
             WHERE id = ?
         ''', (date, weight, notes, datetime.now(), weight_id))
@@ -1084,6 +1107,55 @@ def add_client_note():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/client-notes/<note_id>', methods=['PUT', 'DELETE'])
+@login_required
+def manage_client_note(note_id):
+    conn = get_db()
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        note_text = data.get('note_text', '')
+
+        # Verify note belongs to current trainer
+        note = conn.execute('''
+            SELECT cn.*, c.trainer_id FROM client_notes cn
+            JOIN clients c ON cn.client_id = c.id
+            WHERE cn.id = ?
+        ''', (note_id,)).fetchone()
+
+        if not note or note['trainer_id'] != session['user_id']:
+            conn.close()
+            return jsonify({'error': 'Note not found'}), 404
+
+        conn.execute('''
+            UPDATE client_notes
+            SET note_text = ?
+            WHERE id = ?
+        ''', (note_text, note_id))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+
+    elif request.method == 'DELETE':
+        # Verify note belongs to current trainer
+        note = conn.execute('''
+            SELECT cn.*, c.trainer_id FROM client_notes cn
+            JOIN clients c ON cn.client_id = c.id
+            WHERE cn.id = ?
+        ''', (note_id,)).fetchone()
+
+        if not note or note['trainer_id'] != session['user_id']:
+            conn.close()
+            return jsonify({'error': 'Note not found'}), 404
+
+        conn.execute('DELETE FROM client_notes WHERE id = ?', (note_id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+
+
 @app.route('/api/upload-client-photo', methods=['POST'])
 @login_required
 def upload_client_photo():
@@ -1135,9 +1207,9 @@ def client_weight_logs(client_id):
         return redirect(url_for('clients'))
 
     weight_history_rows = conn.execute('''
-        SELECT id, date, weight, notes 
-        FROM weight_logs 
-        WHERE client_id = ? 
+        SELECT id, date, weight, notes
+        FROM weight_logs
+        WHERE client_id = ?
         ORDER BY date DESC
     ''', (client_id,)).fetchall()
 
@@ -1155,10 +1227,10 @@ def client_weight_logs(client_id):
 def workout_templates():
     conn = get_db()
     templates = conn.execute('''
-        SELECT id, name, created_at, 
+        SELECT id, name, created_at,
                (SELECT COUNT(*) FROM template_exercises WHERE template_id = workout_templates.id) as exercise_count
-        FROM workout_templates 
-        WHERE trainer_id = ? 
+        FROM workout_templates
+        WHERE trainer_id = ?
         ORDER BY created_at DESC
     ''', (session['user_id'],)).fetchall()
     conn.close()
@@ -1171,9 +1243,9 @@ def workout_templates():
 def exports():
     conn = get_db()
     clients = conn.execute('''
-        SELECT id, name 
-        FROM clients 
-        WHERE trainer_id = ? 
+        SELECT id, name
+        FROM clients
+        WHERE trainer_id = ?
         ORDER BY name
     ''', (session['user_id'],)).fetchall()
     conn.close()
@@ -1207,7 +1279,7 @@ def generate_export():
         for client_id in client_ids:
             # Get client info
             client = conn.execute('''
-                SELECT name FROM clients 
+                SELECT name FROM clients
                 WHERE id = ? AND trainer_id = ?
             ''', (client_id, session['user_id'])).fetchone()
 
@@ -1225,8 +1297,8 @@ def generate_export():
                 # Get all workouts for this client, ordered by date (oldest first)
                 workouts = conn.execute('''
                     SELECT workout_date, exercise_name, sets_data, notes, tags
-                    FROM workout_logs 
-                    WHERE client_id = ? 
+                    FROM workout_logs
+                    WHERE client_id = ?
                     ORDER BY workout_date ASC, created_at ASC
                 ''', (client_id,)).fetchall()
 
@@ -1285,7 +1357,7 @@ def generate_export():
 
                 populate_workout_sheet(ws_workouts, workouts)
 
-                muscle_groups = ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders', 'Legs']
+                muscle_groups = ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders', 'Legs','Core']
 
                 for muscle_group in muscle_groups:
                     # Filter workouts that have this muscle group tag
@@ -1321,9 +1393,9 @@ def generate_export():
 
                 # Get weight logs ordered by date (oldest first)
                 weight_logs = conn.execute('''
-                    SELECT date, weight 
-                    FROM weight_logs 
-                    WHERE client_id = ? 
+                    SELECT date, weight
+                    FROM weight_logs
+                    WHERE client_id = ?
                     ORDER BY date ASC
                 ''', (client_id,)).fetchall()
 
@@ -1350,9 +1422,9 @@ def generate_export():
 
                 # Get nutrition logs ordered by date (oldest first)
                 nutrition_logs = conn.execute('''
-                    SELECT date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes 
-                    FROM nutrition_logs 
-                    WHERE client_id = ? 
+                    SELECT date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes
+                    FROM nutrition_logs
+                    WHERE client_id = ?
                     ORDER BY date ASC
                 ''', (client_id,)).fetchall()
 
@@ -1381,24 +1453,28 @@ def generate_export():
                 # Add headers
                 ws_sleep.cell(row=1, column=1, value='Date')
                 ws_sleep.cell(row=1, column=2, value='Hours')
+                ws_sleep.cell(row=1, column=3, value='Notes')
                 ws_sleep.cell(row=1, column=1).font = Font(bold=True)
                 ws_sleep.cell(row=1, column=2).font = Font(bold=True)
+                ws_sleep.cell(row=1, column=3).font = Font(bold=True)
 
                 # Get sleep logs ordered by date (oldest first)
                 sleep_logs = conn.execute('''
-                    SELECT date, hours 
-                    FROM sleep_logs 
-                    WHERE client_id = ? 
+                    SELECT date, hours, notes
+                    FROM sleep_logs
+                    WHERE client_id = ?
                     ORDER BY date ASC
                 ''', (client_id,)).fetchall()
 
                 for idx, log in enumerate(sleep_logs, start=2):
                     ws_sleep.cell(row=idx, column=1, value=log['date'])
                     ws_sleep.cell(row=idx, column=2, value=log['hours'])
+                    ws_sleep.cell(row=idx, column=3, value=log['notes'] if log['notes'] else '')
 
                 # Adjust column widths
                 ws_sleep.column_dimensions['A'].width = 15
                 ws_sleep.column_dimensions['B'].width = 15
+                ws_sleep.column_dimensions['C'].width = 40
 
             # Save Excel file to ZIP
             excel_buffer = io.BytesIO()
@@ -1428,9 +1504,9 @@ def export_all_clients():
     conn = get_db()
 
     clients = conn.execute('''
-        SELECT c.name, c.email, c.phone, c.age, c.gender, c.status, c.id
+        SELECT c.name, c.email, c.phone, c.age, c.gender, c.status, c.id, c.height
         FROM clients c
-        WHERE c.trainer_id = ? 
+        WHERE c.trainer_id = ?
         ORDER BY c.name ASC
     ''', (session['user_id'],)).fetchall()
 
@@ -1438,10 +1514,10 @@ def export_all_clients():
     clients_with_weight = []
     for client in clients:
         latest_weight = conn.execute('''
-            SELECT weight 
-            FROM weight_logs 
-            WHERE client_id = ? 
-            ORDER BY date DESC 
+            SELECT weight
+            FROM weight_logs
+            WHERE client_id = ?
+            ORDER BY date DESC
             LIMIT 1
         ''', (client['id'],)).fetchone()
 
@@ -1545,7 +1621,7 @@ def create_template():
 def get_template(template_id):
     conn = get_db()
     template = conn.execute('''
-        SELECT * FROM workout_templates 
+        SELECT * FROM workout_templates
         WHERE id = ? AND trainer_id = ?
     ''', (template_id, session['user_id'])).fetchone()
 
@@ -1555,7 +1631,7 @@ def get_template(template_id):
 
     exercises = conn.execute('''
         SELECT exercise_name, sets_data, notes, exercise_order
-        FROM template_exercises 
+        FROM template_exercises
         WHERE template_id = ?
         ORDER BY exercise_order
     ''', (template_id,)).fetchall()
@@ -1579,7 +1655,7 @@ def get_template(template_id):
 def delete_template(template_id):
     conn = get_db()
     template = conn.execute('''
-        SELECT * FROM workout_templates 
+        SELECT * FROM workout_templates
         WHERE id = ? AND trainer_id = ?
     ''', (template_id, session['user_id'])).fetchone()
 
@@ -1604,7 +1680,7 @@ def delete_template(template_id):
 def update_template(template_id):
     conn = get_db()
     template = conn.execute('''
-        SELECT * FROM workout_templates 
+        SELECT * FROM workout_templates
         WHERE id = ? AND trainer_id = ?
     ''', (template_id, session['user_id'])).fetchone()
 
@@ -1619,7 +1695,7 @@ def update_template(template_id):
     try:
         # Update template name
         conn.execute('''
-            UPDATE workout_templates 
+            UPDATE workout_templates
             SET name = ?, updated_at = ?
             WHERE id = ? AND trainer_id = ?
         ''', (template_name, datetime.now(), template_id, session['user_id']))
@@ -1649,9 +1725,9 @@ def update_template(template_id):
 def list_templates():
     conn = get_db()
     templates = conn.execute('''
-        SELECT id, name 
-        FROM workout_templates 
-        WHERE trainer_id = ? 
+        SELECT id, name
+        FROM workout_templates
+        WHERE trainer_id = ?
         ORDER BY name
     ''', (session['user_id'],)).fetchall()
     conn.close()
@@ -1671,9 +1747,9 @@ def client_nutrition_logs(client_id):
         return redirect(url_for('clients'))
 
     nutrition_history_rows = conn.execute('''
-        SELECT id, date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes 
-        FROM nutrition_logs 
-        WHERE client_id = ? 
+        SELECT id, date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes
+        FROM nutrition_logs
+        WHERE client_id = ?
         ORDER BY date DESC
     ''', (client_id,)).fetchall()
 
@@ -1711,7 +1787,7 @@ def add_nutrition_log():
 
     try:
         conn.execute('''
-            INSERT OR REPLACE INTO nutrition_logs 
+            INSERT OR REPLACE INTO nutrition_logs
             (id, client_id, date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (nutrition_id, client_id, date, diet, estimated_calories, estimated_sodium,
@@ -1750,8 +1826,8 @@ def update_nutrition_log(nutrition_id):
 
     try:
         conn.execute('''
-            UPDATE nutrition_logs 
-            SET date = ?, diet = ?, estimated_calories = ?, estimated_sodium = ?, 
+            UPDATE nutrition_logs
+            SET date = ?, diet = ?, estimated_calories = ?, estimated_sodium = ?,
                 estimated_saturated_fat = ?, notes = ?, updated_at = ?
             WHERE id = ?
         ''', (date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat,
@@ -1802,9 +1878,9 @@ def client_sleep_logs(client_id):
         return redirect(url_for('clients'))
 
     sleep_history_rows = conn.execute('''
-        SELECT id, date, hours, notes 
-        FROM sleep_logs 
-        WHERE client_id = ? 
+        SELECT id, date, hours, notes
+        FROM sleep_logs
+        WHERE client_id = ?
         ORDER BY date DESC
     ''', (client_id,)).fetchall()
 
@@ -1876,7 +1952,7 @@ def update_sleep_log(sleep_id):
 
     try:
         conn.execute('''
-            UPDATE sleep_logs 
+            UPDATE sleep_logs
             SET date = ?, hours = ?, notes = ?, updated_at = ?
             WHERE id = ?
         ''', (date, hours, notes, datetime.now(), sleep_id))
@@ -1910,6 +1986,32 @@ def delete_sleep_log(sleep_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sleep-logs/<client_id>/clear-all', methods=['DELETE'])
+@login_required
+def clear_all_sleep_logs(client_id):
+    conn = get_db()
+
+    # Verify client belongs to trainer
+    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+
+    if not client:
+        conn.close()
+        return jsonify({'error': 'Client not found'}), 404
+
+    try:
+        result = conn.execute('DELETE FROM sleep_logs WHERE client_id = ?', (client_id,))
+        deleted_count = result.rowcount
+        conn.commit()
+        conn.close()
+        app.logger.info(f"[v0] Cleared {deleted_count} sleep logs for client {client_id}")
+        return jsonify({'success': True, 'deleted_count': deleted_count})
+    except Exception as e:
+        conn.close()
+        app.logger.error(f"[v0] Error clearing sleep logs: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -2006,13 +2108,13 @@ def import_sleep_logs():
         for date, hours, notes in entries:
             # Check if entry already exists for this date
             existing = conn.execute('''
-                SELECT id FROM sleep_logs 
+                SELECT id FROM sleep_logs
                 WHERE client_id = ? AND date = ?
             ''', (client_id, date)).fetchone()
 
             if existing:
                 conn.execute('''
-                    UPDATE sleep_logs 
+                    UPDATE sleep_logs
                     SET hours = ?, notes = ?, updated_at = ?
                     WHERE id = ?
                 ''', (hours, notes, datetime.now(), existing['id']))

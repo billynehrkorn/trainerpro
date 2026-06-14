@@ -3,89 +3,244 @@
 {% block title %}Add New Client - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="max-w-2xl mx-auto">
-        <div class="mb-6">
-            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Add New Client</h1>
-            <p class="text-gray-600 mt-2">Enter your client's information to get started.</p>
+<style>
+  :root {
+    --navy: #0F172A;
+    --slate-600: #475569;
+    --slate-400: #94A3B8;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50:  #F8FAFC;
+    --emerald:       #059669;
+    --emerald-hover: #047857;
+    --blue:       #2563EB;
+    --blue-hover: #1D4ED8;
+    --radius: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body { background: var(--slate-50); }
+  .page-wrap { max-width: 640px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* ── Header ── */
+  .page-header { margin-bottom: 2rem; }
+  .page-title   { font-size: 1.75rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .page-subtitle{ font-size: 0.85rem; color: var(--slate-400); margin-top: 0.2rem; }
+
+  /* ── Form card ── */
+  .form-card {
+    background: white; border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .form-section {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1.5px solid var(--slate-100);
+  }
+  .form-section:last-child { border-bottom: none; }
+  .section-label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--slate-400);
+    display: block; margin-bottom: 1rem;
+  }
+
+  /* ── Photo upload ── */
+  .photo-upload-wrap { display: flex; align-items: center; gap: 1rem; }
+  .photo-placeholder {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--slate-100); border: 2px dashed var(--slate-200);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--slate-400); font-size: 1.3rem; flex-shrink: 0;
+  }
+  .photo-upload-info { flex: 1; }
+  .photo-upload-label {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.45rem 0.9rem; border-radius: 8px;
+    font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--slate-200); background: white; color: var(--slate-600);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .photo-upload-label:hover { background: var(--slate-50); border-color: var(--slate-400); }
+  .photo-upload-hint { font-size: 0.72rem; color: var(--slate-400); margin-top: 0.3rem; }
+
+  /* ── Form fields ── */
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+  .form-group  { margin-bottom: 0.85rem; }
+  .form-group:last-child { margin-bottom: 0; }
+  .form-label  {
+    display: block; font-size: 0.78rem; font-weight: 600;
+    color: var(--slate-600); margin-bottom: 0.35rem;
+  }
+  .form-label .req { color: #EF4444; }
+  .form-input, .form-select {
+    width: 100%; padding: 0.55rem 0.75rem;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    font-size: 0.875rem; color: var(--navy);
+    outline: none; transition: border-color 0.15s;
+    box-sizing: border-box; background: white; font-family: inherit;
+    appearance: none;
+  }
+  .form-input:focus, .form-select:focus {
+    border-color: var(--emerald);
+    box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
+  }
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: '\f078'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+    position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+    color: var(--slate-400); font-size: 0.7rem; pointer-events: none;
+  }
+
+  /* ── Actions ── */
+  .form-actions {
+    display: flex; gap: 0.6rem;
+    padding: 1.25rem 1.5rem; border-top: 1.5px solid var(--slate-100);
+  }
+  .btn {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.6rem 1rem; border-radius: 8px;
+    font-size: 0.875rem; font-weight: 600; cursor: pointer;
+    border: none; text-decoration: none; transition: background 0.15s;
+  }
+  .btn-primary { background: var(--emerald); color: white; }
+  .btn-primary:hover { background: var(--emerald-hover); }
+  .btn-ghost {
+    background: white; color: var(--slate-600);
+    border: 1.5px solid var(--slate-200);
+  }
+  .btn-ghost:hover { background: var(--slate-50); border-color: var(--slate-400); }
+
+  /* ── Dark mode ──
+     .form-card and .photo-upload-label use literal `white` backgrounds
+     so base.html's global rules don't cover them — we fix them here. */
+  html.dark .form-card {
+    background: #1E293B;
+    border-color: var(--slate-200);
+  }
+  html.dark .photo-upload-label {
+    background: #1E293B;
+    color: var(--navy);
+    border-color: var(--slate-200);
+  }
+  html.dark .photo-upload-label:hover {
+    background: #0F172A;
+    border-color: var(--slate-400);
+  }
+  html.dark .form-actions {
+    border-top-color: var(--slate-200);
+  }
+
+  @media (max-width: 500px) {
+    .page-wrap { padding: 1rem; }
+    .form-grid-2 { grid-template-columns: 1fr; }
+    .form-actions { flex-direction: column; }
+  }
+</style>
+
+<div class="page-wrap">
+
+  <div class="page-header">
+    <div class="page-title">Add New Client</div>
+    <div class="page-subtitle">Enter your client's information to get started.</div>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="form-card">
+
+      <!-- Photo -->
+      <div class="form-section">
+        <span class="section-label">Profile Photo</span>
+        <div class="photo-upload-wrap">
+          <div class="photo-placeholder"><i class="fas fa-user"></i></div>
+          <div class="photo-upload-info">
+            <label class="photo-upload-label" for="photoInput">
+              <i class="fas fa-upload"></i> Choose Photo
+            </label>
+            <input type="file" id="photoInput" name="photo" accept="image/*" class="hidden">
+            <div class="photo-upload-hint">JPG, PNG or GIF — optional</div>
+          </div>
         </div>
+      </div>
 
-        <form method="POST" enctype="multipart/form-data" class="bg-white rounded-lg shadow p-6 space-y-6">
-            <!-- Photo Upload -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Client Photo</label>
-                <input type="file" name="photo" accept="image/*" 
-                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+      <!-- Contact info -->
+      <div class="form-section">
+        <span class="section-label">Contact Information</span>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="name">Full Name <span class="req">*</span></label>
+            <input type="text" id="name" name="name" required class="form-input" placeholder="Jane Smith">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input type="email" id="email" name="email" class="form-input" placeholder="jane@example.com">
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" class="form-input" placeholder="(555) 000-0000">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="status">Status <span class="req">*</span></label>
+            <div class="select-wrap">
+              <select id="status" name="status" required class="form-select">
+                <option value="active">Active Client</option>
+                <option value="potential">Potential Lead</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
             </div>
+          </div>
+        </div>
+      </div>
 
-            <!-- Basic Information -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                    <input type="text" id="name" name="name" required 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" id="email" name="email" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
+      <!-- Physical info -->
+      <div class="form-section">
+        <span class="section-label">Physical Information</span>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="age">Age</label>
+            <input type="number" id="age" name="age" min="1" max="120" class="form-input" placeholder="—">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="gender">Gender</label>
+            <div class="select-wrap">
+              <select id="gender" name="gender" class="form-select">
+                <option value="">Select…</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
             </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="height">Height</label>
+          <input type="text" id="height" name="height" class="form-input" placeholder="e.g., 5'9&quot; or 175cm">
+        </div>
+      </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <input type="tel" id="phone" name="phone" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status *</label>
-                    <select id="status" name="status" required 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="active">Active Client</option>
-                        <option value="potential">Potential Lead</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
-                </div>
-            </div>
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-user-plus"></i> Add Client
+        </button>
+        <a href="{{ url_for('clients') }}" class="btn btn-ghost">Cancel</a>
+      </div>
 
-            <!-- Physical Information -->
-            <!-- Removed weight field, only keep age and gender -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="age" class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-                    <input type="number" id="age" name="age" min="1" max="120"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="gender" class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                    <select id="gender" name="gender"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Select...</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label for="height" class="block text-sm font-medium text-gray-700 mb-1">Height</label>
-                <input type="text" id="height" name="height" placeholder="e.g., 5'9&quot; or 175cm"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-            </div>
-
-            <!-- Submit Buttons -->
-            <div class="flex flex-col sm:flex-row gap-3 pt-4">
-                <button type="submit" 
-                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
-                    Add Client
-                </button>
-                <a href="{{ url_for('clients') }}" 
-                   class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium text-center">
-                    Cancel
-                </a>
-            </div>
-        </form>
     </div>
+  </form>
+
 </div>
+
+<script>
+  document.getElementById('photoInput').addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const placeholder = document.querySelector('.photo-placeholder');
+        placeholder.innerHTML = `<img src="${e.target.result}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">`;
+      };
+      reader.readAsDataURL(this.files[0]);
+    }
+  });
+</script>
 {% endblock %}

@@ -3,114 +3,374 @@
 {% block title %}Edit {{ client.name }} - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="max-w-2xl mx-auto">
-        <div class="flex items-center mb-6">
-            <a href="{{ url_for('client_detail', client_id=client.id) }}" 
-               class="text-gray-600 hover:text-gray-800 mr-4">
-                <i class="fas fa-arrow-left text-xl"></i>
-            </a>
-            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Edit {{ client.name }}</h1>
-        </div>
+<style>
+  :root {
+    --navy: #0F172A;
+    --slate: #64748B;
+    --slate-light: #94A3B8;
+    --border: #E2E8F0;
+    --bg: #F8FAFC;
+    --emerald: #059669;
+    --emerald-dark: #047857;
+    --red: #DC2626;
+    --radius: 10px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  }
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <form method="POST" enctype="multipart/form-data">
-                <div class="space-y-6">
-                    <!-- Photo Upload -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Photo</label>
-                        <div class="flex items-center space-x-4">
-                            {% if client.photo_url %}
-                                <img src="{{ url_for('static', filename=client.photo_url) }}" alt="{{ client.name }}" 
-                                     class="w-16 h-16 rounded-full object-cover">
-                            {% else %}
-                                <div class="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
-                                    <i class="fas fa-user text-gray-600 text-xl"></i>
-                                </div>
-                            {% endif %}
-                            <input type="file" name="photo" accept="image/*" 
-                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        </div>
-                    </div>
+  .ec-wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem;
+  }
 
-                    <!-- Basic Information -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                            <input type="text" name="name" value="{{ client.name }}" required 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                            <input type="email" name="email" value="{{ client.email or '' }}" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                            <input type="tel" name="phone" value="{{ client.phone or '' }}" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-                            <input type="number" name="age" value="{{ client.age or '' }}" min="1" max="120" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                            <select name="gender" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Select gender...</option>
-                                <option value="male" {{ 'selected' if client.gender == 'male' else '' }}>Male</option>
-                                <option value="female" {{ 'selected' if client.gender == 'female' else '' }}>Female</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select name="status" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option value="active" {{ 'selected' if client.status == 'active' else '' }}>Active</option>
-                                <option value="potential" {{ 'selected' if client.status == 'potential' else '' }}>Potential Lead</option>
-                                <option value="cancelled" {{ 'selected' if client.status == 'cancelled' else '' }}>Cancelled</option>
-                            </select>
-                        </div>
-                        <!-- Weight field now shows most recent weight log and is read-only -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Weight (lbs)</label>
-                            <div class="relative">
-                                <input type="number" name="weight" value="{{ latest_weight or '' }}" step="0.1" readonly
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed">
-                                {% if latest_weight %}
-                                <p class="text-xs text-gray-500 mt-1">
-                                    <i class="fas fa-info-circle"></i> From most recent weight log ({{ latest_weight_date }})
-                                </p>
-                                {% else %}
-                                <p class="text-xs text-gray-500 mt-1">
-                                    <i class="fas fa-info-circle"></i> No weight logs yet. <a href="{{ url_for('client_weight_logs', client_id=client.id) }}" class="text-blue-600 hover:underline">Add one</a>
-                                </p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Height</label>
-                            <input type="text" name="height" value="{{ client.height or '' }}" placeholder="e.g., 5'9&quot; or 175cm"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                    </div>
+  .ec-head {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 1.5rem;
+  }
 
-                    <!-- Submit Buttons -->
-                    <div class="flex gap-4 pt-4">
-                        <button type="submit" 
-                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
-                            <i class="fas fa-save mr-2"></i>Update Client
-                        </button>
-                        <a href="{{ url_for('client_detail', client_id=client.id) }}" 
-                           class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium text-center">
-                            Cancel
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
+  .ec-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: var(--slate);
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .ec-back:hover {
+    color: var(--navy);
+    border-color: var(--slate-light);
+  }
+
+  .ec-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .ec-card {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .ec-card-head {
+    padding: 1rem 1.5rem;
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .ec-card-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--slate-light);
+  }
+
+  .ec-card-body {
+    padding: 1.5rem;
+  }
+
+  .ec-photo-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .ec-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid var(--border);
+  }
+
+  .ec-avatar-fallback {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--slate-light);
+    font-size: 1.35rem;
+    flex-shrink: 0;
+  }
+
+  .ec-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+  }
+
+  .ec-field-full {
+    grid-column: 1 / -1;
+  }
+
+  .ec-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 0.4rem;
+  }
+
+  .ec-input,
+  .ec-select {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--navy);
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .ec-input:focus,
+  .ec-select:focus {
+    outline: none;
+    border-color: var(--emerald);
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+  }
+
+  .ec-input--readonly {
+    background: var(--bg);
+    color: var(--slate);
+    cursor: not-allowed;
+  }
+
+  .ec-file {
+    display: block;
+    width: 100%;
+    font-size: 0.8rem;
+    color: var(--slate);
+  }
+
+  .ec-file::file-selector-button {
+    margin-right: 0.85rem;
+    padding: 0.5rem 0.9rem;
+    border: 0;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(5, 150, 105, 0.1);
+    color: var(--emerald-dark);
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .ec-file::file-selector-button:hover {
+    background: rgba(5, 150, 105, 0.18);
+  }
+
+  .ec-hint {
+    font-size: 0.72rem;
+    color: var(--slate-light);
+    margin-top: 0.4rem;
+  }
+
+  .ec-hint a {
+    color: var(--emerald);
+    text-decoration: none;
+  }
+
+  .ec-hint a:hover {
+    text-decoration: underline;
+  }
+
+  .ec-actions {
+    display: flex;
+    gap: 0.85rem;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1.5px solid var(--border);
+  }
+
+  .ec-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: var(--radius);
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .ec-btn--primary {
+    background: var(--emerald);
+    color: #fff;
+  }
+
+  .ec-btn--primary:hover {
+    background: var(--emerald-dark);
+  }
+
+  .ec-btn--ghost {
+    background: #fff;
+    color: var(--slate);
+    border-color: var(--border);
+  }
+
+  .ec-btn--ghost:hover {
+    color: var(--navy);
+    border-color: var(--slate-light);
+  }
+
+  @media (max-width: 680px) {
+    .ec-grid {
+      grid-template-columns: 1fr;
+    }
+    .ec-actions {
+      flex-direction: column;
+    }
+  }
+
+  /* ════════════════════════════════════════════════
+     DARK MODE — page-specific surfaces.
+     These ec-* classes use literal #fff and light token
+     backgrounds that base.html's dark block doesn't remap,
+     so we theme them here directly.
+  ════════════════════════════════════════════════ */
+  html.dark .ec-back,
+  html.dark .ec-card,
+  html.dark .ec-input,
+  html.dark .ec-select,
+  html.dark .ec-btn--ghost {
+    background: #1E293B;
+    color: var(--navy);
+    border-color: var(--slate-200);
+  }
+
+  html.dark .ec-card-head { border-bottom-color: var(--slate-200); }
+  html.dark .ec-actions { border-top-color: var(--slate-200); }
+
+  /* Recessed surfaces (page-bg tinted) */
+  html.dark .ec-avatar-fallback,
+  html.dark .ec-input--readonly {
+    background: #0F172A;
+    border-color: var(--slate-200);
+  }
+  html.dark .ec-avatar { border-color: var(--slate-200); }
+
+  html.dark .ec-back:hover,
+  html.dark .ec-btn--ghost:hover { border-color: var(--slate-400); }
+</style>
+
+<div class="ec-wrap">
+  <div class="ec-head">
+    <a href="{{ url_for('client_detail', client_id=client.id) }}" class="ec-back" aria-label="Back to client details">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="ec-title">Edit {{ client.name }}</h1>
+  </div>
+
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <span class="ec-card-label">Client Information</span>
     </div>
+    <div class="ec-card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <!-- Photo Upload -->
+        <div>
+          <label class="ec-label">Photo</label>
+          <div class="ec-photo-row">
+            {% if client.photo_url %}
+              <img src="{{ url_for('static', filename=client.photo_url) }}" alt="{{ client.name }}" class="ec-avatar">
+            {% else %}
+              <div class="ec-avatar-fallback">
+                <i class="fas fa-user"></i>
+              </div>
+            {% endif %}
+            <input type="file" name="photo" accept="image/*" class="ec-file">
+          </div>
+        </div>
+
+        <!-- Basic Information -->
+        <div class="ec-grid">
+          <div>
+            <label class="ec-label">Name *</label>
+            <input type="text" name="name" value="{{ client.name }}" required class="ec-input">
+          </div>
+          <div>
+            <label class="ec-label">Email</label>
+            <input type="email" name="email" value="{{ client.email or '' }}" class="ec-input">
+          </div>
+          <div>
+            <label class="ec-label">Phone</label>
+            <input type="tel" name="phone" value="{{ client.phone or '' }}" class="ec-input">
+          </div>
+          <div>
+            <label class="ec-label">Age</label>
+            <input type="number" name="age" value="{{ client.age or '' }}" min="1" max="120" class="ec-input">
+          </div>
+          <div>
+            <label class="ec-label">Gender</label>
+            <select name="gender" class="ec-select">
+              <option value="">Select gender...</option>
+              <option value="male" {{ 'selected' if client.gender == 'male' else '' }}>Male</option>
+              <option value="female" {{ 'selected' if client.gender == 'female' else '' }}>Female</option>
+            </select>
+          </div>
+          <div>
+            <label class="ec-label">Status</label>
+            <select name="status" class="ec-select">
+              <option value="active" {{ 'selected' if client.status == 'active' else '' }}>Active</option>
+              <option value="potential" {{ 'selected' if client.status == 'potential' else '' }}>Potential Lead</option>
+              <option value="cancelled" {{ 'selected' if client.status == 'cancelled' else '' }}>Cancelled</option>
+            </select>
+          </div>
+          <!-- Weight field now shows most recent weight log and is read-only -->
+          <div>
+            <label class="ec-label">Weight (lbs)</label>
+            <input type="number" name="weight" value="{{ latest_weight or '' }}" step="0.1" readonly class="ec-input ec-input--readonly">
+            {% if latest_weight %}
+            <p class="ec-hint">
+              <i class="fas fa-info-circle"></i> From most recent weight log ({{ latest_weight_date }})
+            </p>
+            {% else %}
+            <p class="ec-hint">
+              <i class="fas fa-info-circle"></i> No weight logs yet. <a href="{{ url_for('client_weight_logs', client_id=client.id) }}">Add one</a>
+            </p>
+            {% endif %}
+          </div>
+          <div>
+            <label class="ec-label">Height</label>
+            <input type="text" name="height" value="{{ client.height or '' }}" placeholder="e.g., 5'9&quot; or 175cm" class="ec-input">
+          </div>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="ec-actions">
+          <button type="submit" class="ec-btn ec-btn--primary">
+            <i class="fas fa-save"></i> Update Client
+          </button>
+          <a href="{{ url_for('client_detail', client_id=client.id) }}" class="ec-btn ec-btn--ghost">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}

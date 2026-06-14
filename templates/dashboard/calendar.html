@@ -3,395 +3,473 @@
 {% block title %}Calendar - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="flex items-center justify-between mb-6">
-        <!-- Added week navigation controls -->
-        <div class="flex items-center space-x-4">
-            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Calendar</h1>
-            <div class="flex items-center space-x-2">
-                <a href="{{ url_for('calendar', week_offset=week_offset-1) }}"
-                   class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
-                    <i class="fas fa-chevron-left"></i>
-                </a>
-                <span class="text-sm font-medium text-gray-700 px-3">
-                    {{ week_start.strftime('%b %d') }} - {{ week_end.strftime('%b %d, %Y') }}
-                </span>
-                <a href="{{ url_for('calendar', week_offset=week_offset+1) }}"
-                   class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-                <a href="{{ url_for('calendar') }}"
-                   class="ml-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Today
-                </a>
-            </div>
-        </div>
+<style>
+  :root {
+    --navy: #0F172A;
+    --slate-600: #475569;
+    --slate-400: #94A3B8;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50:  #F8FAFC;
+    --emerald:       #059669;
+    --emerald-hover: #047857;
+    --blue:       #2563EB;
+    --blue-hover: #1D4ED8;
+    --blue-light: #EFF6FF;
+    --blue-mid:   #BFDBFE;
+    --red:        #EF4444;
+    --red-light:  #FEE2E2;
+    --red-mid:    #FECACA;
+    --green-light:#D1FAE5;
+    --green-mid:  #A7F3D0;
+    --green-text: #065F46;
+    --radius: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
 
+  body { background: var(--slate-50); }
+  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+
+  /* ── Header ── */
+  .cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
+  }
+  .cal-header-left { display: flex; align-items: center; gap: 1rem; }
+  .page-title { font-size: 1.5rem; font-weight: 700; color: var(--navy); }
+
+  .week-nav {
+    display: flex; align-items: center; gap: 0.35rem;
+    background: white; border: 1.5px solid var(--slate-200);
+    border-radius: 9px; padding: 0.3rem 0.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .nav-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 6px;
+    color: var(--slate-600); text-decoration: none;
+    transition: background 0.12s, color 0.12s;
+  }
+  .nav-btn:hover { background: var(--slate-100); color: var(--navy); }
+  .week-range {
+    font-size: 0.82rem; font-weight: 600; color: var(--navy);
+    padding: 0 0.35rem; white-space: nowrap;
+  }
+  .today-link {
+    font-size: 0.78rem; font-weight: 600; color: var(--blue);
+    text-decoration: none; padding: 0.25rem 0.6rem;
+    border-radius: 6px; transition: background 0.12s;
+  }
+  .today-link:hover { background: var(--blue-light); }
+
+  /* ── Calendar grid ── */
+  .cal-card {
+    background: white; border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .cal-grid { display: grid; grid-template-columns: 56px repeat(7, 1fr); }
+
+  /* Header row */
+  .cal-head-row { display: contents; }
+  .cal-head-time {
+    background: var(--slate-50); border-bottom: 1.5px solid var(--slate-200);
+    padding: 0.75rem 0.5rem;
+  }
+  .cal-head-day {
+    background: var(--slate-50); border-bottom: 1.5px solid var(--slate-200);
+    border-left: 1px solid var(--slate-200);
+    padding: 0.6rem 0.4rem; text-align: center;
+  }
+  .cal-head-day.today { background: var(--blue-light); }
+  .cal-head-day-name {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--slate-400);
+  }
+  .cal-head-day-num {
+    font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-top: 0.1rem;
+  }
+  .cal-head-day.today .cal-head-day-name,
+  .cal-head-day.today .cal-head-day-num { color: var(--blue); }
+
+  /* Body */
+  .cal-body { display: contents; }
+  .cal-time-cell {
+    background: var(--slate-50); border-bottom: 1px solid var(--slate-100);
+    padding: 0 0.4rem; height: 64px;
+    display: flex; align-items: flex-start; padding-top: 6px;
+    font-size: 0.65rem; font-weight: 600; color: var(--slate-400);
+    white-space: nowrap;
+  }
+  .cal-day-cell {
+    border-left: 1px solid var(--slate-200);
+    border-bottom: 1px solid var(--slate-100);
+    height: 64px; position: relative; cursor: pointer;
+    transition: background 0.1s;
+  }
+  .cal-day-cell:hover { background: var(--slate-50); }
+
+  /* Session blocks */
+  .session-block {
+    position: absolute; left: 2px; right: 2px;
+    border-radius: 5px; overflow: hidden;
+    font-size: 0.68rem; cursor: pointer; z-index: 10;
+    border-width: 1px; border-style: solid;
+    transition: filter 0.12s;
+    min-height: 22px;
+  }
+  .session-block:hover { filter: brightness(0.95); }
+  .session-block.scheduled { background: var(--blue-light);  border-color: var(--blue-mid);  }
+  .session-block.completed { background: var(--green-light); border-color: var(--green-mid); }
+  .session-block.cancelled { background: var(--red-light);   border-color: var(--red-mid);   }
+
+  .session-block-inner { padding: 3px 5px; position: relative; height: 100%; }
+  .session-client-name {
+    font-weight: 700; line-height: 1.2;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .session-block.scheduled .session-client-name { color: var(--blue-hover); }
+  .session-block.completed .session-client-name { color: var(--green-text); }
+  .session-block.cancelled .session-client-name { color: #991B1B; }
+
+  .session-time-text {
+    font-size: 0.62rem; opacity: 0.8; line-height: 1.2;
+  }
+  .session-block.scheduled .session-time-text { color: var(--blue); }
+  .session-block.completed .session-time-text { color: var(--green-text); }
+  .session-block.cancelled .session-time-text { color: #B91C1C; }
+
+  .session-notes-dot {
+    position: absolute; top: 3px; right: 3px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #F59E0B;
+  }
+  .session-block-actions {
+    position: absolute; bottom: 2px; right: 2px;
+    display: flex; gap: 2px;
+  }
+  .session-act-btn {
+    width: 16px; height: 16px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; cursor: pointer; font-size: 0.55rem; color: white;
+    transition: filter 0.1s;
+  }
+  .session-act-btn:hover { filter: brightness(1.15); }
+  .session-act-btn.edit   { background: var(--blue); }
+  .session-act-btn.remove { background: var(--slate-500, #64748B); }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45);
+    display: none; align-items: center; justify-content: center;
+    z-index: 50; padding: 1rem;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-box {
+    background: white; border-radius: 14px;
+    padding: 1.75rem; width: 100%; max-width: 460px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .modal-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--slate-400); font-size: 1rem; padding: 0.25rem;
+    border-radius: 5px; transition: color 0.15s;
+  }
+  .modal-close:hover { color: var(--navy); }
+
+  .form-group  { margin-bottom: 1rem; }
+  .form-label  { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-600); margin-bottom: 0.35rem; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; padding: 0.55rem 0.75rem;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    font-size: 0.875rem; color: var(--navy);
+    outline: none; transition: border-color 0.15s;
+    box-sizing: border-box; background: white; font-family: inherit;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--emerald);
+    box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
+  }
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  .modal-footer { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
+  .modal-btn {
+    flex: 1; padding: 0.6rem; border-radius: 8px; border: none;
+    font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .modal-btn-primary { background: var(--blue); color: white; }
+  .modal-btn-primary:hover { background: var(--blue-hover); }
+  .modal-btn-secondary { background: var(--slate-100); color: var(--slate-600); border: 1.5px solid var(--slate-200); }
+  .modal-btn-secondary:hover { background: var(--slate-200); }
+
+  @media (max-width: 700px) {
+    .page-wrap { padding: 0.75rem; }
+    .cal-grid { grid-template-columns: 44px repeat(7, 1fr); }
+    .cal-head-day-num { font-size: 0.9rem; }
+    .session-client-name { font-size: 0.6rem; }
+  }
+</style>
+
+<div class="page-wrap">
+
+  <!-- ── Header ── -->
+  <div class="cal-header">
+    <div class="cal-header-left">
+      <div class="page-title">Calendar</div>
+      <div class="week-nav">
+        <a href="{{ url_for('calendar', week_offset=week_offset-1) }}" class="nav-btn" title="Previous week">
+          <i class="fas fa-chevron-left" style="font-size:0.75rem"></i>
+        </a>
+        <span class="week-range">
+  {{ week_start.month }}/{{ week_start.day }} –
+  {{ week_end.month }}/{{ week_end.day }}/{{ week_end.strftime('%y') }}
+</span>
+        <a href="{{ url_for('calendar', week_offset=week_offset+1) }}" class="nav-btn" title="Next week">
+          <i class="fas fa-chevron-right" style="font-size:0.75rem"></i>
+        </a>
+      </div>
+      <a href="{{ url_for('calendar') }}" class="today-link">Today</a>
     </div>
+  </div>
 
-    <!-- Calendar Grid -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <!-- Calendar Header -->
-        <div class="grid grid-cols-8 bg-gray-50 border-b">
-            <div class="p-4 text-sm font-medium text-gray-700">Time</div>
-            {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-            {% for day in days %}
-                {% set day_date = week_dates[loop.index0] %}
-                <div class="p-4 text-center border-l border-gray-200">
-                    <div class="text-sm font-medium text-gray-700">{{ day[:3] }}</div>
-                    <div class="text-lg font-semibold text-gray-900">{{ day_date.day }}</div>
-                </div>
-            {% endfor %}
+  <!-- ── Calendar ── -->
+  <div class="cal-card">
+    <div class="cal-grid">
+
+      <!-- Header -->
+      <div class="cal-head-time"></div>
+      {% set days_short = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+      {% for i in range(7) %}
+        {% set day_date = week_dates[i] %}
+        <div class="cal-head-day">
+          <div class="cal-head-day-name">{{ days_short[i] }}</div>
+          <div class="cal-head-day-num">{{ day_date.day }}</div>
+        </div>
+      {% endfor %}
+
+      <!-- Body rows -->
+      {% for hour in range(5, 22) %}
+        <!-- Time label -->
+        <div class="cal-time-cell">
+          <span class="time-display" data-hour="{{ hour }}"></span>
         </div>
 
-        <!-- Calendar Body -->
-        <div class="grid grid-cols-8 divide-x divide-gray-200">
-            <!-- Time Column -->
-            <div class="divide-y divide-gray-200">
-                <!-- Changed hour range from 6-22 to 5-22 to start at 5:00 AM -->
-                {% for hour in range(5, 22) %}
-                    <div class="h-16 p-2 text-xs text-gray-500 bg-gray-50">
-                        <!-- Convert military time to regular time format -->
-                        <span class="time-display" data-hour="{{ hour }}">{{ '%02d:00'|format(hour) }}</span>
+        <!-- Day cells -->
+        {% for day_index in range(7) %}
+          {% set day_date = week_dates[day_index] %}
+          {% set day_key  = day_date.strftime('%Y-%m-%d') %}
+          <div class="cal-day-cell"
+               onclick="openBookingModal('{{ day_key }}', '{{ '%02d:00' | format(hour) }}')">
+            {% for session in week_sessions[day_key] %}
+              {% set start_parts = session.start_time.split(':') %}
+              {% set end_parts   = session.end_time.split(':') %}
+              {% set start_hour  = start_parts[0]|int %}
+              {% set start_min   = start_parts[1]|int %}
+              {% set end_hour    = end_parts[0]|int %}
+              {% set end_min     = end_parts[1]|int %}
+              {% set dur_mins    = (end_hour * 60 + end_min) - (start_hour * 60 + start_min) %}
+              {% set h_pct       = (dur_mins / 60) * 100 %}
+              {% set top_pct     = (start_min / 60) * 100 %}
+              {% if start_hour == hour %}
+                <div class="session-block {{ session.status or 'scheduled' }}"
+                     style="top:{{ top_pct }}%;height:{{ h_pct }}%;min-height:22px;"
+                     onclick="event.stopPropagation(); editCalendarSession('{{ session.id }}')">
+                  <div class="session-block-inner">
+                    <div class="session-client-name">{{ session.client_name }}</div>
+                    <div class="session-time-text">{{ session.start_time }}–{{ session.end_time }}</div>
+                    {% if session.notes %}
+                    <div class="session-notes-dot" title="Has notes"></div>
+                    {% endif %}
+                    <div class="session-block-actions">
+                      <button class="session-act-btn edit"
+                              onclick="event.stopPropagation(); editCalendarSession('{{ session.id }}')"
+                              title="Edit">
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button class="session-act-btn remove"
+                              onclick="event.stopPropagation(); removeSessionCalendar('{{ session.id }}')"
+                              title="Remove">
+                        <i class="fas fa-times"></i>
+                      </button>
                     </div>
-                {% endfor %}
-            </div>
-
-            <!-- Day Columns -->
-            {% for day_index in range(7) %}
-                {% set day_date = week_dates[day_index] %}
-                {% set day_key = day_date.strftime('%Y-%m-%d') %}
-                <div class="divide-y divide-gray-200 relative">
-                    <!-- Changed hour range from 6-22 to 5-22 to start at 5:00 AM -->
-                    {% for hour in range(5, 22) %}
-                        <div class="h-16 p-1 hover:bg-gray-50 cursor-pointer relative"
-                             onclick="openBookingModal('{{ day_key }}', '{{ '%02d:00'|format(hour) }}')">
-                            <!-- Enhanced session display with proper positioning and actions -->
-                            {% for session in week_sessions[day_key] %}
-                                {% set start_parts = session.start_time.split(':') %}
-                                {% set end_parts = session.end_time.split(':') %}
-                                {% set start_hour = start_parts[0]|int %}
-                                {% set start_minute = start_parts[1]|int %}
-                                {% set end_hour = end_parts[0]|int %}
-                                {% set end_minute = end_parts[1]|int %}
-                                {% set duration_minutes = (end_hour * 60 + end_minute) - (start_hour * 60 + start_minute) %}
-                                {% set height_percent = (duration_minutes / 60) * 100 %}
-                                {% set top_offset = (start_minute / 60) * 100 %}
-
-                                {% if start_hour == hour %}
-                                    <div class="absolute left-1 right-1 rounded text-xs z-10 cursor-pointer
-                                        {% if session.status == 'completed' %}bg-green-100 border border-green-300
-                                        {% elif session.status == 'cancelled' %}bg-red-100 border border-red-300
-                                        {% else %}bg-blue-100 border border-blue-300{% endif %}"
-                                         style="top: {{ top_offset }}%; height: {{ height_percent }}%; min-height: 20px;"
-                                         onclick="event.stopPropagation(); editCalendarSession({{ session.id }})">
-                                        <div class="p-1 relative">
-                                            <div class="font-medium
-                                                {% if session.status == 'completed' %}text-green-900
-                                                {% elif session.status == 'cancelled' %}text-red-900
-                                                {% else %}text-blue-900{% endif %}">
-                                                {{ session.client_name }}
-                                            </div>
-                                            <div class="
-                                                {% if session.status == 'completed' %}text-green-700
-                                                {% elif session.status == 'cancelled' %}text-red-700
-                                                {% else %}text-blue-700{% endif %}">
-                                                {{ session.start_time }}-{{ session.end_time }}
-                                            </div>
-                                            {% if session.notes %}
-                                            <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-                                                <i class="fas fa-exclamation text-white text-xs"></i>
-                                            </div>
-                                            {% endif %}
-                                            <!-- Made session action buttons always visible by removing hover classes -->
-                                            <div class="absolute bottom-0 right-0 flex gap-1">
-                                                <button onclick="event.stopPropagation(); editCalendarSession('{{ session.id }}')"
-                                                        class="w-4 h-4 bg-blue-600 text-white rounded-full flex items-center justify-center"
-                                                        title="Edit Session">
-                                                    <i class="fas fa-pencil-alt" style="font-size: 8px;"></i>
-                                                </button>
-                                                <button onclick="event.stopPropagation(); removeSessionCalendar('{{ session.id }}')"
-                                                        class="w-4 h-4 bg-gray-600 text-white rounded-full flex items-center justify-center"
-                                                        title="Remove">
-                                                    <i class="fas fa-times" style="font-size: 8px;"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    {% endfor %}
+                  </div>
                 </div>
+              {% endif %}
             {% endfor %}
-        </div>
+          </div>
+        {% endfor %}
+      {% endfor %}
+
     </div>
+  </div>
 </div>
 
-<!-- Quick Book Modal -->
-<div id="quickBookModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Quick Book Session</h3>
-            <button onclick="closeQuickBookModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="quickBookForm">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
-                    <select id="quickClientId" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Select a client...</option>
-                        {% for client in clients %}
-                            <option value="{{ client.id }}">{{ client.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" id="quickSessionDate" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-                        <input type="time" id="quickStartTime" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-                        <input type="time" id="quickEndTime" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Session Type</label>
-                    <select id="quickSessionType"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="training">Training</option>
-                        <option value="consultation">Consultation</option>
-                        <option value="assessment">Assessment</option>
-                    </select>
-                </div>
-                <!-- Added status field below session type -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select id="quickSessionStatus"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="scheduled">Scheduled</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
-                </div>
-                <!-- Added notes section below status -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea id="quickSessionNotes" rows="3"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
-                    Book Session
-                </button>
-                <button type="button" onclick="closeQuickBookModal()"
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
-                    Cancel
-                </button>
-            </div>
-        </form>
+
+<!-- ════════════ BOOK / EDIT SESSION MODAL ════════════ -->
+<div id="quickBookModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Book Session</span>
+      <button onclick="closeQuickBookModal()" class="modal-close"><i class="fas fa-times"></i></button>
     </div>
+    <form id="quickBookForm">
+      <input type="hidden" id="editingSessionId">
+      <div class="form-group">
+        <label class="form-label">Client</label>
+        <select id="quickClientId" required class="form-select">
+          <option value="">Select a client…</option>
+          {% for client in clients %}
+          <option value="{{ client.id }}">{{ client.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="quickSessionDate" required class="form-input">
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Start Time</label>
+          <input type="time" id="quickStartTime" required class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Time</label>
+          <input type="time" id="quickEndTime" required class="form-input">
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Session Type</label>
+          <select id="quickSessionType" class="form-select">
+            <option value="training">Training</option>
+            <option value="consultation">Consultation</option>
+            <option value="assessment">Assessment</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="quickSessionStatus" class="form-select">
+            <option value="scheduled">Scheduled</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea id="quickSessionNotes" rows="3" class="form-textarea" placeholder="Optional notes…"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" id="modalSubmitBtn" class="modal-btn modal-btn-primary">Book Session</button>
+        <button type="button" onclick="closeQuickBookModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>
-function formatTimeDisplay() {
-    const timeElements = document.querySelectorAll('.time-display');
-    timeElements.forEach(element => {
-        const hour = parseInt(element.getAttribute('data-hour'));
-        let displayHour = hour;
-        let ampm = 'AM';
+// ── Time labels ──
+document.querySelectorAll('.time-display').forEach(el => {
+  const h = parseInt(el.dataset.hour);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  el.textContent = `${display}${ampm}`;
+});
 
-        if (hour === 0) {
-            displayHour = 12;
-        } else if (hour === 12) {
-            ampm = 'PM';
-        } else if (hour > 12) {
-            displayHour = hour - 12;
-            ampm = 'PM';
-        }
+// ── Modal helpers ──
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
 
-        element.textContent = `${displayHour}:00 ${ampm}`;
-    });
-}
+function openBookingModal(date, time) {
+  // Reset to "book" mode
+  document.getElementById('editingSessionId').value = '';
+  document.getElementById('modalTitle').textContent = 'Book Session';
+  document.getElementById('modalSubmitBtn').textContent = 'Book Session';
+  document.getElementById('quickBookForm').reset();
 
-// Initialize time formatting when page loads
-document.addEventListener('DOMContentLoaded', formatTimeDisplay);
+  document.getElementById('quickSessionDate').value  = date;
+  document.getElementById('quickStartTime').value    = time;
 
-function openQuickBookModal() {
-    document.getElementById('quickBookModal').classList.remove('hidden');
-    document.getElementById('quickBookModal').classList.add('flex');
+  // Default end time: 1 hour later
+  const start = new Date(`2000-01-01T${time}`);
+  start.setHours(start.getHours() + 1);
+  document.getElementById('quickEndTime').value = start.toTimeString().slice(0, 5);
+
+  openModal('quickBookModal');
 }
 
 function closeQuickBookModal() {
-    document.getElementById('quickBookModal').classList.add('hidden');
-    document.getElementById('quickBookModal').classList.remove('flex');
-
-    // Reset form and modal state
-    document.getElementById('quickBookForm').reset();
-    const sessionIdField = document.getElementById('editingSessionId');
-    if (sessionIdField) {
-        sessionIdField.remove();
-    }
-    document.querySelector('#quickBookModal h3').textContent = 'Quick Book Session';
-    document.querySelector('#quickBookForm button[type="submit"]').textContent = 'Book Session';
-}
-
-function openBookingModal(date, time) {
-    document.getElementById('quickSessionDate').value = date;
-    document.getElementById('quickStartTime').value = time;
-
-    // Set end time to 1 hour later
-    const startTime = new Date(`2000-01-01T${time}`);
-    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-    document.getElementById('quickEndTime').value = endTime.toTimeString().slice(0, 5);
-
-    openQuickBookModal();
+  closeModal('quickBookModal');
+  document.getElementById('quickBookForm').reset();
+  document.getElementById('editingSessionId').value = '';
 }
 
 async function editCalendarSession(sessionId) {
-    try {
-        const response = await fetch(`/api/sessions/${sessionId}`);
-        if (response.ok) {
-            const session = await response.json();
+  try {
+    const r = await fetch(`/api/sessions/${sessionId}`);
+    if (!r.ok) { alert('Error loading session'); return; }
+    const s = await r.json();
 
-            // Populate the quick book form with session data
-            document.getElementById('quickClientId').value = session.client_id;
-            document.getElementById('quickSessionDate').value = session.session_date;
-            document.getElementById('quickStartTime').value = session.start_time;
-            document.getElementById('quickEndTime').value = session.end_time;
-            document.getElementById('quickSessionType').value = session.session_type;
-            document.getElementById('quickSessionStatus').value = session.status || 'scheduled';
-            document.getElementById('quickSessionNotes').value = session.notes || '';
+    document.getElementById('editingSessionId').value   = s.id;
+    document.getElementById('quickClientId').value      = s.client_id;
+    document.getElementById('quickSessionDate').value   = s.session_date;
+    document.getElementById('quickStartTime').value     = s.start_time;
+    document.getElementById('quickEndTime').value       = s.end_time;
+    document.getElementById('quickSessionType').value   = s.session_type;
+    document.getElementById('quickSessionStatus').value = s.status || 'scheduled';
+    document.getElementById('quickSessionNotes').value  = s.notes || '';
 
-            // Add hidden field for session ID to indicate this is an edit
-            let sessionIdField = document.getElementById('editingSessionId');
-            if (!sessionIdField) {
-                sessionIdField = document.createElement('input');
-                sessionIdField.type = 'hidden';
-                sessionIdField.id = 'editingSessionId';
-                document.getElementById('quickBookForm').appendChild(sessionIdField);
-            }
-            sessionIdField.value = sessionId;
+    document.getElementById('modalTitle').textContent       = 'Edit Session';
+    document.getElementById('modalSubmitBtn').textContent   = 'Update Session';
 
-            // Change modal title and button text
-            document.querySelector('#quickBookModal h3').textContent = 'Edit Session';
-            document.querySelector('#quickBookForm button[type="submit"]').textContent = 'Update Session';
-
-            openQuickBookModal();
-        }
-    } catch (error) {
-        alert('Error loading session details');
-    }
-}
-
-async function markCompleteCalendar(sessionId) {
-    if (!sessionId) return;
-
-    try {
-        const response = await fetch(`/api/sessions/${sessionId}/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Error marking session as complete');
-        }
-    } catch (error) {
-        alert('Error marking session as complete');
-    }
-}
-
-async function cancelSessionCalendar(sessionId) {
-    if (!sessionId) return;
-
-    if (!confirm('Are you sure you want to cancel this session?')) return;
-
-    try {
-        const response = await fetch(`/api/sessions/${sessionId}/cancel`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Error cancelling session');
-        }
-    } catch (error) {
-        alert('Error cancelling session');
-    }
+    openModal('quickBookModal');
+  } catch { alert('Error loading session details'); }
 }
 
 async function removeSessionCalendar(sessionId) {
-    if (!sessionId) return;
-
-    if (!confirm('Are you sure you want to permanently remove this session?')) return;
-
-    try {
-        const response = await fetch(`/api/sessions/${sessionId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Error removing session');
-        }
-    } catch (error) {
-        alert('Error removing session');
-    }
+  if (!confirm('Permanently remove this session?')) return;
+  try {
+    const r = await fetch(`/api/sessions/${sessionId}`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' }
+    });
+    if (r.ok) location.reload(); else alert('Error removing session');
+  } catch { alert('Error removing session'); }
 }
 
 document.getElementById('quickBookForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
+  e.preventDefault();
+  const sessionId = document.getElementById('editingSessionId').value;
+  const isEdit    = !!sessionId;
 
-    const sessionId = document.getElementById('editingSessionId')?.value;
-    const isEdit = !!sessionId;
+  const payload = {
+    client_id:    document.getElementById('quickClientId').value,
+    session_date: document.getElementById('quickSessionDate').value,
+    start_time:   document.getElementById('quickStartTime').value,
+    end_time:     document.getElementById('quickEndTime').value,
+    session_type: document.getElementById('quickSessionType').value,
+    status:       document.getElementById('quickSessionStatus').value,
+    notes:        document.getElementById('quickSessionNotes').value
+  };
 
-    const formData = {
-        client_id: document.getElementById('quickClientId').value,
-        session_date: document.getElementById('quickSessionDate').value,
-        start_time: document.getElementById('quickStartTime').value,
-        end_time: document.getElementById('quickEndTime').value,
-        session_type: document.getElementById('quickSessionType').value,
-        status: document.getElementById('quickSessionStatus').value,
-        notes: document.getElementById('quickSessionNotes').value
-    };
-
-    try {
-        const url = isEdit ? `/api/sessions/${sessionId}` : '/api/sessions';
-        const method = isEdit ? 'PUT' : 'POST';
-
-        const response = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-            closeQuickBookModal();
-            location.reload();
-        } else {
-            alert(isEdit ? 'Error updating session' : 'Error booking session');
-        }
-    } catch (error) {
-        alert(isEdit ? 'Error updating session' : 'Error booking session');
-    }
+  try {
+    const r = await fetch(isEdit ? `/api/sessions/${sessionId}` : '/api/sessions', {
+      method: isEdit ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) { closeQuickBookModal(); location.reload(); }
+    else alert(isEdit ? 'Error updating session' : 'Error booking session');
+  } catch { alert(isEdit ? 'Error updating session' : 'Error booking session'); }
 });
 </script>
 {% endblock %}

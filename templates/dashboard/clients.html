@@ -3,79 +3,253 @@
 {% block title %}Clients - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <!-- Fixed mobile layout for header - Add Client button no longer full width -->
-    <div class="flex flex-row items-center justify-between mb-6">
-        <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Clients</h1>
-        <a href="{{ url_for('new_client') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center whitespace-nowrap">
-            <i class="fas fa-plus mr-2"></i>
+<style>
+    :root {
+        --navy: #0F172A;
+        --slate-600: #475569;
+        --slate-400: #94A3B8;
+        --slate-200: #E2E8F0;
+        --slate-100: #F1F5F9;
+        --slate-50: #F8FAFC;
+        --emerald: #059669;
+        --emerald-hover: #047857;
+        --emerald-light: #D1FAE5;
+        --emerald-text: #065F46;
+        --amber-light: #FEF3C7;
+        --amber-text: #92400E;
+        --red-light: #FEE2E2;
+        --red-text: #991B1B;
+        --radius: 10px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .clients-page { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+    /* Page header */
+    .page-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .page-label {
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.07em; color: var(--slate-400); margin-bottom: 0.2rem;
+    }
+    .page-title { font-size: 1.75rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+
+    /* Buttons */
+    .btn {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.5rem 0.9rem; border-radius: 8px; font-size: 0.82rem;
+        font-weight: 600; cursor: pointer; text-decoration: none;
+        border: 1.5px solid transparent; white-space: nowrap; transition: all 0.15s;
+    }
+    .btn-primary { background: var(--emerald); color: white; }
+    .btn-primary:hover { background: var(--emerald-hover); }
+
+    /* Filter bar */
+    .filter-card {
+        background: white; border: 1.5px solid var(--slate-200);
+        border-radius: var(--radius); box-shadow: var(--shadow-sm);
+        padding: 0.85rem; margin-bottom: 1.5rem;
+    }
+    .filter-form { display: flex; gap: 0.5rem; }
+    .filter-input {
+        flex: 1; min-width: 0; padding: 0.55rem 0.75rem;
+        border: 1.5px solid var(--slate-200); border-radius: 8px;
+        font-size: 0.875rem; color: var(--navy); outline: none; transition: border-color 0.15s;
+    }
+    .filter-input:focus, .filter-select:focus { border-color: var(--emerald); }
+    .filter-select {
+        padding: 0.55rem 0.6rem; border: 1.5px solid var(--slate-200);
+        border-radius: 8px; font-size: 0.875rem; color: var(--navy);
+        background: white; outline: none; flex-shrink: 0; cursor: pointer;
+    }
+    .filter-btn {
+        flex-shrink: 0; padding: 0.55rem 0.8rem; border-radius: 8px;
+        background: var(--slate-100); color: var(--slate-600);
+        border: 1.5px solid var(--slate-200); cursor: pointer; transition: all 0.15s;
+    }
+    .filter-btn:hover { background: var(--slate-200); color: var(--navy); }
+
+    /* Client grid */
+    .client-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+    }
+    @media (min-width: 768px) { .client-grid { grid-template-columns: repeat(3, 1fr); gap: 1rem; } }
+    @media (min-width: 1024px) { .client-grid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; } }
+
+    /* Client card */
+    .client-card {
+        position: relative; display: flex; background: white;
+        border: 1.5px solid var(--slate-200); border-radius: var(--radius);
+        box-shadow: var(--shadow-sm); overflow: hidden;
+        cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .client-card:hover {
+        border-color: var(--slate-400);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.07);
+    }
+    /* status accent strip */
+    .card-accent { width: 4px; flex-shrink: 0; }
+    .accent-active { background: var(--emerald); }
+    .accent-potential { background: #F59E0B; }
+    .accent-cancelled { background: #EF4444; }
+
+    .card-body { flex: 1; padding: 0.85rem; min-width: 0; }
+    @media (min-width: 1024px) { .card-body { padding: 1.25rem; } }
+
+    .card-top {
+        display: flex; flex-direction: column; align-items: center;
+        text-align: center; margin-bottom: 0.75rem;
+    }
+    @media (min-width: 1024px) {
+        .card-top { flex-direction: row; align-items: center; text-align: left; gap: 0.85rem; }
+    }
+    .client-avatar, .client-avatar-ph {
+        width: 40px; height: 40px; border-radius: 999px; flex-shrink: 0;
+        margin-bottom: 0.5rem;
+    }
+    @media (min-width: 1024px) {
+        .client-avatar, .client-avatar-ph { width: 48px; height: 48px; margin-bottom: 0; }
+    }
+    .client-avatar { object-fit: cover; border: 2px solid var(--slate-200); }
+    .client-avatar-ph {
+        display: flex; align-items: center; justify-content: center;
+        background: var(--slate-100); color: var(--slate-400);
+        border: 2px solid var(--slate-200);
+    }
+    .client-name {
+        font-size: 0.82rem; font-weight: 600; color: var(--navy);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    @media (min-width: 1024px) { .client-name { font-size: 1rem; } }
+
+    .card-foot {
+        display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    }
+    @media (min-width: 1024px) {
+        .card-foot { flex-direction: row; align-items: center; justify-content: space-between; }
+    }
+    .status-badge {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.2rem 0.55rem; border-radius: 999px;
+        font-size: 0.68rem; font-weight: 600;
+    }
+    .status-badge .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+    .status-active { background: var(--emerald-light); color: var(--emerald-text); }
+    .status-potential { background: var(--amber-light); color: var(--amber-text); }
+    .status-cancelled { background: var(--red-light); color: var(--red-text); }
+
+    /* delete sits above card click via z-index + stopPropagation */
+    .delete-btn {
+        position: relative; z-index: 2; border: none; background: transparent;
+        color: var(--slate-400); cursor: pointer; padding: 0.3rem;
+        border-radius: 5px; font-size: 0.78rem; transition: all 0.15s;
+    }
+    .delete-btn:hover { color: #EF4444; background: var(--red-light); }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center; padding: 3rem 1rem; color: var(--slate-400);
+    }
+    .empty-state i { font-size: 3rem; margin-bottom: 1rem; color: var(--slate-200); }
+    .empty-state h3 { font-size: 1.05rem; font-weight: 600; color: var(--navy); margin-bottom: 0.4rem; }
+    .empty-state p { font-size: 0.875rem; color: var(--slate-600); margin-bottom: 1.25rem; }
+
+    /* Modal */
+    .modal-backdrop {
+        display: none; position: fixed; inset: 0; z-index: 50;
+        background: rgba(15,23,42,0.45); align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+        background: white; border-radius: var(--radius); width: 100%; max-width: 380px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2); overflow: hidden;
+    }
+    .modal-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 1rem 1.25rem; border-bottom: 1.5px solid var(--slate-100);
+    }
+    .modal-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
+    .modal-close {
+        border: none; background: transparent; color: var(--slate-400);
+        font-size: 1rem; padding: 0.25rem; cursor: pointer;
+    }
+    .modal-close:hover { color: var(--navy); }
+    .modal-body { padding: 1.25rem; }
+    .modal-body p { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
+    .modal-body strong { color: var(--navy); }
+    .modal-footer { display: flex; gap: 0.5rem; justify-content: flex-end; padding: 0 1.25rem 1.25rem; }
+    .btn-ghost {
+        background: white; color: var(--slate-600); border: 1.5px solid var(--slate-200);
+    }
+    .btn-ghost:hover { background: var(--slate-50); border-color: var(--slate-400); }
+    .btn-danger { background: #EF4444; color: white; }
+    .btn-danger:hover { background: #DC2626; }
+</style>
+
+<div class="clients-page">
+    <!-- Header -->
+    <div class="page-head">
+        <div>
+
+            <h1 class="page-title">Clients</h1>
+        </div>
+        <a href="{{ url_for('new_client') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
             Add Client
         </a>
     </div>
 
-    <!-- Fixed mobile layout for search/filter - all in one row -->
-    <div class="bg-white rounded-lg shadow p-4 mb-6">
-        <form method="GET" class="flex flex-row gap-2">
-            <div class="flex-1 min-w-0">
-                <input type="text" name="search" value="{{ search }}" placeholder="Search clients..."
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            <div class="flex-shrink-0">
-                <!-- Removed text labels from status dropdown for mobile compactness -->
-                <select name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">All</option>
-                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-                    <option value="potential" {% if status_filter == 'potential' %}selected{% endif %}>Lead</option>
-                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                </select>
-            </div>
-            <!-- Removed "Search" text, keeping only the search icon for mobile compactness -->
-            <button type="submit" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md flex-shrink-0">
+    <!-- Search / filter -->
+    <div class="filter-card">
+        <form method="GET" class="filter-form">
+            <input type="text" name="search" value="{{ search }}" placeholder="Search clients..." class="filter-input">
+            <select name="status" class="filter-select">
+                <option value="">All</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                <option value="potential" {% if status_filter == 'potential' %}selected{% endif %}>Lead</option>
+                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+            <button type="submit" class="filter-btn">
                 <i class="fas fa-search"></i>
             </button>
         </form>
     </div>
 
-    <!-- Changed grid to show 3 columns on mobile, narrower cards -->
-    <div class="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-6">
+    <!-- Client grid -->
+    <div class="client-grid">
         {% for client in clients %}
-        <div class="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
-            <!-- Reduced padding for narrower cards -->
-            <div class="p-3 lg:p-6">
-                <div class="flex flex-col items-center mb-3 lg:flex-row lg:items-center lg:mb-4">
+        <div class="client-card" onclick="window.location.href='{{ url_for('client_detail', client_id=client.id) }}'">
+            <span class="card-accent
+                {% if client.status == 'active' %}accent-active
+                {% elif client.status == 'potential' %}accent-potential
+                {% else %}accent-cancelled{% endif %}"></span>
+            <div class="card-body">
+                <div class="card-top">
                     {% if client.photo_url %}
-                        <img src="{{ url_for('static', filename=client.photo_url) }}" alt="{{ client.name }}"
-                             class="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover mb-2 lg:mb-0 lg:mr-4">
+                        <img src="{{ url_for('static', filename=client.photo_url) }}" alt="{{ client.name }}" class="client-avatar">
                     {% else %}
-                        <div class="w-10 h-10 lg:w-12 lg:h-12 bg-gray-300 rounded-full flex items-center justify-center mb-2 lg:mb-0 lg:mr-4">
-                            <i class="fas fa-user text-gray-600 text-sm lg:text-base"></i>
+                        <div class="client-avatar-ph">
+                            <i class="fas fa-user"></i>
                         </div>
                     {% endif %}
-                    <div class="flex-1 text-center lg:text-left">
-                        <h3 class="text-sm lg:text-lg font-semibold text-gray-900 truncate">{{ client.name }}</h3>
-                        <!-- Removed email display from client cards -->
+                    <div style="flex:1; min-width:0;">
+                        <h3 class="client-name">{{ client.name }}</h3>
                     </div>
                 </div>
 
-                <!-- Removed age and weight section completely -->
-
-                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-2 lg:space-y-0">
-                    <span class="px-2 py-1 text-xs rounded-full text-center
-                        {% if client.status == 'active' %}bg-green-100 text-green-800
-                        {% elif client.status == 'potential' %}bg-yellow-100 text-yellow-800
-                        {% else %}bg-red-100 text-red-800{% endif %}">
+                <div class="card-foot">
+                    <span class="status-badge
+                        {% if client.status == 'active' %}status-active
+                        {% elif client.status == 'potential' %}status-potential
+                        {% else %}status-cancelled{% endif %}">
+                        <span class="dot"></span>
                         {{ client.status.title() }}
                     </span>
-                    <div class="flex items-center justify-center lg:justify-start space-x-2">
-                        <a href="{{ url_for('client_detail', client_id=client.id) }}"
-                           class="text-blue-600 hover:text-blue-800 font-medium text-xs lg:text-sm">
-                            View
-                        </a>
-                        <button onclick="deleteClient('{{ client.id }}', '{{ client.name }}')"
-                                class="text-red-600 hover:text-red-800 font-medium text-xs lg:text-sm">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
+                    <button onclick="event.stopPropagation(); deleteClient('{{ client.id }}', '{{ client.name }}')" class="delete-btn" title="Delete client">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -83,27 +257,54 @@
     </div>
 
     {% if not clients %}
-        <div class="text-center py-12">
-            <i class="fas fa-users text-gray-400 text-6xl mb-4"></i>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
-            <p class="text-gray-600 mb-4">Get started by adding your first client.</p>
-            <a href="{{ url_for('new_client') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center">
-                <i class="fas fa-plus mr-2"></i>
+        <div class="empty-state">
+            <i class="fas fa-users"></i>
+            <h3>No clients found</h3>
+            <p>Get started by adding your first client.</p>
+            <a href="{{ url_for('new_client') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
                 Add Your First Client
             </a>
         </div>
     {% endif %}
 </div>
 
-<!-- Added delete confirmation modal and JavaScript -->
+<!-- Delete confirmation modal -->
+<div class="modal-backdrop" id="deleteModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title">Delete Client</span>
+            <button class="modal-close" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete <strong id="deleteClientName"></strong>? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
 <script>
-function deleteClient(clientId, clientName) {
-    if (confirm(`Are you sure you want to delete ${clientName}? This action cannot be undone.`)) {
-        fetch(`/clients/${clientId}/delete`, {
+    let pendingDeleteId = null;
+
+    function deleteClient(clientId, clientName) {
+        pendingDeleteId = clientId;
+        document.getElementById('deleteClientName').textContent = clientName;
+        document.getElementById('deleteModal').classList.add('open');
+    }
+
+    function closeDeleteModal() {
+        pendingDeleteId = null;
+        document.getElementById('deleteModal').classList.remove('open');
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+        if (!pendingDeleteId) return;
+        fetch(`/clients/${pendingDeleteId}/delete`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
+            headers: { 'Content-Type': 'application/json' }
         })
         .then(response => {
             if (response.ok) {
@@ -112,11 +313,12 @@ function deleteClient(clientId, clientName) {
                 alert('Error deleting client. Please try again.');
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error deleting client. Please try again.');
-        });
-    }
-}
+        .catch(() => alert('Error deleting client. Please try again.'));
+    });
+
+    // Dismiss modal on backdrop click
+    document.getElementById('deleteModal').addEventListener('click', function (e) {
+        if (e.target === this) closeDeleteModal();
+    });
 </script>
 {% endblock %}

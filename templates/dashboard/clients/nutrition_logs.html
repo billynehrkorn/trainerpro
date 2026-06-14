@@ -3,305 +3,482 @@
 {% block title %}{{ client.name }} - Nutrition Logs - TrainerPro{% endblock %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="max-w-6xl mx-auto">
-        <!-- Header -->
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-            <div class="flex items-center mb-4 lg:mb-0">
-                <a href="{{ url_for('client_detail', client_id=client.id) }}" 
-                   class="text-blue-600 hover:text-blue-800 mr-4">
-                    <i class="fas fa-arrow-left text-xl"></i>
-                </a>
-                <div>
-                    <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">{{ client.name }} - Nutrition Logs</h1>
-                    <p class="text-gray-600">Track nutrition and meal data over time</p>
-                </div>
-            </div>
-            <button onclick="openNutritionModal()"
-                    class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium">
-                <i class="fas fa-plus mr-2"></i>Add Nutrition Entry
-            </button>
-        </div>
+<style>
+  :root {
+    --navy: #0F172A;
+    --slate-600: #475569;
+    --slate-400: #94A3B8;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50: #F8FAFC;
+    --emerald: #059669;
+    --emerald-hover: #047857;
+    --emerald-light: #D1FAE5;
+    --emerald-text: #065F46;
+    --blue: #2563EB;
+    --orange: #EA580C;
+    --amber: #CA8A04;
+    --red-light: #FEE2E2;
+    --radius: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
 
-        <!-- Nutrition Chart Section -->
-        {% if nutrition_history %}
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4">
-                <h2 class="text-xl font-semibold text-gray-900 mb-2 lg:mb-0">Nutrition Progress</h2>
-                <div class="flex gap-2 flex-wrap">
-                    <button id="metricCaloriesBtn" onclick="changeMetric('calories')" 
-                            class="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
-                        Calories
-                    </button>
-                    <button id="metricSodiumBtn" onclick="changeMetric('sodium')" 
-                            class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">
-                        Sodium
-                    </button>
-                    <button id="metricSatFatBtn" onclick="changeMetric('saturated_fat')" 
-                            class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">
-                        Sat. Fat
-                    </button>
-                </div>
-            </div>
-            <div class="flex gap-2 mb-4 justify-end">
-                <button id="view30Btn" onclick="changeView(30)" 
-                        class="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
-                    Last 30
-                </button>
-                <button id="viewAllBtn" onclick="changeView('all')" 
-                        class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">
-                    All Time
-                </button>
-            </div>
-            <div class="relative" style="height: 300px;">
-                <canvas id="nutritionChart"></canvas>
-            </div>
-        </div>
-        {% endif %}
+  body { background: var(--slate-50); }
 
-        <!-- Nutrition Logs Content -->
-        <div class="bg-white rounded-lg shadow p-6">
-            {% if nutrition_history %}
-                <div class="space-y-3">
-                    {% for entry in nutrition_history %}
-                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors gap-4">
-                        <div class="flex items-start space-x-4 flex-1">
-                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-utensils text-green-600"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-gray-900 nutrition-date" data-date="{{ entry.date }}">{{ entry.date }}</p>
-                                <p class="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{{ entry.diet }}</p>
-                                <div class="flex flex-wrap gap-3 mt-2 text-xs text-gray-600">
-                                    {% if entry.estimated_calories %}
-                                    <span><i class="fas fa-fire text-orange-500 mr-1"></i>{{ entry.estimated_calories }} cal</span>
-                                    {% endif %}
-                                    {% if entry.estimated_sodium %}
-                                    <span><i class="fas fa-vial text-blue-500 mr-1"></i>{{ entry.estimated_sodium }} mg sodium</span>
-                                    {% endif %}
-                                    {% if entry.estimated_saturated_fat %}
-                                    <span><i class="fas fa-oil-can text-yellow-600 mr-1"></i>{{ entry.estimated_saturated_fat }} g sat. fat</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-2 lg:ml-4">
-                            <button onclick='editNutritionEntry({{ entry | tojson }})'
-                                    class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors"
-                                    title="Edit nutrition entry">
-                                <i class="fas fa-pencil-alt"></i>
-                            </button>
-                            <button onclick="deleteNutritionEntry('{{ entry.id }}')"
-                                    class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50 transition-colors"
-                                    title="Delete nutrition entry">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-center py-12">
-                    <i class="fas fa-utensils text-gray-300 text-6xl mb-4"></i>
-                    <h3 class="text-xl font-medium text-gray-900 mb-2">No nutrition entries yet</h3>
-                    <p class="text-gray-600 mb-6">Start tracking {{ client.name }}'s nutrition and meals</p>
-                    <button onclick="openNutritionModal()"
-                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium">
-                        <i class="fas fa-plus mr-2"></i>Add First Nutrition Entry
-                    </button>
-                </div>
-            {% endif %}
-        </div>
+  .page-wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* ── Header ── */
+  .nl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .nl-header-left { display: flex; align-items: center; gap: 1rem; }
+  .back-link {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 8px;
+    color: var(--slate-600); text-decoration: none; flex-shrink: 0;
+    border: 1.5px solid var(--slate-200); background: white;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .back-link:hover { background: var(--slate-50); border-color: var(--slate-400); color: var(--navy); }
+  .nl-title { font-size: 1.75rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .nl-subtitle { font-size: 0.85rem; color: var(--slate-400); margin-top: 0.15rem; }
+
+  .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1rem; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    border: none; text-decoration: none; transition: background 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--emerald); color: white; }
+  .btn-primary:hover { background: var(--emerald-hover); }
+
+  /* ── Cards ── */
+  .card {
+    background: white;
+    border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.25rem;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1.5px solid var(--slate-100);
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .card-title {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--slate-400);
+  }
+
+  /* ── Chart Toggles ── */
+  .view-toggle { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .toggle-btn {
+    padding: 0.4rem 0.85rem; border-radius: 7px;
+    font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--slate-200); background: white; color: var(--slate-600);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .toggle-btn:hover { background: var(--slate-50); }
+  .toggle-btn.active { background: var(--emerald); color: white; border-color: var(--emerald); }
+  .chart-subbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+  .chart-wrap { position: relative; height: 300px; }
+
+  /* ── Nutrition Entries ── */
+  .entries-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .entry-card {
+    display: flex; align-items: stretch;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    overflow: hidden; background: white;
+    transition: border-color 0.15s;
+  }
+  .entry-card:hover { border-color: var(--slate-400); }
+  .entry-accent { width: 4px; flex-shrink: 0; background: var(--emerald); }
+  .entry-body {
+    flex: 1; padding: 0.85rem 0.95rem;
+    display: flex; align-items: flex-start; gap: 0.85rem;
+  }
+  .entry-icon {
+    width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+    background: var(--emerald-light); color: var(--emerald);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem;
+  }
+  .entry-main { flex: 1; min-width: 0; }
+  .entry-date-text { font-size: 0.85rem; font-weight: 700; color: var(--navy); }
+  .entry-diet {
+    font-size: 0.82rem; color: var(--slate-600); margin-top: 0.3rem;
+    white-space: pre-wrap; line-height: 1.5;
+  }
+  .entry-macros {
+    display: flex; flex-wrap: wrap; gap: 0.85rem;
+    margin-top: 0.6rem; font-size: 0.75rem; color: var(--slate-600);
+  }
+  .entry-macros .macro i { margin-right: 0.3rem; }
+  .macro-cal i { color: var(--orange); }
+  .macro-sodium i { color: var(--blue); }
+  .macro-fat i { color: var(--amber); }
+  .entry-actions {
+    display: flex; align-items: center; gap: 0.25rem; padding: 0.6rem;
+  }
+  .entry-icon-btn {
+    background: none; border: none; cursor: pointer; padding: 0.4rem;
+    color: var(--slate-400); border-radius: 5px; font-size: 0.8rem;
+    transition: color 0.15s, background 0.15s;
+  }
+  .entry-icon-btn.edit:hover { color: var(--blue); background: #EFF6FF; }
+  .entry-icon-btn.remove:hover { color: #EF4444; background: var(--red-light); }
+
+  /* ── Empty States ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 3rem 1rem; text-align: center;
+    color: var(--slate-400);
+  }
+  .empty-state i { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.5; }
+  .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--navy); margin-bottom: 0.35rem; }
+  .empty-state p { font-size: 0.85rem; margin-bottom: 1.25rem; }
+
+  /* ── Modals ── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45);
+    display: none; align-items: center; justify-content: center;
+    z-index: 50; padding: 1rem;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-box {
+    background: white; border-radius: 14px;
+    padding: 1.75rem; width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  }
+  .modal-box.sm { max-width: 440px; }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .modal-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--slate-400); font-size: 1rem; padding: 0.25rem;
+    border-radius: 5px; transition: color 0.15s;
+  }
+  .modal-close:hover { color: var(--navy); }
+
+  .form-group { margin-bottom: 1rem; }
+  .form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
+  .form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-600); margin-bottom: 0.35rem; }
+  .form-label .req { color: #EF4444; }
+  .form-input, .form-textarea {
+    width: 100%; padding: 0.55rem 0.75rem;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    font-size: 0.875rem; color: var(--navy);
+    outline: none; transition: border-color 0.15s;
+    box-sizing: border-box; font-family: inherit;
+  }
+  .form-input:focus, .form-textarea:focus {
+    border-color: var(--emerald);
+    box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
+  }
+
+  .modal-footer { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
+  .modal-btn {
+    flex: 1; padding: 0.6rem; border-radius: 8px; border: none;
+    font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .modal-btn-primary { background: var(--emerald); color: white; }
+  .modal-btn-primary:hover { background: var(--emerald-hover); }
+  .modal-btn-secondary {
+    background: var(--slate-100); color: var(--slate-600);
+    border: 1.5px solid var(--slate-200);
+  }
+  .modal-btn-secondary:hover { background: var(--slate-200); }
+  .modal-btn-danger { background: #EF4444; color: white; }
+  .modal-btn-danger:hover { background: #DC2626; }
+  .modal-text { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
+
+  @media (max-width: 680px) {
+    .page-wrap { padding: 1rem; }
+    .nl-header { flex-direction: column; align-items: flex-start; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page-wrap">
+
+  <!-- ── Header ── -->
+  <div class="nl-header">
+    <div class="nl-header-left">
+      <a href="{{ url_for('client_detail', client_id=client.id) }}" class="back-link" title="Back to client">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <div>
+        <div class="nl-title">{{ client.name }} &mdash; Nutrition Logs</div>
+        <div class="nl-subtitle">Track nutrition and meal data over time</div>
+      </div>
     </div>
+    <div class="header-actions">
+      <button onclick="openNutritionModal()" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Nutrition Entry
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Nutrition Progress Chart ── -->
+  {% if nutrition_history %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Nutrition Progress</span>
+      <div class="view-toggle">
+        <button id="metricCaloriesBtn" class="toggle-btn active" onclick="changeMetric('calories')">Calories</button>
+        <button id="metricSodiumBtn" class="toggle-btn" onclick="changeMetric('sodium')">Sodium</button>
+        <button id="metricSatFatBtn" class="toggle-btn" onclick="changeMetric('saturated_fat')">Sat. Fat</button>
+      </div>
+    </div>
+    <div class="chart-subbar">
+      <div class="view-toggle">
+        <button id="view30Btn" class="toggle-btn active" onclick="changeView(30)">Last 30</button>
+        <button id="viewAllBtn" class="toggle-btn" onclick="changeView('all')">All Time</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="nutritionChart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Nutrition Entries ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Entry History</span>
+    </div>
+
+    {% if nutrition_history %}
+      <div class="entries-list">
+        {% for entry in nutrition_history %}
+        <div class="entry-card">
+          <div class="entry-accent"></div>
+          <div class="entry-body">
+            <div class="entry-icon"><i class="fas fa-utensils"></i></div>
+            <div class="entry-main">
+              <div class="entry-date-text nutrition-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
+              <div class="entry-diet">{{ entry.diet }}</div>
+              {% if entry.estimated_calories or entry.estimated_sodium or entry.estimated_saturated_fat %}
+              <div class="entry-macros">
+                {% if entry.estimated_calories %}
+                <span class="macro macro-cal"><i class="fas fa-fire"></i>{{ entry.estimated_calories }} cal</span>
+                {% endif %}
+                {% if entry.estimated_sodium %}
+                <span class="macro macro-sodium"><i class="fas fa-vial"></i>{{ entry.estimated_sodium }} mg sodium</span>
+                {% endif %}
+                {% if entry.estimated_saturated_fat %}
+                <span class="macro macro-fat"><i class="fas fa-oil-can"></i>{{ entry.estimated_saturated_fat }} g sat. fat</span>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="entry-actions">
+            <button onclick='editNutritionEntry({{ entry | tojson }})'
+                    class="entry-icon-btn edit" title="Edit nutrition entry">
+              <i class="fas fa-pencil-alt"></i>
+            </button>
+            <button onclick="deleteNutritionEntry('{{ entry.id }}')"
+                    class="entry-icon-btn remove" title="Delete nutrition entry">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-utensils"></i>
+        <h3>No nutrition entries yet</h3>
+        <p>Start tracking {{ client.name }}'s nutrition and meals</p>
+        <button onclick="openNutritionModal()" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Add First Nutrition Entry
+        </button>
+      </div>
+    {% endif %}
+  </div>
 </div>
 
-<!-- Add Nutrition Modal -->
-<div id="nutritionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Add Nutrition Entry</h3>
-            <button onclick="closeNutritionModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="nutritionForm">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" id="nutritionDate" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Diet / Meals <span class="text-red-500">*</span></label>
-                    <textarea id="nutritionDiet" rows="4" required
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                              placeholder="Describe meals eaten today...&#10;Example:&#10;Breakfast: Oatmeal with berries&#10;Lunch: Chicken salad&#10;Dinner: Grilled salmon with vegetables"></textarea>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Calories</label>
-                        <input type="number" id="nutritionCalories" min="0"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                               placeholder="e.g., 2000">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Sodium (mg)</label>
-                        <input type="number" id="nutritionSodium" min="0"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                               placeholder="e.g., 2300">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Sat. Fat (g)</label>
-                        <input type="number" id="nutritionSatFat" min="0" step="0.1"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                               placeholder="e.g., 15">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                    <textarea id="nutritionNotes" rows="2"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                              placeholder="Any additional notes..."></textarea>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium">
-                    Save Entry
-                </button>
-                <button type="button" onclick="closeNutritionModal()"
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
-                    Cancel
-                </button>
-            </div>
-        </form>
+<!-- ── Add Nutrition Modal ── -->
+<div id="nutritionModal" class="modal-backdrop" onclick="if(event.target===this)closeNutritionModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Add Nutrition Entry</span>
+      <button onclick="closeNutritionModal()" class="modal-close"><i class="fas fa-times"></i></button>
     </div>
+    <form id="nutritionForm">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="nutritionDate" class="form-input" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diet / Meals <span class="req">*</span></label>
+        <textarea id="nutritionDiet" rows="4" class="form-textarea" required
+                  placeholder="Describe meals eaten today...&#10;Example:&#10;Breakfast: Oatmeal with berries&#10;Lunch: Chicken salad&#10;Dinner: Grilled salmon with vegetables"></textarea>
+      </div>
+      <div class="form-group form-row">
+        <div>
+          <label class="form-label">Est. Calories</label>
+          <input type="number" id="nutritionCalories" min="0" class="form-input" placeholder="e.g., 2000">
+        </div>
+        <div>
+          <label class="form-label">Est. Sodium (mg)</label>
+          <input type="number" id="nutritionSodium" min="0" class="form-input" placeholder="e.g., 2300">
+        </div>
+        <div>
+          <label class="form-label">Est. Sat. Fat (g)</label>
+          <input type="number" id="nutritionSatFat" min="0" step="0.1" class="form-input" placeholder="e.g., 15">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea id="nutritionNotes" rows="2" class="form-textarea" placeholder="Any additional notes..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="modal-btn modal-btn-primary">Save Entry</button>
+        <button type="button" onclick="closeNutritionModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- Edit Nutrition Modal -->
-<div id="editNutritionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Edit Nutrition Entry</h3>
-            <button onclick="closeEditNutritionModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="editNutritionForm">
-            <input type="hidden" id="editNutritionId">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" id="editNutritionDate" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Diet / Meals <span class="text-red-500">*</span></label>
-                    <textarea id="editNutritionDiet" rows="4" required
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                              placeholder="Describe meals eaten today..."></textarea>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Calories</label>
-                        <input type="number" id="editNutritionCalories" min="0"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Sodium (mg)</label>
-                        <input type="number" id="editNutritionSodium" min="0"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Sat. Fat (g)</label>
-                        <input type="number" id="editNutritionSatFat" min="0" step="0.1"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                    <textarea id="editNutritionNotes" rows="2"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"></textarea>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium">
-                    Update Entry
-                </button>
-                <button type="button" onclick="closeEditNutritionModal()"
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium">
-                    Cancel
-                </button>
-            </div>
-        </form>
+<!-- ── Edit Nutrition Modal ── -->
+<div id="editNutritionModal" class="modal-backdrop" onclick="if(event.target===this)closeEditNutritionModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Edit Nutrition Entry</span>
+      <button onclick="closeEditNutritionModal()" class="modal-close"><i class="fas fa-times"></i></button>
     </div>
+    <form id="editNutritionForm">
+      <input type="hidden" id="editNutritionId">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="editNutritionDate" class="form-input" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diet / Meals <span class="req">*</span></label>
+        <textarea id="editNutritionDiet" rows="4" class="form-textarea" required
+                  placeholder="Describe meals eaten today..."></textarea>
+      </div>
+      <div class="form-group form-row">
+        <div>
+          <label class="form-label">Est. Calories</label>
+          <input type="number" id="editNutritionCalories" min="0" class="form-input">
+        </div>
+        <div>
+          <label class="form-label">Est. Sodium (mg)</label>
+          <input type="number" id="editNutritionSodium" min="0" class="form-input">
+        </div>
+        <div>
+          <label class="form-label">Est. Sat. Fat (g)</label>
+          <input type="number" id="editNutritionSatFat" min="0" step="0.1" class="form-input">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea id="editNutritionNotes" rows="2" class="form-textarea"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="modal-btn modal-btn-primary">Update Entry</button>
+        <button type="button" onclick="closeEditNutritionModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Delete Confirmation Modal ── -->
+<div id="deleteNutritionModal" class="modal-backdrop" onclick="if(event.target===this)closeDeleteModal()">
+  <div class="modal-box sm">
+    <div class="modal-header">
+      <span class="modal-title">Delete Nutrition Entry</span>
+      <button onclick="closeDeleteModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <p class="modal-text">Are you sure you want to delete this nutrition entry? This action cannot be undone.</p>
+    <div class="modal-footer">
+      <button type="button" onclick="confirmDeleteNutrition()" class="modal-btn modal-btn-danger">Delete</button>
+      <button type="button" onclick="closeDeleteModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 function formatDates() {
-    document.querySelectorAll('.nutrition-date').forEach(element => {
-        const dateStr = element.getAttribute('data-date');
-        if (dateStr) {
-            const date = new Date(dateStr + 'T00:00:00');
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            const formattedDate = date.toLocaleDateString('en-US', options);
-            const dayNum = date.getDate();
-            let suffix = 'th';
-            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
-            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
-            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
-            element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
-        }
-    });
+  document.querySelectorAll('.nutrition-date').forEach(element => {
+    const dateStr = element.getAttribute('data-date');
+    if (dateStr) {
+      const date = new Date(dateStr + 'T00:00:00');
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      const formattedDate = date.toLocaleDateString('en-US', options);
+      const dayNum = date.getDate();
+      let suffix = 'th';
+      if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
+      else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
+      else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
+      element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
+    }
+  });
 }
 
 function openNutritionModal() {
-    document.getElementById('nutritionModal').classList.remove('hidden');
-    document.getElementById('nutritionModal').classList.add('flex');
-    document.getElementById('nutritionDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('nutritionModal').classList.add('open');
+  document.getElementById('nutritionDate').value = new Date().toISOString().split('T')[0];
 }
-
 function closeNutritionModal() {
-    document.getElementById('nutritionModal').classList.add('hidden');
-    document.getElementById('nutritionModal').classList.remove('flex');
-    document.getElementById('nutritionForm').reset();
+  document.getElementById('nutritionModal').classList.remove('open');
+  document.getElementById('nutritionForm').reset();
 }
 
 function editNutritionEntry(entry) {
-    document.getElementById('editNutritionId').value = entry.id;
-    document.getElementById('editNutritionDate').value = entry.date;
-    document.getElementById('editNutritionDiet').value = entry.diet;
-    document.getElementById('editNutritionCalories').value = entry.estimated_calories || '';
-    document.getElementById('editNutritionSodium').value = entry.estimated_sodium || '';
-    document.getElementById('editNutritionSatFat').value = entry.estimated_saturated_fat || '';
-    document.getElementById('editNutritionNotes').value = entry.notes || '';
-
-    document.getElementById('editNutritionModal').classList.remove('hidden');
-    document.getElementById('editNutritionModal').classList.add('flex');
+  document.getElementById('editNutritionId').value = entry.id;
+  document.getElementById('editNutritionDate').value = entry.date;
+  document.getElementById('editNutritionDiet').value = entry.diet;
+  document.getElementById('editNutritionCalories').value = entry.estimated_calories || '';
+  document.getElementById('editNutritionSodium').value = entry.estimated_sodium || '';
+  document.getElementById('editNutritionSatFat').value = entry.estimated_saturated_fat || '';
+  document.getElementById('editNutritionNotes').value = entry.notes || '';
+  document.getElementById('editNutritionModal').classList.add('open');
 }
-
 function closeEditNutritionModal() {
-    document.getElementById('editNutritionModal').classList.add('hidden');
-    document.getElementById('editNutritionModal').classList.remove('flex');
-    document.getElementById('editNutritionForm').reset();
+  document.getElementById('editNutritionModal').classList.remove('open');
+  document.getElementById('editNutritionForm').reset();
 }
 
+let pendingDeleteId = null;
 function deleteNutritionEntry(id) {
-    if (confirm('Are you sure you want to delete this nutrition entry?')) {
-        fetch(`/api/nutrition-log/${id}`, {
-            method: 'DELETE'
-        })
-        .then(response => {
-            if (response.ok) {
-                location.reload();
-            } else {
-                alert('Error deleting nutrition entry. Please try again.');
-            }
-        })
-        .catch(error => {
-            alert('Error deleting nutrition entry. Please try again.');
-        });
-    }
+  pendingDeleteId = id;
+  document.getElementById('deleteNutritionModal').classList.add('open');
+}
+function closeDeleteModal() {
+  pendingDeleteId = null;
+  document.getElementById('deleteNutritionModal').classList.remove('open');
+}
+function confirmDeleteNutrition() {
+  if (!pendingDeleteId) return;
+  fetch(`/api/nutrition-log/${pendingDeleteId}`, { method: 'DELETE' })
+    .then(response => {
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error deleting nutrition entry. Please try again.');
+      }
+    })
+    .catch(() => alert('Error deleting nutrition entry. Please try again.'));
 }
 
 let nutritionChart = null;
@@ -310,258 +487,185 @@ let currentMetric = 'calories';
 const nutritionData = {{ nutrition_history | tojson }};
 
 function initializeChart() {
-    if (!nutritionData || nutritionData.length === 0) return;
-    
-    // Sort data by date ascending
-    const sortedData = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    renderChart(sortedData);
+  if (!nutritionData || nutritionData.length === 0) return;
+  const sortedData = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
+  renderChart(sortedData);
 }
 
 function renderChart(data) {
-    const ctx = document.getElementById('nutritionChart');
-    if (!ctx) return;
-    
-    // Apply view filter
-    let displayData = data;
-    if (currentView !== 'all' && data.length > currentView) {
-        displayData = data.slice(-currentView);
-    }
-    
-    // Filter out entries without the current metric
-    const filteredData = displayData.filter(entry => {
-        if (currentMetric === 'calories') return entry.estimated_calories != null;
-        if (currentMetric === 'sodium') return entry.estimated_sodium != null;
-        if (currentMetric === 'saturated_fat') return entry.estimated_saturated_fat != null;
-        return false;
-    });
-    
-    const labels = filteredData.map(entry => {
-        const date = new Date(entry.date + 'T00:00:00');
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    });
-    
-    let values, label, color, unit;
-    if (currentMetric === 'calories') {
-        values = filteredData.map(entry => entry.estimated_calories);
-        label = 'Calories';
-        color = '#16a34a';
-        unit = ' cal';
-    } else if (currentMetric === 'sodium') {
-        values = filteredData.map(entry => entry.estimated_sodium);
-        label = 'Sodium';
-        color = '#3b82f6';
-        unit = ' mg';
-    } else {
-        values = filteredData.map(entry => entry.estimated_saturated_fat);
-        label = 'Saturated Fat';
-        color = '#ca8a04';
-        unit = ' g';
-    }
-    
-    // Calculate min and max for better y-axis scaling
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
-    const padding = (maxValue - minValue) * 0.1 || 5;
-    
-    // Destroy existing chart if it exists
-    if (nutritionChart) {
-        nutritionChart.destroy();
-    }
-    
-    nutritionChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: label,
-                data: values,
-                borderColor: color,
-                backgroundColor: color + '1A',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                pointBackgroundColor: color,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverBackgroundColor: color,
-                pointHoverBorderColor: '#fff',
-                pointHoverBorderWidth: 3
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 12,
-                    titleFont: {
-                        size: 14
-                    },
-                    bodyFont: {
-                        size: 14
-                    },
-                    callbacks: {
-                        title: function(context) {
-                            return context[0].label;
-                        },
-                        label: function(context) {
-                            return context.parsed.y + unit;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    min: minValue - padding,
-                    max: maxValue + padding,
-                    ticks: {
-                        callback: function(value) {
-                            return value.toFixed(0) + unit;
-                        },
-                        font: {
-                            size: 12
-                        }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        font: {
-                            size: 11
-                        }
-                    },
-                    grid: {
-                        display: false
-                    }
-                }
-            },
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            }
+  const ctx = document.getElementById('nutritionChart');
+  if (!ctx) return;
+
+  let displayData = data;
+  if (currentView !== 'all' && data.length > currentView) {
+    displayData = data.slice(-currentView);
+  }
+
+  const filteredData = displayData.filter(entry => {
+    if (currentMetric === 'calories') return entry.estimated_calories != null;
+    if (currentMetric === 'sodium') return entry.estimated_sodium != null;
+    if (currentMetric === 'saturated_fat') return entry.estimated_saturated_fat != null;
+    return false;
+  });
+
+  const labels = filteredData.map(entry => {
+    const date = new Date(entry.date + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  });
+
+  let values, label, color, unit;
+  if (currentMetric === 'calories') {
+    values = filteredData.map(entry => entry.estimated_calories);
+    label = 'Calories'; color = '#059669'; unit = ' cal';
+  } else if (currentMetric === 'sodium') {
+    values = filteredData.map(entry => entry.estimated_sodium);
+    label = 'Sodium'; color = '#2563EB'; unit = ' mg';
+  } else {
+    values = filteredData.map(entry => entry.estimated_saturated_fat);
+    label = 'Saturated Fat'; color = '#CA8A04'; unit = ' g';
+  }
+
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const padding = (maxValue - minValue) * 0.1 || 5;
+
+  if (nutritionChart) nutritionChart.destroy();
+
+  nutritionChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: label,
+        data: values,
+        borderColor: color,
+        backgroundColor: color + '1A',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: color,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          padding: 12,
+          titleFont: { size: 14 },
+          bodyFont: { size: 14 },
+          callbacks: {
+            title: function(context) { return context[0].label; },
+            label: function(context) { return context.parsed.y + unit; }
+          }
         }
-    });
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          min: minValue - padding,
+          max: maxValue + padding,
+          ticks: {
+            callback: function(value) { return value.toFixed(0) + unit; },
+            font: { size: 12 }
+          },
+          grid: { color: 'rgba(0, 0, 0, 0.05)' }
+        },
+        x: {
+          ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } },
+          grid: { display: false }
+        }
+      },
+      interaction: { intersect: false, mode: 'index' }
+    }
+  });
 }
 
 function changeView(view) {
-    currentView = view;
-    
-    // Update button styles
-    const view30Btn = document.getElementById('view30Btn');
-    const viewAllBtn = document.getElementById('viewAllBtn');
-    
-    if (view === 30) {
-        view30Btn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors';
-        viewAllBtn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors';
-    } else {
-        view30Btn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors';
-        viewAllBtn.className = 'px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors';
-    }
-    
-    // Re-render chart with new view
-    const sortedData = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
-    renderChart(sortedData);
+  currentView = view;
+  document.getElementById('view30Btn').classList.toggle('active', view === 30);
+  document.getElementById('viewAllBtn').classList.toggle('active', view === 'all');
+  const sortedData = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
+  renderChart(sortedData);
 }
 
 function changeMetric(metric) {
-    currentMetric = metric;
-    
-    // Update metric button styles
-    const caloriesBtn = document.getElementById('metricCaloriesBtn');
-    const sodiumBtn = document.getElementById('metricSodiumBtn');
-    const satFatBtn = document.getElementById('metricSatFatBtn');
-    
-    const activeClass = 'px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors';
-    const inactiveClass = 'px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors';
-    
-    caloriesBtn.className = metric === 'calories' ? activeClass : inactiveClass;
-    sodiumBtn.className = metric === 'sodium' ? activeClass : inactiveClass;
-    satFatBtn.className = metric === 'saturated_fat' ? activeClass : inactiveClass;
-    
-    // Re-render chart with new metric
-    const sortedData = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
-    renderChart(sortedData);
+  currentMetric = metric;
+  document.getElementById('metricCaloriesBtn').classList.toggle('active', metric === 'calories');
+  document.getElementById('metricSodiumBtn').classList.toggle('active', metric === 'sodium');
+  document.getElementById('metricSatFatBtn').classList.toggle('active', metric === 'saturated_fat');
+  const sortedData = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
+  renderChart(sortedData);
 }
 
-// Initialize chart when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    formatDates();
-    initializeChart();
+  formatDates();
+  initializeChart();
 });
 
 document.getElementById('nutritionForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const formData = {
-        client_id: '{{ client.id }}',
-        date: document.getElementById('nutritionDate').value,
-        diet: document.getElementById('nutritionDiet').value,
-        estimated_calories: document.getElementById('nutritionCalories').value || null,
-        estimated_sodium: document.getElementById('nutritionSodium').value || null,
-        estimated_saturated_fat: document.getElementById('nutritionSatFat').value || null,
-        notes: document.getElementById('nutritionNotes').value
-    };
-
-    try {
-        const response = await fetch('/api/nutrition-log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-            closeNutritionModal();
-            location.reload();
-        } else {
-            alert('Error logging nutrition. Please try again.');
-        }
-    } catch (error) {
-        alert('Error logging nutrition. Please try again.');
+  e.preventDefault();
+  const formData = {
+    client_id: '{{ client.id }}',
+    date: document.getElementById('nutritionDate').value,
+    diet: document.getElementById('nutritionDiet').value,
+    estimated_calories: document.getElementById('nutritionCalories').value || null,
+    estimated_sodium: document.getElementById('nutritionSodium').value || null,
+    estimated_saturated_fat: document.getElementById('nutritionSatFat').value || null,
+    notes: document.getElementById('nutritionNotes').value
+  };
+  try {
+    const response = await fetch('/api/nutrition-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+    if (response.ok) {
+      closeNutritionModal();
+      location.reload();
+    } else {
+      alert('Error logging nutrition. Please try again.');
     }
+  } catch (error) {
+    alert('Error logging nutrition. Please try again.');
+  }
 });
 
 document.getElementById('editNutritionForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const formData = {
-        date: document.getElementById('editNutritionDate').value,
-        diet: document.getElementById('editNutritionDiet').value,
-        estimated_calories: document.getElementById('editNutritionCalories').value || null,
-        estimated_sodium: document.getElementById('editNutritionSodium').value || null,
-        estimated_saturated_fat: document.getElementById('editNutritionSatFat').value || null,
-        notes: document.getElementById('editNutritionNotes').value
-    };
-
-    const id = document.getElementById('editNutritionId').value;
-
-    try {
-        const response = await fetch(`/api/nutrition-log/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-            closeEditNutritionModal();
-            location.reload();
-        } else {
-            alert('Error updating nutrition entry. Please try again.');
-        }
-    } catch (error) {
-        alert('Error updating nutrition entry. Please try again.');
+  e.preventDefault();
+  const formData = {
+    date: document.getElementById('editNutritionDate').value,
+    diet: document.getElementById('editNutritionDiet').value,
+    estimated_calories: document.getElementById('editNutritionCalories').value || null,
+    estimated_sodium: document.getElementById('editNutritionSodium').value || null,
+    estimated_saturated_fat: document.getElementById('editNutritionSatFat').value || null,
+    notes: document.getElementById('editNutritionNotes').value
+  };
+  const id = document.getElementById('editNutritionId').value;
+  try {
+    const response = await fetch(`/api/nutrition-log/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+    if (response.ok) {
+      closeEditNutritionModal();
+      location.reload();
+    } else {
+      alert('Error updating nutrition entry. Please try again.');
     }
+  } catch (error) {
+    alert('Error updating nutrition entry. Please try again.');
+  }
 });
 </script>
 {% endblock %}
