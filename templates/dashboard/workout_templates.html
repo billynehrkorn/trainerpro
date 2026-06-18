@@ -308,6 +308,21 @@
           <label class="form-label">Template Name</label>
           <input type="text" id="templateName" required class="form-input" placeholder="e.g., Chest Day, Leg Workout">
         </div>
+
+        <!-- Import from AI -->
+        <div class="form-section" style="margin-bottom:1rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:0.78rem;font-weight:600;color:var(--slate-600);">Import from AI</div>
+              <div style="font-size:0.7rem;color:var(--slate-400);margin-top:0.15rem;">Paste AI-formatted text to auto-fill exercises</div>
+            </div>
+            <button type="button" onclick="openTemplateAIImportModal()"
+                    style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.38rem 0.85rem;border-radius:7px;border:none;cursor:pointer;font-size:0.78rem;font-weight:600;background:var(--emerald);color:white;transition:background 0.12s;">
+              <i class="fas fa-robot"></i> Import Text
+            </button>
+          </div>
+        </div>
+
         <div id="templateExercisesList"></div>
         <button type="button" onclick="addTemplateExercise()" class="add-exercise-btn">
           <i class="fas fa-plus"></i> Add Exercise
@@ -317,6 +332,83 @@
           <button type="button" onclick="closeModal('createTemplateModal')" class="modal-btn modal-btn-secondary">Cancel</button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════ AI IMPORT MODAL (for Create Template) ════════════ -->
+<div id="templateAIImportModal" class="modal-backdrop">
+  <div class="modal-box sm">
+    <div class="modal-header">
+      <span class="modal-title">Import from AI</span>
+      <button class="modal-close" onclick="closeTemplateAIImportModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Paste AI Output</label>
+        <textarea id="templateAIText" rows="9" class="form-textarea" style="font-family:monospace;font-size:0.8rem"
+                  placeholder="Bench Press&#10;135 x 10&#10;145 x 8&#10;155 x 6&#10;Notes: Felt strong&#10;&#10;Incline Dumbbell Press&#10;50 x 12&#10;55 x 10"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" style="margin-bottom:0.5rem">Give your AI this prompt</label>
+        <div style="position:relative">
+          <pre id="templateAIPromptText" class="prompt-block">Format this workout template using EXACTLY this structure:
+
+- Exercise name on its own line (no numbering, no bullet points)
+- Each set on its own line as: WEIGHT x REPS (numbers only, e.g., "135 x 10")
+- For bodyweight exercises, use: 0 x REPS
+- For added weight (e.g. weighted dips), use just the added weight: 45 x 10
+- To leave weight blank (unknown or not applicable), use: x REPS  (just x then the reps, no number before it)
+- "Notes:" followed by any notes (optional)
+- Blank line between exercises
+
+DO NOT include: bullet points, numbering, words like "lbs"/"pounds"/"reps", rest periods
+
+Example output:
+Bench Press
+135 x 10
+145 x 8
+155 x 6
+Notes: Full stop on chest
+
+Weighted Dips
+45 x 10
+70 x 8
+
+Push-Ups
+0 x 15
+0 x 12
+
+Cable Fly
+x 12
+x 12
+Notes: Weight TBD</pre>
+          <button type="button" onclick="copyTemplatePrompt()" class="copy-prompt-btn">
+            <i class="fas fa-copy"></i> Copy
+          </button>
+        </div>
+      </div>
+
+      <div id="templateAIPreviewSection" class="hidden">
+        <label class="form-label">Preview</label>
+        <div id="templateAIPreviewContent"
+             style="border:1.5px solid var(--slate-200);border-radius:8px;padding:0.75rem;background:var(--slate-50);max-height:200px;overflow-y:auto;margin-bottom:1rem">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:0.6rem;">
+        <button type="button" onclick="previewTemplateAIImport()" style="flex:1" class="modal-btn modal-btn-secondary">
+          <i class="fas fa-eye"></i> Preview
+        </button>
+        <button type="button" onclick="applyTemplateAIImport()" style="flex:1" class="modal-btn modal-btn-primary">
+          <i class="fas fa-check"></i> Apply
+        </button>
+        <button type="button" onclick="closeTemplateAIImportModal()" style="flex:1" class="modal-btn modal-btn-secondary">
+          Cancel
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -614,6 +706,119 @@ async function deleteTemplate(templateId) {
     const r = await fetch(`/api/templates/${templateId}`, { method: 'DELETE' });
     if (r.ok) location.reload(); else alert('Error deleting template');
   } catch { alert('Error deleting template'); }
+}
+
+// ── AI Import for Templates ──
+let parsedTemplateAIExercises = [];
+
+function openTemplateAIImportModal() {
+  document.getElementById('templateAIText').value = '';
+  document.getElementById('templateAIPreviewSection').classList.add('hidden');
+  parsedTemplateAIExercises = [];
+  openModal('templateAIImportModal');
+}
+function closeTemplateAIImportModal() { closeModal('templateAIImportModal'); }
+
+function copyTemplatePrompt() {
+  const text = document.getElementById('templateAIPromptText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target.closest('button');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+    setTimeout(() => btn.innerHTML = orig, 2000);
+  });
+}
+
+function parseTemplateAIText(text) {
+  const exercises = [];
+  const blocks = text.trim().split(/\n\s*\n/);
+  for (const block of blocks) {
+    const lines = block.trim().split('\n').filter(l => l.trim());
+    if (!lines.length) continue;
+    const ex = { name: lines[0].trim(), sets: [], notes: '' };
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.toLowerCase().startsWith('notes:')) { ex.notes = line.slice(6).trim(); continue; }
+      const lower = line.toLowerCase();
+      if (lower.startsWith('rest') || lower.startsWith('immediately') || lower.startsWith('same ')) continue;
+      // "135 x 10" or "135x10" — normal weight x reps
+      const m = line.match(/^[+]?(\d+(?:\.\d+)?)\s*(?:lbs?)?\s*[xX]\s*(\d+)/);
+      if (m) { ex.sets.push({ weight: parseFloat(m[1]), reps: parseInt(m[2]) }); continue; }
+      // "x 10" — empty weight (null)
+      const noWeight = line.match(/^[xX]\s*(\d+)/);
+      if (noWeight) { ex.sets.push({ weight: null, reps: parseInt(noWeight[1]) }); continue; }
+      // "bodyweight x 10" or "bw x 10" — weight = 0
+      const bw = line.match(/^(?:bodyweight|bw)\s*[xX]\s*(\d+)/i);
+      if (bw) { ex.sets.push({ weight: 0, reps: parseInt(bw[1]) }); }
+    }
+    if (ex.name) {
+      if (!ex.sets.length) ex.sets.push({ weight: null, reps: null });
+      exercises.push(ex);
+    }
+  }
+  return exercises;
+}
+
+function previewTemplateAIImport() {
+  parsedTemplateAIExercises = parseTemplateAIText(document.getElementById('templateAIText').value);
+  const section = document.getElementById('templateAIPreviewSection');
+  const content = document.getElementById('templateAIPreviewContent');
+  if (!parsedTemplateAIExercises.length) {
+    content.innerHTML = '<p style="color:var(--red);font-size:0.82rem">No exercises found — check the format.</p>';
+  } else {
+    content.innerHTML = parsedTemplateAIExercises.map((ex, i) => `
+      <div style="border-left:3px solid var(--emerald);padding-left:0.65rem;margin-bottom:0.75rem">
+        <div style="font-size:0.875rem;font-weight:700;color:var(--navy)">${i+1}. ${ex.name}</div>
+        <div style="font-size:0.78rem;color:var(--slate-600);margin-top:0.2rem">
+          ${ex.sets.map((s,si) => `<div>Set ${si+1}: ${s.weight ?? '—'} lbs × ${s.reps ?? '—'} reps</div>`).join('')}
+        </div>
+        ${ex.notes ? `<div style="font-size:0.75rem;color:var(--slate-400);font-style:italic;margin-top:0.2rem">${ex.notes}</div>` : ''}
+      </div>`).join('');
+  }
+  section.classList.remove('hidden');
+}
+
+function applyTemplateAIImport() {
+  if (!parsedTemplateAIExercises.length) parsedTemplateAIExercises = parseTemplateAIText(document.getElementById('templateAIText').value);
+  if (!parsedTemplateAIExercises.length) { alert('No exercises found. Check the format.'); return; }
+
+  // Clear existing exercises and re-populate
+  const list = document.getElementById('templateExercisesList');
+  list.innerHTML = '';
+  templateExerciseCount = 0;
+
+  parsedTemplateAIExercises.forEach((ex, idx) => {
+    addTemplateExercise(); // adds a blank row
+    const row = list.children[idx];
+
+    // Set exercise name
+    row.querySelector('.exercise-input').value = ex.name;
+
+    // Set notes
+    const notesTA = row.querySelector('.exercise-notes');
+    if (notesTA && ex.notes) notesTA.value = ex.notes;
+
+    // Replace the default single set with parsed sets
+    const setsList = row.querySelector('.sets-list');
+    setsList.innerHTML = '';
+    ex.sets.forEach((set, si) => {
+      const sr = document.createElement('div');
+      sr.className = 'set-row';
+      sr.innerHTML = `
+        <span class="set-label">Set ${si + 1}</span>
+        <input type="number" step="0.5" min="0" placeholder="lbs" value="${set.weight ?? ''}" class="set-input set-weight">
+        <span class="set-unit">lbs</span>
+        <input type="number" min="1" placeholder="reps" value="${set.reps ?? ''}" class="set-input set-reps">
+        <span class="set-unit">reps</span>
+        <button type="button" onclick="removeSet(this)" class="remove-set-btn ${ex.sets.length === 1 ? 'hidden' : ''}">
+          <i class="fas fa-times"></i>
+        </button>`;
+      setsList.appendChild(sr);
+    });
+  });
+
+  closeTemplateAIImportModal();
+  alert(`Imported ${parsedTemplateAIExercises.length} exercise(s)!`);
 }
 </script>
 {% endblock %}

@@ -657,6 +657,15 @@ Push-Ups
 
 
 <script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+
 // ─────────────────────────────────────────
 // State
 // ─────────────────────────────────────────
@@ -680,7 +689,7 @@ document.querySelectorAll('.modal-backdrop').forEach(el => {
 });
 
 function openCreateWorkoutModal() {
-  document.getElementById('createWorkoutDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('createWorkoutDate').value = localToday();
   document.getElementById('createExercisesList').innerHTML = '';
   createExerciseCount = 0;
   createSelectedTags = [];
@@ -1144,7 +1153,7 @@ async function deleteWorkout(clientId, workoutDate) {
 function duplicateWorkout(clientId, workoutDate) {
   duplicateWorkoutClientId = clientId;
   duplicateWorkoutDate = workoutDate;
-  document.getElementById('duplicateWorkoutDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('duplicateWorkoutDate').value = localToday();
   openModal('duplicateWorkoutModal');
 }
 function closeDuplicateModal() {

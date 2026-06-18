@@ -17,264 +17,80 @@
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
   }
 
-  .ec-wrap {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 2rem 1.25rem;
-  }
-
-  .ec-head {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    margin-bottom: 1.5rem;
-  }
-
+  .ec-wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem; }
+  .ec-head { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.5rem; }
   .ec-back {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    border-radius: var(--radius);
-    border: 1.5px solid var(--border);
-    background: #fff;
-    color: var(--slate);
-    text-decoration: none;
-    transition: all 0.15s ease;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border-radius: var(--radius);
+    border: 1.5px solid var(--border); background: #fff;
+    color: var(--slate); text-decoration: none; transition: all 0.15s ease;
   }
-
-  .ec-back:hover {
-    color: var(--navy);
-    border-color: var(--slate-light);
-  }
-
-  .ec-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--navy);
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  .ec-card {
-    background: #fff;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
-  }
-
-  .ec-card-head {
-    padding: 1rem 1.5rem;
-    border-bottom: 1.5px solid var(--border);
-  }
-
-  .ec-card-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--slate-light);
-  }
-
-  .ec-card-body {
-    padding: 1.5rem;
-  }
-
-  .ec-photo-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .ec-avatar {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1.5px solid var(--border);
-  }
-
+  .ec-back:hover { color: var(--navy); border-color: var(--slate-light); }
+  .ec-title { font-size: 1.75rem; font-weight: 700; color: var(--navy); margin: 0; line-height: 1.2; }
+  .ec-card { background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .ec-card-head { padding: 1rem 1.5rem; border-bottom: 1.5px solid var(--border); }
+  .ec-card-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--slate-light); }
+  .ec-card-body { padding: 1.5rem; }
+  .ec-photo-row { display: flex; align-items: center; gap: 1rem; }
+  .ec-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border); }
   .ec-avatar-fallback {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--slate-light);
-    font-size: 1.35rem;
-    flex-shrink: 0;
+    width: 64px; height: 64px; border-radius: 50%; background: var(--bg);
+    border: 1.5px solid var(--border); display: flex; align-items: center;
+    justify-content: center; color: var(--slate-light); font-size: 1.35rem; flex-shrink: 0;
   }
-
-  .ec-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-    margin-top: 1.5rem;
-  }
-
-  .ec-field-full {
-    grid-column: 1 / -1;
-  }
-
-  .ec-label {
-    display: block;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--navy);
-    margin-bottom: 0.4rem;
-  }
-
-  .ec-input,
-  .ec-select {
-    width: 100%;
-    padding: 0.6rem 0.75rem;
-    font-size: 0.875rem;
-    color: var(--navy);
-    background: #fff;
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
+  .ec-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-top: 1.5rem; }
+  .ec-field-full { grid-column: 1 / -1; }
+  .ec-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--navy); margin-bottom: 0.4rem; }
+  .ec-input, .ec-select {
+    width: 100%; padding: 0.6rem 0.75rem; font-size: 0.875rem; color: var(--navy);
+    background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-
-  .ec-input:focus,
-  .ec-select:focus {
-    outline: none;
-    border-color: var(--emerald);
-    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+  .ec-input:focus, .ec-select:focus {
+    outline: none; border-color: var(--emerald); box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
   }
-
-  .ec-input--readonly {
-    background: var(--bg);
-    color: var(--slate);
-    cursor: not-allowed;
-  }
-
-  .ec-file {
-    display: block;
-    width: 100%;
-    font-size: 0.8rem;
-    color: var(--slate);
-  }
-
+  .ec-input--readonly { background: var(--bg); color: var(--slate); cursor: not-allowed; }
+  .ec-file { display: block; width: 100%; font-size: 0.8rem; color: var(--slate); }
   .ec-file::file-selector-button {
-    margin-right: 0.85rem;
-    padding: 0.5rem 0.9rem;
-    border: 0;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    background: rgba(5, 150, 105, 0.1);
-    color: var(--emerald-dark);
-    cursor: pointer;
-    transition: background 0.15s ease;
+    margin-right: 0.85rem; padding: 0.5rem 0.9rem; border: 0; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 600; background: rgba(5, 150, 105, 0.1);
+    color: var(--emerald-dark); cursor: pointer; transition: background 0.15s ease;
   }
-
-  .ec-file::file-selector-button:hover {
-    background: rgba(5, 150, 105, 0.18);
-  }
-
-  .ec-hint {
-    font-size: 0.72rem;
-    color: var(--slate-light);
-    margin-top: 0.4rem;
-  }
-
-  .ec-hint a {
-    color: var(--emerald);
-    text-decoration: none;
-  }
-
-  .ec-hint a:hover {
-    text-decoration: underline;
-  }
-
+  .ec-file::file-selector-button:hover { background: rgba(5, 150, 105, 0.18); }
+  .ec-hint { font-size: 0.72rem; color: var(--slate-light); margin-top: 0.4rem; }
+  .ec-hint a { color: var(--emerald); text-decoration: none; }
+  .ec-hint a:hover { text-decoration: underline; }
   .ec-actions {
-    display: flex;
-    gap: 0.85rem;
-    margin-top: 1.75rem;
-    padding-top: 1.5rem;
-    border-top: 1.5px solid var(--border);
+    display: flex; gap: 0.85rem; margin-top: 1.75rem;
+    padding-top: 1.5rem; border-top: 1.5px solid var(--border);
   }
-
   .ec-btn {
-    flex: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.65rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: var(--radius);
-    border: 1.5px solid transparent;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.15s ease;
+    flex: 1; display: inline-flex; align-items: center; justify-content: center;
+    gap: 0.5rem; padding: 0.65rem 1rem; font-size: 0.875rem; font-weight: 600;
+    border-radius: var(--radius); border: 1.5px solid transparent;
+    cursor: pointer; text-decoration: none; transition: all 0.15s ease;
   }
-
-  .ec-btn--primary {
-    background: var(--emerald);
-    color: #fff;
-  }
-
-  .ec-btn--primary:hover {
-    background: var(--emerald-dark);
-  }
-
-  .ec-btn--ghost {
-    background: #fff;
-    color: var(--slate);
-    border-color: var(--border);
-  }
-
-  .ec-btn--ghost:hover {
-    color: var(--navy);
-    border-color: var(--slate-light);
-  }
+  .ec-btn--primary { background: var(--emerald); color: #fff; }
+  .ec-btn--primary:hover { background: var(--emerald-dark); }
+  .ec-btn--ghost { background: #fff; color: var(--slate); border-color: var(--border); }
+  .ec-btn--ghost:hover { color: var(--navy); border-color: var(--slate-light); }
 
   @media (max-width: 680px) {
-    .ec-grid {
-      grid-template-columns: 1fr;
-    }
-    .ec-actions {
-      flex-direction: column;
-    }
+    .ec-grid { grid-template-columns: 1fr; }
+    .ec-actions { flex-direction: column; }
   }
 
-  /* ════════════════════════════════════════════════
-     DARK MODE — page-specific surfaces.
-     These ec-* classes use literal #fff and light token
-     backgrounds that base.html's dark block doesn't remap,
-     so we theme them here directly.
-  ════════════════════════════════════════════════ */
-  html.dark .ec-back,
-  html.dark .ec-card,
-  html.dark .ec-input,
-  html.dark .ec-select,
-  html.dark .ec-btn--ghost {
-    background: #1E293B;
-    color: var(--navy);
-    border-color: var(--slate-200);
+  html.dark .ec-back, html.dark .ec-card, html.dark .ec-input,
+  html.dark .ec-select, html.dark .ec-btn--ghost {
+    background: #1E293B; color: var(--navy); border-color: var(--slate-200);
   }
-
   html.dark .ec-card-head { border-bottom-color: var(--slate-200); }
   html.dark .ec-actions { border-top-color: var(--slate-200); }
-
-  /* Recessed surfaces (page-bg tinted) */
-  html.dark .ec-avatar-fallback,
-  html.dark .ec-input--readonly {
-    background: #0F172A;
-    border-color: var(--slate-200);
+  html.dark .ec-avatar-fallback, html.dark .ec-input--readonly {
+    background: #0F172A; border-color: var(--slate-200);
   }
   html.dark .ec-avatar { border-color: var(--slate-200); }
-
-  html.dark .ec-back:hover,
-  html.dark .ec-btn--ghost:hover { border-color: var(--slate-400); }
+  html.dark .ec-back:hover, html.dark .ec-btn--ghost:hover { border-color: var(--slate-400); }
 </style>
 
 <div class="ec-wrap">
@@ -298,9 +114,7 @@
             {% if client.photo_url %}
               <img src="{{ url_for('static', filename=client.photo_url) }}" alt="{{ client.name }}" class="ec-avatar">
             {% else %}
-              <div class="ec-avatar-fallback">
-                <i class="fas fa-user"></i>
-              </div>
+              <div class="ec-avatar-fallback"><i class="fas fa-user"></i></div>
             {% endif %}
             <input type="file" name="photo" accept="image/*" class="ec-file">
           </div>
@@ -340,18 +154,13 @@
               <option value="cancelled" {{ 'selected' if client.status == 'cancelled' else '' }}>Cancelled</option>
             </select>
           </div>
-          <!-- Weight field now shows most recent weight log and is read-only -->
           <div>
             <label class="ec-label">Weight (lbs)</label>
             <input type="number" name="weight" value="{{ latest_weight or '' }}" step="0.1" readonly class="ec-input ec-input--readonly">
             {% if latest_weight %}
-            <p class="ec-hint">
-              <i class="fas fa-info-circle"></i> From most recent weight log ({{ latest_weight_date }})
-            </p>
+            <p class="ec-hint"><i class="fas fa-info-circle"></i> From most recent weight log ({{ latest_weight_date }})</p>
             {% else %}
-            <p class="ec-hint">
-              <i class="fas fa-info-circle"></i> No weight logs yet. <a href="{{ url_for('client_weight_logs', client_id=client.id) }}">Add one</a>
-            </p>
+            <p class="ec-hint"><i class="fas fa-info-circle"></i> No weight logs yet. <a href="{{ url_for('client_weight_logs', client_id=client.id) }}">Add one</a></p>
             {% endif %}
           </div>
           <div>

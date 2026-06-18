@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Client Portal - TrainerPro{% endblock %}</title>
+
+  <!-- Apply saved theme BEFORE paint — same pattern as trainer base.html -->
+  <script>
+    (function () {
+      try {
+        {% if session.client_theme %}
+        var t = "{{ session.client_theme }}";
+        localStorage.setItem('client_theme', t);
+        if (t === 'dark') document.documentElement.classList.add('dark');
+        {% else %}
+        localStorage.removeItem('client_theme');
+        document.documentElement.classList.remove('dark');
+        {% endif %}
+      } catch(e) {}
+    })();
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+  <style>
+    /* ════════════════════════════
+       GLOBAL DARK MODE (client)
+    ════════════════════════════ */
+    html.dark { color-scheme: dark; }
+    html.dark body { background: #0F172A; }
+
+    /* Cards / surfaces that use literal white */
+    html.dark .card,
+    html.dark .stat-card,
+    html.dark .modal-box,
+    html.dark .workout-card,
+    html.dark .entry-item,
+    html.dark .session-item,
+    html.dark .workout-item,
+    html.dark .form-input,
+    html.dark .form-textarea,
+    html.dark .toggle-btn {
+      background: #1E293B !important;
+      border-color: #334155 !important;
+      color: #F1F5F9 !important;
+    }
+    html.dark .card-header,
+    html.dark .modal-header,
+    html.dark .modal-footer { border-color: #334155 !important; }
+    html.dark .card-title   { color: #94A3B8 !important; }
+    html.dark .page-title, html.dark .page-greeting { color: #F1F5F9; }
+    html.dark .page-subtitle, html.dark .page-sub,
+    html.dark .workout-meta, html.dark .entry-date,
+    html.dark .session-time-text, html.dark .stat-sub { color: #94A3B8; }
+    html.dark .workout-date-text, html.dark .session-date-text,
+    html.dark .entry-weight, html.dark .stat-value,
+    html.dark .exercise-name { color: #F1F5F9; }
+    html.dark .exercise-set-line, html.dark .entry-notes,
+    html.dark .exercise-notes, html.dark .stat-label { color: #94A3B8; }
+    html.dark .exercise-panel { background: #0F172A !important; border-color: #334155 !important; }
+    html.dark .exercise-entry { border-color: #334155 !important; }
+    html.dark .toggle-btn.active { background: #7C3AED !important; border-color: #7C3AED !important; color: white !important; }
+    html.dark .modal-btn-secondary { background: #0F172A !important; color: #CBD5E1 !important; border-color: #334155 !important; }
+    html.dark .readonly-notice { background: #1E3A5F !important; border-color: #1D4ED8 !important; color: #93C5FD !important; }
+    html.dark .empty-state { color: #475569; }
+    html.dark .empty-state h3 { color: #CBD5E1; }
+    html.dark .form-label { color: #CBD5E1; }
+    html.dark .modal-title { color: #F1F5F9; }
+
+    /* ════════════════════════════
+       SIDEBAR — light mode
+    ════════════════════════════ */
+    :root {
+      --sb-bg:          #ffffff;
+      --sb-border:      #E2E8F0;
+      --sb-text:        #475569;
+      --sb-text-bright: #0F172A;
+      --sb-hover:       #F1F5F9;
+      --sb-active-bg:   #EFF6FF;
+      --sb-active-text: #2563EB;
+      --sb-accent:      #2563EB;
+      --sb-section:     #94A3B8;
+    }
+
+    /* Dark mode sidebar flips to navy */
+    html.dark {
+      --sb-bg:          #0F172A;
+      --sb-border:      rgba(255,255,255,0.08);
+      --sb-text:        rgba(255,255,255,0.55);
+      --sb-text-bright: rgba(255,255,255,0.9);
+      --sb-hover:       rgba(255,255,255,0.07);
+      --sb-active-bg:   rgba(37,99,235,0.18);
+      --sb-active-text: #60A5FA;
+      --sb-section:     rgba(255,255,255,0.25);
+    }
+
+    * { box-sizing: border-box; }
+    body { background: #F8FAFC; font-family: system-ui, -apple-system, sans-serif; margin: 0; }
+    html.dark body { background: #0F172A; }
+
+    /* ── Desktop sidebar ── */
+    #client-sidebar {
+      position: fixed; top: 0; bottom: 0; left: 0;
+      width: 240px; display: flex; flex-direction: column;
+      background: var(--sb-bg);
+      border-right: 1.5px solid var(--sb-border);
+      box-shadow: 1px 0 4px rgba(0,0,0,0.04);
+      z-index: 30;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .sb-logo {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 1.4rem 1.25rem 1.25rem;
+      border-bottom: 1.5px solid var(--sb-border);
+    }
+    .sb-logo-mark {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--sb-accent);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .sb-logo-name { font-size: 1rem; font-weight: 700; color: var(--sb-text-bright); }
+    .sb-logo-sub  { font-size: 0.62rem; color: var(--sb-section); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.1rem; }
+
+    .sb-nav { padding: 0.5rem 0.75rem; flex: 1; overflow-y: auto; }
+    .sb-section-label {
+      font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.09em; color: var(--sb-section);
+      padding: 0 0.5rem; margin: 1.1rem 0 0.4rem; display: block;
+    }
+    .sb-link {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.55rem 0.75rem; border-radius: 8px;
+      text-decoration: none; font-size: 0.85rem; font-weight: 500;
+      color: var(--sb-text); position: relative;
+      transition: background 0.13s, color 0.13s; margin-bottom: 2px;
+    }
+    .sb-link:hover  { background: var(--sb-hover); color: var(--sb-text-bright); }
+    .sb-link.active { background: var(--sb-active-bg); color: var(--sb-active-text); font-weight: 600; }
+    .sb-link.active::before {
+      content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 60%; background: var(--sb-accent); border-radius: 0 3px 3px 0;
+    }
+    .sb-link i { width: 18px; text-align: center; flex-shrink: 0; font-size: 0.85rem; }
+
+    .sb-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.85rem 1rem; border-top: 1.5px solid var(--sb-border);
+    }
+    .sb-footer-left { display: flex; align-items: center; gap: 0.65rem; min-width: 0; }
+    .sb-avatar {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--sb-active-bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: var(--sb-accent); flex-shrink: 0;
+    }
+    .sb-user-name {
+      font-size: 0.8rem; font-weight: 600; color: var(--sb-text-bright);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sb-signout {
+      font-size: 0.7rem; color: var(--sb-section);
+      text-decoration: none; display: block; margin-top: 1px; transition: color 0.13s;
+    }
+    .sb-signout:hover { color: var(--sb-text-bright); }
+
+    /* Theme toggle */
+    .theme-toggle {
+      display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 7px;
+      background: var(--sb-hover); border: 1.5px solid var(--sb-border);
+      cursor: pointer; color: var(--sb-text);
+      transition: background 0.15s, color 0.15s; flex-shrink: 0;
+    }
+    .theme-toggle:hover { color: var(--sb-text-bright); }
+    .theme-toggle .fa-sun  { display: none; }
+    html.dark .theme-toggle .fa-moon { display: none; }
+    html.dark .theme-toggle .fa-sun  { display: inline; }
+
+    /* ── Mobile nav ── */
+    #client-mobile-nav {
+      position: fixed; inset-y: 0; left: 0; width: 240px; z-index: 9999;
+      background: var(--sb-bg); border-right: 1.5px solid var(--sb-border);
+      transform: translateX(-100%); transition: transform 0.3s ease-in-out;
+      display: flex; flex-direction: column;
+    }
+    .mobile-nav-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 1rem; border-bottom: 1.5px solid var(--sb-border);
+    }
+    .mobile-nav-brand { display: flex; align-items: center; gap: 0.6rem; }
+    .mobile-close-btn {
+      background: var(--sb-hover); border: none; cursor: pointer;
+      color: var(--sb-text); font-size: 0.9rem;
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.13s, color 0.13s;
+    }
+    .mobile-close-btn:hover { color: var(--sb-text-bright); }
+    .mobile-sb-nav { padding: 0.5rem 0.75rem; flex: 1; }
+
+    .mobile-nav-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      z-index: 9998; opacity: 0; visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+    .mobile-nav-backdrop.active { opacity: 1; visibility: visible; }
+
+    /* ── Mobile top bar ── */
+    #client-topbar {
+      background: var(--sb-bg);
+      border-bottom: 1.5px solid var(--sb-border);
+      display: none;
+    }
+    .topbar-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1rem;
+    }
+    .topbar-menu-btn {
+      background: var(--sb-hover); border: 1.5px solid var(--sb-border);
+      cursor: pointer; color: var(--sb-text); font-size: 1rem;
+      width: 34px; height: 34px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.13s;
+    }
+    .topbar-menu-btn:hover { color: var(--sb-text-bright); }
+    .topbar-brand { display: flex; align-items: center; gap: 0.5rem; }
+    .topbar-brand-mark {
+      width: 26px; height: 26px; border-radius: 6px;
+      background: var(--sb-accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; color: white;
+    }
+    .topbar-brand-name { font-size: 0.9rem; font-weight: 700; color: var(--sb-text-bright); }
+    .topbar-right { display: flex; align-items: center; gap: 0.5rem; }
+    .topbar-user { font-size: 0.75rem; color: var(--sb-section); }
+    html.dark .topbar-user { color: rgba(255,255,255,0.85); }
+
+    /* ── Main content ── */
+    .client-main { padding-left: 240px; min-height: 100vh; }
+
+    @media (max-width: 1023px) {
+      #client-sidebar { display: none; }
+      #client-topbar  { display: block; }
+      .client-main    { padding-left: 0; }
+    }
+  </style>
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Mobile backdrop -->
+  <div id="client-backdrop" class="mobile-nav-backdrop"></div>
+
+  <!-- Mobile nav -->
+  <div id="client-mobile-nav">
+    <div class="mobile-nav-header">
+      <div class="mobile-nav-brand">
+        <div class="sb-logo-mark"><i class="fas fa-user"></i></div>
+        <div>
+          <div class="sb-logo-name">Client Portal</div>
+        </div>
+      </div>
+      <button id="client-close-nav" class="mobile-close-btn">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <nav class="mobile-sb-nav">
+      <span class="sb-section-label">My Portal</span>
+      <a href="{{ url_for('client_portal') }}"
+         class="sb-link {% if request.endpoint == 'client_portal' %}active{% endif %}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a href="{{ url_for('client_portal_workouts') }}"
+         class="sb-link {% if request.endpoint in ['client_portal_workouts','client_portal_workout_detail'] %}active{% endif %}">
+        <i class="fas fa-dumbbell"></i> Workouts
+      </a>
+      <a href="{{ url_for('client_portal_weight') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_weight' %}active{% endif %}">
+        <i class="fas fa-weight-scale"></i> Weight
+      </a>
+      <a href="{{ url_for('client_portal_sleep') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_sleep' %}active{% endif %}">
+        <i class="fas fa-moon"></i> Sleep
+      </a>
+      <a href="{{ url_for('client_portal_nutrition') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_nutrition' %}active{% endif %}">
+        <i class="fas fa-utensils"></i> Nutrition
+      </a>
+      <a href="{{ url_for('client_logout') }}" class="sb-link" style="margin-top:0.75rem;">
+        <i class="fas fa-sign-out-alt"></i> Sign Out
+      </a>
+    </nav>
+  </div>
+
+  <!-- Desktop sidebar -->
+  <div id="client-sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-mark"><i class="fas fa-user"></i></div>
+      <div>
+        <div class="sb-logo-name">Client Portal</div>
+        <div class="sb-logo-sub">TrainerPro</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <span class="sb-section-label">My Portal</span>
+      <a href="{{ url_for('client_portal') }}"
+         class="sb-link {% if request.endpoint == 'client_portal' %}active{% endif %}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a href="{{ url_for('client_portal_workouts') }}"
+         class="sb-link {% if request.endpoint in ['client_portal_workouts','client_portal_workout_detail'] %}active{% endif %}">
+        <i class="fas fa-dumbbell"></i> Workouts
+      </a>
+      <a href="{{ url_for('client_portal_weight') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_weight' %}active{% endif %}">
+        <i class="fas fa-weight-scale"></i> Weight
+      </a>
+      <a href="{{ url_for('client_portal_sleep') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_sleep' %}active{% endif %}">
+        <i class="fas fa-moon"></i> Sleep
+      </a>
+      <a href="{{ url_for('client_portal_nutrition') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_nutrition' %}active{% endif %}">
+        <i class="fas fa-utensils"></i> Nutrition
+      </a>
+    </nav>
+
+    <div class="sb-footer">
+      <div class="sb-footer-left">
+        <div class="sb-avatar">
+          {{ session.client_name[0]|upper if session.client_name else '?' }}
+        </div>
+        <div style="min-width:0">
+          <div class="sb-user-name">{{ session.client_name }}</div>
+          <a href="{{ url_for('client_logout') }}" class="sb-signout">Sign out</a>
+        </div>
+      </div>
+      <button class="theme-toggle js-client-theme-toggle" title="Toggle dark mode">
+        <i class="fas fa-moon"></i>
+        <i class="fas fa-sun"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile top bar -->
+  <div id="client-topbar">
+    <div class="topbar-inner">
+      <button id="client-open-nav" class="topbar-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="topbar-brand">
+        <div class="topbar-brand-mark"><i class="fas fa-user"></i></div>
+        <span class="topbar-brand-name">Client Portal</span>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user">{{ session.client_name }}</span>
+        <button class="theme-toggle js-client-theme-toggle" title="Toggle dark mode">
+          <i class="fas fa-moon"></i>
+          <i class="fas fa-sun"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="client-main">
+    {% block content %}{% endblock %}
+  </div>
+
+  <script>
+    // ── Mobile nav ──
+    const openBtn   = document.getElementById('client-open-nav');
+    const closeBtn  = document.getElementById('client-close-nav');
+    const mobileNav = document.getElementById('client-mobile-nav');
+    const backdrop  = document.getElementById('client-backdrop');
+
+    function openNav()  { mobileNav.style.transform = 'translateX(0)';    backdrop.classList.add('active'); }
+    function closeNav() { mobileNav.style.transform = 'translateX(-100%)'; backdrop.classList.remove('active'); }
+
+    if (openBtn)  openBtn.addEventListener('click', openNav);
+    if (closeBtn) closeBtn.addEventListener('click', closeNav);
+    if (backdrop) backdrop.addEventListener('click', closeNav);
+    if (openBtn)  openBtn.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); openNav(); });
+
+    // ── Theme toggle ──
+    document.querySelectorAll('.js-client-theme-toggle').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const isDark = document.documentElement.classList.toggle('dark');
+        const theme  = isDark ? 'dark' : 'light';
+        try { localStorage.setItem('client_theme', theme); } catch(e) {}
+        fetch('/api/client-theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme })
+        }).catch(() => {});
+      });
+    });
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

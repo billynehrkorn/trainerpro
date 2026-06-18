@@ -302,6 +302,77 @@
   .history-btn:hover { color: var(--navy); background: var(--slate-100); }
 
   .note-indicator { color: #F59E0B; font-size: 0.75rem; margin-left: 0.35rem; }
+
+  /* ── Portal access card ── */
+  .portal-code-wrap {
+    display: flex; align-items: center; gap: 0.6rem;
+    margin-top: 0.5rem;
+  }
+  .portal-code {
+    font-family: monospace; font-size: 1rem; font-weight: 700;
+    letter-spacing: 0.1em; color: var(--navy);
+    background: var(--slate-100); border: 1.5px solid var(--slate-200);
+    border-radius: 7px; padding: 0.35rem 0.75rem;
+    flex: 1;
+  }
+  .copy-code-btn {
+    background: none; border: 1.5px solid var(--slate-200);
+    border-radius: 7px; padding: 0.35rem 0.65rem;
+    cursor: pointer; color: var(--slate-600); font-size: 0.8rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .copy-code-btn:hover { background: var(--slate-100); border-color: var(--slate-400); }
+  .portal-status-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem;
+    border-radius: 99px; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .portal-status-active   { background: var(--emerald-light); color: var(--emerald-text); }
+  .portal-status-inactive { background: var(--red-light);     color: var(--red-text); }
+  .portal-status-none     { background: var(--slate-100);     color: var(--slate-600); }
+  .portal-action-row { display: flex; gap: 0.5rem; margin-top: 0.85rem; flex-wrap: wrap; }
+  .portal-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.4rem 0.85rem; border-radius: 7px; border: none; cursor: pointer;
+    font-size: 0.78rem; font-weight: 600; transition: background 0.15s;
+  }
+  .portal-btn-generate { background: var(--blue); color: white; }
+  .portal-btn-generate:hover { background: var(--blue-hover); }
+  .portal-btn-revoke { background: var(--red-light); color: var(--red-text); border: 1.5px solid #FECACA; }
+  .portal-btn-revoke:hover { background: #FEE2E2; }
+  .portal-spinner { display: none; }
+  .portal-settings-btn {
+    background: none; border: 1.5px solid var(--slate-200); border-radius: 7px;
+    padding: 0.3rem 0.55rem; cursor: pointer; color: var(--slate-400);
+    font-size: 0.82rem; transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .portal-settings-btn:hover { background: var(--slate-100); color: var(--navy); border-color: var(--slate-400); }
+  /* Portal settings modal toggle rows */
+  .portal-setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 0; border-bottom: 1px solid var(--slate-100);
+  }
+  .portal-setting-row:last-child { border-bottom: none; }
+  .portal-setting-label { font-size: 0.875rem; font-weight: 600; color: var(--navy); }
+  .portal-setting-sub   { font-size: 0.75rem; color: var(--slate-400); margin-top: 0.1rem; }
+  .portal-setting-controls { display: flex; gap: 0.5rem; align-items: center; }
+  .toggle-pair { display: flex; border: 1.5px solid var(--slate-200); border-radius: 7px; overflow: hidden; }
+  .toggle-pair button {
+    padding: 0.3rem 0.65rem; border: none; cursor: pointer; font-size: 0.75rem;
+    font-weight: 600; background: white; color: var(--slate-400);
+    transition: background 0.12s, color 0.12s;
+  }
+  .toggle-pair button:first-child { border-right: 1.5px solid var(--slate-200); }
+  .toggle-pair button.on  { background: var(--emerald-light); color: var(--emerald-text); }
+  .toggle-pair button.off { background: var(--red-light);     color: var(--red-text); }
+  .portal-danger-zone {
+    margin-top: 1.25rem; padding-top: 1rem;
+    border-top: 1.5px solid var(--slate-100);
+  }
+  .portal-danger-label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--slate-400); margin-bottom: 0.75rem;
+  }
 </style>
 
 <div class="page-wrap">
@@ -386,6 +457,65 @@
             <div class="info-label">Height</div>
             <div class="info-value">{{ client.height if client.height else '—' }}</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Client Portal Access -->
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:0.6rem;">
+            <span class="card-title">Client Portal Access</span>
+            {% if portal_account and portal_account.is_active %}
+              <span class="portal-status-badge portal-status-active">
+                <i class="fas fa-circle" style="font-size:0.45rem"></i> Active
+              </span>
+            {% elif portal_account and not portal_account.is_active %}
+              <span class="portal-status-badge portal-status-inactive">
+                <i class="fas fa-circle" style="font-size:0.45rem"></i> Revoked
+              </span>
+            {% else %}
+              <span class="portal-status-badge portal-status-none">No Access</span>
+            {% endif %}
+          </div>
+          {% if portal_account %}
+          <button class="portal-settings-btn" onclick="openPortalSettings()" title="Portal settings">
+            <i class="fas fa-gear"></i>
+          </button>
+          {% endif %}
+        </div>
+        <div style="padding:1rem 1.25rem;">
+          {% if portal_account and portal_account.is_active %}
+            <div style="font-size:0.78rem;color:var(--slate-600);margin-bottom:0.5rem;">
+              Share this code with your client so they can log in at the Client Portal.
+            </div>
+            <div class="portal-code-wrap">
+              <div class="portal-code" id="portalCode">{{ portal_account.access_code }}</div>
+              <button class="copy-code-btn" onclick="copyCode()" title="Copy code">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            {% if portal_account.last_login %}
+              <div style="font-size:0.72rem;color:var(--slate-400);margin-top:0.5rem;">
+                Last login: {{ portal_account.last_login }}
+              </div>
+            {% else %}
+              <div style="font-size:0.72rem;color:var(--slate-400);margin-top:0.5rem;">
+                Client has not logged in yet
+              </div>
+            {% endif %}
+            <div class="portal-action-row">
+              <button class="portal-btn portal-btn-generate" onclick="generateCode()">
+                <i class="fas fa-rotate"></i> Regenerate Code
+              </button>
+            </div>
+          {% else %}
+            <div style="font-size:0.82rem;color:var(--slate-600);margin-bottom:0.85rem;">
+              Generate an access code to give this client access to their personal portal where they can log workouts, weight, sleep, and nutrition.
+            </div>
+            <button class="portal-btn portal-btn-generate" onclick="generateCode()">
+              <i class="fas fa-key"></i> Generate Access Code
+            </button>
+          {% endif %}
         </div>
       </div>
 
@@ -853,5 +983,181 @@ function formatDates() {
 }
 
 document.addEventListener('DOMContentLoaded', formatDates);
+
+// ── Portal access ──────────────────────────────────────
+const CLIENT_ID = '{{ client.id }}';
+
+function copyCode() {
+  const code = document.getElementById('portalCode')?.textContent?.trim();
+  if (!code) return;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = event.target.closest('button');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    setTimeout(() => btn.innerHTML = orig, 1800);
+  });
+}
+
+async function generateCode() {
+  const btn = event.target.closest('button');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/clients/${CLIENT_ID}/generate-access-code`, { method: 'POST' });
+    if (r.ok) {
+      const data = await r.json();
+      const codeEl = document.getElementById('portalCode');
+      if (codeEl) {
+        codeEl.textContent = data.access_code;
+        btn.innerHTML = '<i class="fas fa-check"></i> Done';
+        setTimeout(() => { btn.innerHTML = '<i class="fas fa-rotate"></i> Regenerate Code'; btn.disabled = false; }, 1500);
+      } else {
+        location.reload();
+      }
+    } else {
+      alert('Error generating access code');
+      btn.innerHTML = orig; btn.disabled = false;
+    }
+  } catch {
+    alert('Error generating access code');
+    btn.innerHTML = orig; btn.disabled = false;
+  }
+}
+
+// ── Portal Settings Modal ──
+function openPortalSettings() {
+  document.getElementById('portalSettingsModal').classList.add('open');
+  // Load current settings from server
+  fetch(`/api/clients/${CLIENT_ID}/portal-settings`)
+    .then(r => r.json())
+    .then(data => {
+      applyToggleState('access',    data.access);
+      applyToggleState('workouts',  data.workouts);
+      applyToggleState('weight',    data.weight);
+      applyToggleState('nutrition', data.nutrition);
+      applyToggleState('sleep',     data.sleep);
+    })
+    .catch(() => {});
+}
+function closePortalSettings() { document.getElementById('portalSettingsModal').classList.remove('open'); }
+
+function applyToggleState(group, isOn) {
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(btn => btn.classList.remove('on','off'));
+  const target = document.querySelector(`[data-group="${group}"][data-value="${isOn ? 'on' : 'off'}"]`);
+  if (target) target.classList.add(isOn ? 'on' : 'off');
+}
+
+function setToggle(group, value) {
+  applyToggleState(group, value === 'on');
+  // Collect all current settings and save immediately
+  const settings = {
+    access:    getToggleValue('access'),
+    workouts:  getToggleValue('workouts'),
+    weight:    getToggleValue('weight'),
+    nutrition: getToggleValue('nutrition'),
+    sleep:     getToggleValue('sleep'),
+  };
+  fetch(`/api/clients/${CLIENT_ID}/portal-settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  }).catch(() => {});
+}
+
+function getToggleValue(group) {
+  const onBtn = document.querySelector(`[data-group="${group}"][data-value="on"]`);
+  return onBtn ? onBtn.classList.contains('on') : true;
+}
+
+async function revokeAccess() {
+  closePortalSettings();
+  if (!confirm('Revoke portal access? This client will no longer be able to log in.')) return;
+  try {
+    const r = await fetch(`/api/clients/${CLIENT_ID}/revoke-access`, { method: 'POST' });
+    if (r.ok) location.reload();
+    else alert('Error revoking access');
+  } catch { alert('Error revoking access'); }
+}
 </script>
+
+<!-- ── Portal Settings Modal ── -->
+<div id="portalSettingsModal" class="modal-backdrop">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-gear" style="margin-right:0.4rem;color:var(--slate-400)"></i> Portal Settings
+      </span>
+      <button class="modal-close" onclick="closePortalSettings()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+
+      <p style="font-size:0.78rem;color:var(--slate-400);margin-bottom:1rem;line-height:1.5;">
+        All sections are always <strong style="color:var(--navy)">viewable</strong>. These toggles control whether the client can <strong style="color:var(--navy)">log and edit</strong> their own data.
+      </p>
+
+      <!-- General access -->
+      <div class="portal-setting-row">
+        <div>
+          <div class="portal-setting-label">Portal Access</div>
+          <div class="portal-setting-sub">Allow this client to log in</div>
+        </div>
+        <div class="toggle-pair">
+          <button data-group="access" data-value="on" class="on" onclick="setToggle('access','on')">On</button>
+          <button data-group="access" data-value="off" onclick="setToggle('access','off')">Off</button>
+        </div>
+      </div>
+
+      <!-- Workout logs -->
+      <div class="portal-setting-row">
+        <div>
+          <div class="portal-setting-label">Workout Logs</div>
+          <div class="portal-setting-sub">Client can log &amp; edit their own workouts</div>
+        </div>
+        <div class="toggle-pair">
+          <button data-group="workouts" data-value="on" class="on" onclick="setToggle('workouts','on')">On</button>
+          <button data-group="workouts" data-value="off" onclick="setToggle('workouts','off')">Off</button>
+        </div>
+      </div>
+
+      <!-- Weight logs -->
+      <div class="portal-setting-row">
+        <div>
+          <div class="portal-setting-label">Weight Logs</div>
+          <div class="portal-setting-sub">Client can log &amp; edit their weight</div>
+        </div>
+        <div class="toggle-pair">
+          <button data-group="weight" data-value="on" class="on" onclick="setToggle('weight','on')">On</button>
+          <button data-group="weight" data-value="off" onclick="setToggle('weight','off')">Off</button>
+        </div>
+      </div>
+
+      <!-- Nutrition logs -->
+      <div class="portal-setting-row">
+        <div>
+          <div class="portal-setting-label">Nutrition Logs</div>
+          <div class="portal-setting-sub">Client can log &amp; edit their nutrition</div>
+        </div>
+        <div class="toggle-pair">
+          <button data-group="nutrition" data-value="on" class="on" onclick="setToggle('nutrition','on')">On</button>
+          <button data-group="nutrition" data-value="off" onclick="setToggle('nutrition','off')">Off</button>
+        </div>
+      </div>
+
+      <!-- Sleep logs -->
+      <div class="portal-setting-row" style="border-bottom:none;">
+        <div>
+          <div class="portal-setting-label">Sleep Logs</div>
+          <div class="portal-setting-sub">Client can log &amp; edit their sleep</div>
+        </div>
+        <div class="toggle-pair">
+          <button data-group="sleep" data-value="on" class="on" onclick="setToggle('sleep','on')">On</button>
+          <button data-group="sleep" data-value="off" onclick="setToggle('sleep','off')">Off</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 {% endblock %}

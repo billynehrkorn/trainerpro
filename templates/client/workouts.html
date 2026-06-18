@@ -1,0 +1,637 @@
+{% extends "client/base.html" %}
+
+{% block title %}My Workouts - TrainerPro{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --navy:#0F172A; --slate-600:#475569; --slate-400:#94A3B8;
+    --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+    --emerald:#059669; --emerald-hover:#047857; --emerald-light:#D1FAE5; --emerald-text:#065F46;
+    --blue:#2563EB; --blue-hover:#1D4ED8; --blue-light:#EFF6FF; --blue-mid:#BFDBFE;
+    --red:#EF4444; --red-light:#FEE2E2;
+    --amber:#F59E0B;
+    --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--slate-50); }
+  .page-wrap { max-width:860px; margin:0 auto; padding:2rem 1.5rem; }
+
+  /* ── Header ── */
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.75rem; gap:1rem; flex-wrap:wrap; }
+  .page-title    { font-size:1.5rem; font-weight:700; color:var(--navy); }
+  .page-subtitle { font-size:0.8rem; color:var(--slate-400); margin-top:0.1rem; }
+  .btn { display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; border:none; text-decoration:none; transition:background 0.15s; white-space:nowrap; color:white; background:var(--blue); }
+  .btn:hover { background:var(--blue-hover); }
+
+  /* ── Read-only notice ── */
+  .readonly-notice { display:flex; align-items:center; gap:0.6rem; background:var(--blue-light); border:1.5px solid var(--blue-mid); border-radius:8px; padding:0.65rem 1rem; font-size:0.8rem; color:var(--blue); margin-bottom:1.5rem; }
+
+  /* ── Filter pills ── */
+  .filter-bar { display:flex; align-items:center; gap:0.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+  .filter-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--slate-400); white-space:nowrap; margin-right:0.25rem; }
+  .filter-pill { padding:0.28rem 0.75rem; border-radius:99px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1.5px solid var(--slate-200); background:white; color:var(--slate-600); transition:background 0.12s, border-color 0.12s, color 0.12s; }
+  .filter-pill:hover { border-color:var(--slate-400); }
+  .filter-pill.active { background:var(--navy); border-color:var(--navy); color:white; }
+
+  /* ── Workout cards (always expanded) ── */
+  .workout-list { display:flex; flex-direction:column; gap:0.85rem; }
+  .workout-card { background:white; border:1.5px solid var(--slate-200); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .workout-card-inner { display:flex; align-items:stretch; }
+  .workout-accent { width:4px; flex-shrink:0; background:var(--slate-200); }
+  .workout-accent.has-tags { background:var(--blue); }
+  .workout-body { flex:1; padding:1rem 1.25rem; min-width:0; }
+  .workout-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; margin-bottom:0.65rem; }
+  .workout-date-text { font-size:1rem; font-weight:700; color:var(--navy); }
+  .workout-meta { font-size:0.78rem; color:var(--slate-400); margin-top:0.1rem; }
+  .workout-action-btns { display:flex; gap:0.25rem; flex-shrink:0; }
+  .wk-icon-btn { display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:7px; border:none; cursor:pointer; font-size:0.78rem; transition:background 0.12s,color 0.12s; background:transparent; color:var(--slate-400); }
+  .wk-icon-btn.edit:hover      { background:var(--blue-light); color:var(--blue); }
+  .wk-icon-btn.duplicate:hover { background:var(--emerald-light); color:var(--emerald); }
+  .wk-icon-btn.delete:hover    { background:var(--red-light); color:var(--red); }
+
+  /* ── Tag chips ── */
+  .tag-chips { display:flex; flex-wrap:wrap; gap:0.3rem; margin-bottom:0.75rem; }
+  .tag-chip { padding:0.15rem 0.55rem; border-radius:99px; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; background:var(--blue-light); color:var(--blue); }
+
+  /* ── Exercise rows ── */
+  .exercise-table { width:100%; }
+  .exercise-entry { display:flex; align-items:baseline; gap:0.6rem; padding:0.3rem 0; border-bottom:1px solid var(--slate-100); }
+  .exercise-entry:last-child { border-bottom:none; }
+  .exercise-name-col { font-size:0.875rem; font-weight:600; color:var(--navy); min-width:0; flex:1; }
+  .exercise-sets-col { font-size:0.8rem; color:var(--slate-600); flex-shrink:0; margin-top:0.2rem; }
+  .exercise-set-row { margin-bottom:0.15rem; }
+  .exercise-set-row:last-child { margin-bottom:0; }
+  .exercise-notes-text { font-size:0.75rem; color:var(--slate-400); font-style:italic; margin-top:0.25rem; }
+  .loading-row { display:flex; align-items:center; gap:0.5rem; color:var(--slate-400); font-size:0.82rem; padding:0.5rem 0; }
+
+  /* ── Empty ── */
+  .empty-state { text-align:center; padding:4rem 1rem; color:var(--slate-400); }
+  .empty-state i { font-size:2.5rem; margin-bottom:1rem; opacity:0.4; display:block; }
+  .empty-state h3 { font-size:1rem; font-weight:600; color:var(--navy); margin-bottom:0.35rem; }
+  .empty-state p { font-size:0.85rem; margin-bottom:0; }
+
+  /* ── Modals ── */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,0.5); display:none; align-items:flex-start; justify-content:center; z-index:50; padding:2rem 1rem; overflow-y:auto; }
+  .modal-backdrop.open { display:flex; }
+  .modal-box { background:white; border-radius:14px; width:100%; max-width:680px; box-shadow:0 20px 60px rgba(0,0,0,0.2); margin:auto; }
+  .modal-box.sm { max-width:420px; }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1.5px solid var(--slate-100); }
+  .modal-title { font-size:1rem; font-weight:700; color:var(--navy); }
+  .modal-close { background:none; border:none; cursor:pointer; color:var(--slate-400); font-size:1rem; padding:0.25rem; border-radius:5px; transition:color 0.15s; }
+  .modal-close:hover { color:var(--navy); }
+  .modal-body { padding:1.5rem; }
+  .modal-footer { display:flex; gap:0.6rem; padding:1rem 1.5rem; border-top:1.5px solid var(--slate-100); }
+  .modal-btn { flex:1; padding:0.6rem; border-radius:8px; border:none; font-size:0.875rem; font-weight:600; cursor:pointer; transition:background 0.15s; }
+  .modal-btn-primary   { background:var(--blue); color:white; }
+  .modal-btn-primary:hover { background:var(--blue-hover); }
+  .modal-btn-danger    { background:var(--red); color:white; }
+  .modal-btn-danger:hover { background:#DC2626; }
+  .modal-btn-secondary { background:var(--slate-100); color:var(--slate-600); border:1.5px solid var(--slate-200); }
+  .modal-btn-secondary:hover { background:var(--slate-200); }
+
+  /* ── Form ── */
+  .form-group { margin-bottom:1rem; }
+  .form-label { display:block; font-size:0.78rem; font-weight:600; color:var(--slate-600); margin-bottom:0.35rem; }
+  .form-input, .form-textarea { width:100%; padding:0.55rem 0.75rem; border:1.5px solid var(--slate-200); border-radius:8px; font-size:0.875rem; color:var(--navy); outline:none; transition:border-color 0.15s; box-sizing:border-box; font-family:inherit; background:white; }
+  .form-input:focus, .form-textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+
+  /* ── Tag toggles (in modal) ── */
+  .tag-toggles { display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.65rem; }
+  .tag-toggle-btn { padding:0.25rem 0.7rem; border-radius:99px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1.5px solid var(--slate-200); background:white; color:var(--slate-600); transition:background 0.12s, border-color 0.12s, color 0.12s; }
+  .tag-toggle-btn.selected { background:var(--blue); border-color:var(--blue); color:white; }
+  .selected-tags-display { display:flex; flex-wrap:wrap; gap:0.35rem; min-height:28px; }
+  .selected-tag-chip { display:inline-flex; align-items:center; gap:0.3rem; padding:0.2rem 0.6rem; border-radius:99px; background:var(--blue-light); color:var(--blue); font-size:0.75rem; font-weight:600; }
+  .selected-tag-chip button { background:none; border:none; cursor:pointer; color:var(--blue); font-size:0.65rem; padding:0; line-height:1; }
+
+  /* ── Exercise builder ── */
+  .exercise-row { border:1.5px solid var(--slate-200); border-radius:9px; padding:1rem 1.1rem; margin-bottom:0.85rem; background:white; }
+  .exercise-row-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem; }
+  .exercise-row-title { font-size:0.875rem; font-weight:700; color:var(--navy); }
+  .remove-exercise-btn { background:none; border:none; cursor:pointer; color:var(--slate-400); font-size:0.85rem; padding:0.2rem; border-radius:5px; transition:color 0.12s,background 0.12s; }
+  .remove-exercise-btn:hover { color:var(--red); background:var(--red-light); }
+  .remove-exercise-btn.hidden { display:none; }
+  .sets-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }
+  .sets-label { font-size:0.75rem; font-weight:600; color:var(--slate-600); }
+  .add-set-btn { display:inline-flex; align-items:center; gap:0.25rem; background:var(--blue); color:white; border:none; border-radius:99px; padding:0.2rem 0.6rem; font-size:0.72rem; font-weight:600; cursor:pointer; }
+  .add-set-btn:hover { background:var(--blue-hover); }
+  .set-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem; }
+  .set-label { font-size:0.75rem; font-weight:600; color:var(--slate-400); width:42px; flex-shrink:0; }
+  .set-input { width:72px; padding:0.35rem 0.5rem; border:1.5px solid var(--slate-200); border-radius:6px; font-size:0.82rem; color:var(--navy); outline:none; }
+  .set-input:focus { border-color:var(--blue); }
+  .set-unit { font-size:0.72rem; color:var(--slate-400); }
+  .remove-set-btn { background:none; border:none; cursor:pointer; color:var(--slate-300); font-size:0.78rem; padding:0.15rem; border-radius:4px; margin-left:auto; }
+  .remove-set-btn:hover { color:var(--red); }
+  .remove-set-btn.hidden { display:none; }
+  .add-exercise-btn { display:flex; align-items:center; gap:0.5rem; width:100%; padding:0.65rem 1rem; border:2px dashed var(--slate-200); border-radius:9px; background:transparent; color:var(--slate-400); font-size:0.82rem; font-weight:600; cursor:pointer; transition:border-color 0.15s,color 0.15s; margin-bottom:1rem; }
+  .add-exercise-btn:hover { border-color:var(--blue); color:var(--blue); }
+
+  /* ── Dark mode ── */
+  html.dark body { background:#0F172A; }
+  html.dark .page-title    { color:#F1F5F9; }
+  html.dark .page-subtitle { color:#94A3B8; }
+  html.dark .filter-pill   { background:#1E293B; border-color:#334155; color:#94A3B8; }
+  html.dark .filter-pill:hover { border-color:#475569; }
+  html.dark .filter-pill.active { background:#F1F5F9; border-color:#F1F5F9; color:#0F172A; }
+  html.dark .workout-card  { background:#1E293B; border-color:#334155; }
+  html.dark .workout-date-text { color:#F1F5F9; }
+  html.dark .workout-meta  { color:#94A3B8; }
+  html.dark .exercise-entry { border-color:#334155; }
+  html.dark .exercise-name-col { color:#F1F5F9; }
+  html.dark .exercise-sets-col { color:#94A3B8; }
+  html.dark .exercise-notes-text { color:#64748B; }
+  html.dark .empty-state h3 { color:#CBD5E1; }
+  html.dark .modal-box { background:#1E293B; }
+  html.dark .modal-header, html.dark .modal-footer { border-color:#334155; }
+  html.dark .modal-title { color:#F1F5F9; }
+  html.dark .modal-close { color:#64748B; }
+  html.dark .modal-close:hover { color:#F1F5F9; }
+  html.dark .form-label { color:#CBD5E1; }
+  html.dark .form-input, html.dark .form-textarea { background:#0F172A; color:#F1F5F9; border-color:#334155; }
+  html.dark .exercise-row { background:#0F172A; border-color:#334155; }
+  html.dark .exercise-row-title { color:#F1F5F9; }
+  html.dark .set-input { background:#1E293B; color:#F1F5F9; border-color:#334155; }
+  html.dark .modal-btn-secondary { background:#0F172A; color:#CBD5E1; border-color:#334155; }
+  html.dark .tag-toggle-btn { background:#0F172A; border-color:#334155; color:#94A3B8; }
+  html.dark .tag-toggle-btn.selected { background:var(--blue); border-color:var(--blue); color:white; }
+
+  @media (max-width:600px) {
+    .page-wrap { padding:1rem; }
+    .modal-backdrop { padding:0; align-items:flex-end; }
+    .modal-box { border-radius:14px 14px 0 0; max-height:92vh; }
+  }
+</style>
+
+<div class="page-wrap">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">Workout History</div>
+      <div class="page-subtitle">{{ client.name }}</div>
+    </div>
+    {% if can_edit %}
+    <button onclick="openCreateModal()" class="btn">
+      <i class="fas fa-plus"></i> Log Workout
+    </button>
+    {% endif %}
+  </div>
+
+  {% if not can_edit %}
+  <div class="readonly-notice">
+    <i class="fas fa-eye"></i>
+    <span>View only — contact your trainer to make changes to workouts.</span>
+  </div>
+  {% endif %}
+
+  <!-- ── Filter bar ── -->
+  {% if workouts %}
+  <div class="filter-bar">
+    <span class="filter-label">Filter</span>
+    <button class="filter-pill active" data-filter="all" onclick="filterWorkouts('all')">All</button>
+    {% for muscle in ['Chest','Back','Biceps','Triceps','Shoulders','Legs','Core'] %}
+    <button class="filter-pill" data-filter="{{ muscle }}" onclick="filterWorkouts('{{ muscle }}')">{{ muscle }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ── Workout list ── -->
+  {% if workouts %}
+  <div class="workout-list">
+    {% for workout in workouts %}
+    <div class="workout-card" data-workout-card>
+      <div class="workout-card-inner">
+        <div class="workout-accent" id="accent-{{ workout.workout_date }}"></div>
+        <div class="workout-body">
+          <div class="workout-card-header">
+            <div>
+              <div class="workout-date-text workout-date" data-date="{{ workout.workout_date }}">{{ workout.workout_date }}</div>
+              <div class="workout-meta">{{ workout.exercise_count }} exercise{{ 's' if workout.exercise_count != 1 else '' }}</div>
+            </div>
+            {% if can_edit %}
+            <div class="workout-action-btns">
+              <button class="wk-icon-btn edit" title="Edit" onclick="editWorkout('{{ workout.workout_date }}')">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="wk-icon-btn duplicate" title="Duplicate" onclick="openDuplicateModal('{{ workout.workout_date }}')">
+                <i class="fas fa-copy"></i>
+              </button>
+              <button class="wk-icon-btn delete" title="Delete" onclick="openDeleteModal('{{ workout.workout_date }}')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+            {% endif %}
+          </div>
+          <!-- Tags populated by JS -->
+          <div class="tag-chips workout-tags-display" id="tags-{{ workout.workout_date }}"></div>
+          <!-- Exercises populated by JS -->
+          <div class="exercise-table workout-exercises" data-workout-date="{{ workout.workout_date }}">
+            <div class="loading-row"><i class="fas fa-spinner fa-spin"></i> <span>Loading exercises…</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-dumbbell"></i>
+    <h3>No workouts yet</h3>
+    {% if can_edit %}
+    <p>Log your first workout to get started.</p>
+    <button onclick="openCreateModal()" class="btn" style="margin-top:1rem;"><i class="fas fa-plus"></i> Log Workout</button>
+    {% else %}
+    <p>Your trainer will log workouts here for you to review.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+{% if can_edit %}
+<!-- ── Create/Edit Workout Modal ── -->
+<div id="logModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="logModalTitle">Log Workout</span>
+      <button class="modal-close" onclick="closeLogModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Workout Date</label>
+        <input type="date" id="logDate" class="form-input" required>
+      </div>
+
+      <!-- Tags -->
+      <div class="form-group">
+        <label class="form-label">Workout Tags</label>
+        <div class="tag-toggles" id="tagToggles">
+          <button type="button" class="tag-toggle-btn" data-tag="Chest" onclick="toggleTag('Chest')">Chest</button>
+          <button type="button" class="tag-toggle-btn" data-tag="Back" onclick="toggleTag('Back')">Back</button>
+          <button type="button" class="tag-toggle-btn" data-tag="Biceps" onclick="toggleTag('Biceps')">Biceps</button>
+          <button type="button" class="tag-toggle-btn" data-tag="Triceps" onclick="toggleTag('Triceps')">Triceps</button>
+          <button type="button" class="tag-toggle-btn" data-tag="Shoulders" onclick="toggleTag('Shoulders')">Shoulders</button>
+          <button type="button" class="tag-toggle-btn" data-tag="Legs" onclick="toggleTag('Legs')">Legs</button>
+          <button type="button" class="tag-toggle-btn" data-tag="Core" onclick="toggleTag('Core')">Core</button>
+        </div>
+        <div id="selectedTags" class="selected-tags-display"></div>
+      </div>
+
+      <div id="exercisesList"></div>
+      <button type="button" onclick="addExercise()" class="add-exercise-btn">
+        <i class="fas fa-plus"></i> Add Exercise
+      </button>
+      <div class="modal-footer" style="padding:0;border:none;margin-top:0;">
+        <button class="modal-btn modal-btn-primary" onclick="submitWorkout()">Save Workout</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeLogModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Modal ── -->
+<div id="deleteModal" class="modal-backdrop">
+  <div class="modal-box sm">
+    <div class="modal-header">
+      <span class="modal-title">Delete Workout</span>
+      <button class="modal-close" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem;color:var(--slate-600);line-height:1.5;margin:0 0 1.25rem;" class="delete-confirm-text">
+        Delete this entire workout? This cannot be undone.
+      </p>
+      <input type="hidden" id="deleteDate">
+      <div class="modal-footer" style="padding:0;border:none;margin-top:0;">
+        <button class="modal-btn modal-btn-danger" onclick="submitDelete()">Delete</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Duplicate Modal ── -->
+<div id="duplicateModal" class="modal-backdrop">
+  <div class="modal-box sm">
+    <div class="modal-header">
+      <span class="modal-title">Duplicate Workout</span>
+      <button class="modal-close" onclick="closeDuplicateModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem;color:var(--slate-600);line-height:1.5;margin:0 0 1rem;">
+        Copy all exercises and tags from this workout to a new date.
+      </p>
+      <input type="hidden" id="dupOriginalDate">
+      <div class="form-group">
+        <label class="form-label">New Date</label>
+        <input type="date" id="dupNewDate" class="form-input" required>
+      </div>
+      <div class="modal-footer" style="padding:0;border:none;margin-top:1.25rem;">
+        <button class="modal-btn modal-btn-primary" onclick="submitDuplicate()">Duplicate</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeDuplicateModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const CAN_EDIT = {{ 'true' if can_edit else 'false' }};
+let currentFilter = 'all';
+
+// ── Page load ──
+document.addEventListener('DOMContentLoaded', () => {
+  formatWorkoutDates();
+  loadAllWorkoutDetails();
+});
+
+function formatWorkoutDates() {
+  document.querySelectorAll('.workout-date').forEach(el => {
+    const d = el.dataset.date;
+    if (d) el.textContent = new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' });
+  });
+}
+
+// ── Load all exercises + tags (always expanded) ──
+async function loadAllWorkoutDetails() {
+  const containers = document.querySelectorAll('.workout-exercises');
+  await Promise.all(Array.from(containers).map(async c => {
+    const date = c.dataset.workoutDate;
+    try {
+      const r = await fetch(`/client-portal/workouts/${date}`);
+      if (!r.ok) throw new Error();
+      const exercises = await r.json();
+
+      // Tags
+      const tagsEl = document.getElementById(`tags-${date}`);
+      if (tagsEl && exercises[0]?.tags) {
+        const tags = exercises[0].tags.split(',').filter(t => t.trim());
+        tagsEl.innerHTML = tags.map(t => `<span class="tag-chip">${t}</span>`).join('');
+        const accent = document.getElementById(`accent-${date}`);
+        if (accent && tags.length) accent.classList.add('has-tags');
+      }
+
+      // Exercises
+      if (!exercises.length) {
+        c.innerHTML = '<p style="font-size:0.8rem;color:var(--slate-400);padding:0.25rem 0;">No exercises recorded.</p>';
+      } else {
+        c.innerHTML = exercises.map(ex => {
+          const sets = Array.isArray(ex.sets_data)
+            ? ex.sets_data.map((s, i) => `<div class="exercise-set-row">Set ${i+1}: <strong>${s.weight ?? '—'}</strong> lbs × <strong>${s.reps ?? '—'}</strong></div>`).join('')
+            : `<div class="exercise-set-row">${ex.sets || 0} sets</div>`;
+          return `
+            <div class="exercise-entry">
+              <div>
+                <div class="exercise-name-col">${ex.exercise_name}</div>
+                <div class="exercise-sets-col">${sets}</div>
+                ${ex.notes ? `<div class="exercise-notes-text">${ex.notes}</div>` : ''}
+              </div>
+            </div>`;
+        }).join('');
+      }
+    } catch {
+      c.innerHTML = '<p style="font-size:0.8rem;color:var(--red)">Error loading exercises</p>';
+    }
+  }));
+  filterWorkouts(currentFilter);
+}
+
+// ── Filter ──
+function filterWorkouts(filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.toggle('active', p.dataset.filter === filter));
+  document.querySelectorAll('.workout-card').forEach(card => {
+    if (filter === 'all') { card.style.display = ''; return; }
+    const tagsText = card.querySelector('.tag-chips')?.textContent || '';
+    card.style.display = tagsText.toLowerCase().includes(filter.toLowerCase()) ? '' : 'none';
+  });
+}
+
+if (CAN_EDIT) {
+  // ── Tag state ──
+  let selectedTags = [];
+
+  window.toggleTag = function(tag) {
+    const i = selectedTags.indexOf(tag);
+    if (i > -1) selectedTags.splice(i, 1); else selectedTags.push(tag);
+    updateTagsDisplay();
+  };
+
+  function updateTagsDisplay() {
+    document.getElementById('selectedTags').innerHTML = selectedTags.map(t => `
+      <span class="selected-tag-chip">${t}
+        <button type="button" onclick="toggleTag('${t}')"><i class="fas fa-times"></i></button>
+      </span>`).join('');
+    document.querySelectorAll('#tagToggles .tag-toggle-btn').forEach(btn => {
+      btn.classList.toggle('selected', selectedTags.includes(btn.dataset.tag));
+    });
+  }
+
+  // ── Exercise builder ──
+  let exerciseCount = 0;
+  let editingDate = null;
+
+  window.openCreateModal = function() {
+    editingDate = null;
+    selectedTags = [];
+    document.getElementById('logModalTitle').textContent = 'Log Workout';
+    document.getElementById('logDate').value = localToday();
+    document.getElementById('exercisesList').innerHTML = '';
+    exerciseCount = 0;
+    updateTagsDisplay();
+    addExercise();
+    document.getElementById('logModal').classList.add('open');
+  };
+
+  window.editWorkout = async function(date) {
+    editingDate = date;
+    document.getElementById('logModalTitle').textContent = 'Edit Workout';
+    document.getElementById('logDate').value = date;
+    document.getElementById('exercisesList').innerHTML = '<div class="loading-row"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+    exerciseCount = 0;
+    selectedTags = [];
+    document.getElementById('logModal').classList.add('open');
+    try {
+      const res = await fetch(`/client-portal/workouts/${date}`);
+      const exercises = await res.json();
+      // Load tags (standard tags only)
+      const defaults = ['Chest','Back','Biceps','Triceps','Shoulders','Legs','Core'];
+      selectedTags = (exercises[0]?.tags || '').split(',').map(t => t.trim()).filter(t => defaults.includes(t));
+      updateTagsDisplay();
+      // Load exercises
+      document.getElementById('exercisesList').innerHTML = '';
+      exercises.forEach(ex => addExercise(ex.exercise_name, ex.notes, ex.sets_data || []));
+      if (!exercises.length) addExercise();
+    } catch {
+      document.getElementById('exercisesList').innerHTML = '';
+      addExercise();
+    }
+  };
+
+  window.closeLogModal = function() {
+    document.getElementById('logModal').classList.remove('open');
+    editingDate = null;
+  };
+
+  window.addExercise = function(name='', notes='', setsData=[]) {
+    const list = document.getElementById('exercisesList');
+    const idx = exerciseCount++;
+    const defaultSets = setsData.length ? setsData : [{ weight:'', reps:'' }];
+    const setsHTML = defaultSets.map((s, si) => buildSetRow(si, s.weight ?? '', s.reps ?? '', defaultSets.length)).join('');
+    const div = document.createElement('div');
+    div.className = 'exercise-row';
+    div.innerHTML = `
+      <div class="exercise-row-header">
+        <span class="exercise-row-title">Exercise ${idx + 1}</span>
+        <button type="button" class="remove-exercise-btn" onclick="removeExercise(this)"><i class="fas fa-trash"></i></button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Exercise Name</label>
+        <input type="text" class="form-input exercise-name-input" placeholder="e.g. Bench Press" value="${name}" required>
+      </div>
+      <div class="sets-container form-group">
+        <div class="sets-header">
+          <span class="sets-label">Sets</span>
+          <button type="button" class="add-set-btn" onclick="addSet(this)"><i class="fas fa-plus"></i> Add Set</button>
+        </div>
+        <div class="sets-list">${setsHTML}</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label>
+        <textarea class="form-textarea exercise-notes-input" rows="2" placeholder="Notes for this exercise…">${notes}</textarea>
+      </div>`;
+    list.appendChild(div);
+    refreshRemoveButtons();
+  };
+
+  function buildSetRow(setIdx, weight, reps, total) {
+    return `<div class="set-row">
+      <span class="set-label">Set ${setIdx + 1}</span>
+      <input type="number" step="0.5" min="0" placeholder="lbs" value="${weight}" class="set-input set-weight">
+      <span class="set-unit">lbs</span>
+      <input type="number" min="1" placeholder="reps" value="${reps}" class="set-input set-reps">
+      <span class="set-unit">reps</span>
+      <button type="button" class="remove-set-btn ${total === 1 ? 'hidden' : ''}" onclick="removeSet(this)"><i class="fas fa-times"></i></button>
+    </div>`;
+  }
+
+  window.addSet = function(btn) {
+    const container = btn.closest('.sets-container');
+    const list = container.querySelector('.sets-list');
+    const count = list.children.length;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildSetRow(count, '', '', count + 1);
+    list.appendChild(tmp.firstElementChild);
+    refreshSetNumbers(container);
+    refreshSetRemoveButtons(container);
+  };
+
+  window.removeSet = function(btn) {
+    const container = btn.closest('.sets-container');
+    btn.closest('.set-row').remove();
+    refreshSetNumbers(container);
+    refreshSetRemoveButtons(container);
+  };
+
+  function refreshSetNumbers(container) {
+    container.querySelectorAll('.set-row').forEach((r, i) => r.querySelector('.set-label').textContent = `Set ${i + 1}`);
+  }
+  function refreshSetRemoveButtons(container) {
+    const btns = container.querySelectorAll('.remove-set-btn');
+    btns.forEach(b => b.classList.toggle('hidden', btns.length === 1));
+  }
+
+  window.removeExercise = function(btn) {
+    btn.closest('.exercise-row').remove();
+    refreshRemoveButtons();
+    reindexExercises();
+  };
+  function refreshRemoveButtons() {
+    const rows = document.querySelectorAll('#exercisesList .exercise-row');
+    rows.forEach(r => r.querySelector('.remove-exercise-btn').classList.toggle('hidden', rows.length === 1));
+  }
+  function reindexExercises() {
+    document.querySelectorAll('#exercisesList .exercise-row').forEach((row, i) => {
+      row.querySelector('.exercise-row-title').textContent = `Exercise ${i + 1}`;
+    });
+  }
+
+  function collectExercises() {
+    return Array.from(document.querySelectorAll('#exercisesList .exercise-row')).map(row => {
+      const name  = row.querySelector('.exercise-name-input').value.trim();
+      const notes = row.querySelector('.exercise-notes-input').value.trim();
+      const sets  = Array.from(row.querySelectorAll('.set-row')).map(sr => ({
+        weight: parseFloat(sr.querySelector('.set-weight').value) || null,
+        reps:   parseInt(sr.querySelector('.set-reps').value)    || null,
+      }));
+      return { name, notes, sets };
+    }).filter(ex => ex.name);
+  }
+
+  window.submitWorkout = async function() {
+    const date = document.getElementById('logDate').value;
+    if (!date) { alert('Please select a date.'); return; }
+    const exercises = collectExercises();
+    if (!exercises.length) { alert('Please add at least one exercise.'); return; }
+    const payload = { date, exercises, tags: selectedTags.join(',') };
+    const url = editingDate ? `/client-portal/api/workouts/${editingDate}` : '/client-portal/api/workouts';
+    const method = editingDate ? 'PUT' : 'POST';
+    try {
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (r.ok) { closeLogModal(); location.reload(); }
+      else { const e = await r.json(); alert(e.error || 'Error saving workout.'); }
+    } catch { alert('Error saving workout.'); }
+  };
+
+  // ── Delete ──
+  window.openDeleteModal = function(date) {
+    document.getElementById('deleteDate').value = date;
+    document.getElementById('deleteModal').classList.add('open');
+  };
+  window.closeDeleteModal = function() { document.getElementById('deleteModal').classList.remove('open'); };
+  window.submitDelete = async function() {
+    const date = document.getElementById('deleteDate').value;
+    try {
+      const r = await fetch(`/client-portal/api/workouts/${date}`, { method: 'DELETE' });
+      if (r.ok) { closeDeleteModal(); location.reload(); }
+      else alert('Error deleting workout.');
+    } catch { alert('Error deleting workout.'); }
+  };
+
+  // ── Duplicate ──
+  window.openDuplicateModal = function(date) {
+    document.getElementById('dupOriginalDate').value = date;
+    document.getElementById('dupNewDate').value = localToday();
+    document.getElementById('duplicateModal').classList.add('open');
+  };
+  window.closeDuplicateModal = function() { document.getElementById('duplicateModal').classList.remove('open'); };
+  window.submitDuplicate = async function() {
+    const originalDate = document.getElementById('dupOriginalDate').value;
+    const newDate = document.getElementById('dupNewDate').value;
+    if (!newDate) { alert('Please select a date.'); return; }
+    try {
+      const r = await fetch('/client-portal/api/workouts/duplicate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ original_date: originalDate, new_date: newDate })
+      });
+      if (r.ok) { closeDuplicateModal(); location.reload(); }
+      else { const e = await r.json(); alert(e.error || 'Error duplicating workout.'); }
+    } catch { alert('Error duplicating workout.'); }
+  };
+
+  // Close on backdrop click
+  document.querySelectorAll('.modal-backdrop').forEach(el =>
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); })
+  );
+}
+</script>
+{% endblock %}

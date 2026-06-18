@@ -92,6 +92,9 @@
   }
   .toggle-btn:hover { background: var(--slate-50); }
   .toggle-btn.active { background: var(--indigo); color: white; border-color: var(--indigo); }
+  html.dark .toggle-btn { background: #1E293B; color: #94A3B8; border-color: #334155; }
+  html.dark .toggle-btn:hover { background: #273548; }
+  html.dark .toggle-btn.active { background: var(--indigo); color: white; border-color: var(--indigo); }
   .chart-wrap { position: relative; height: 300px; }
   .chart-average {
     margin-top: 1rem; text-align: center;
@@ -421,6 +424,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+
 function formatDates() {
     document.querySelectorAll('.sleep-date').forEach(element => {
         const dateStr = element.getAttribute('data-date');
@@ -444,7 +456,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 function openSleepModal() {
     openModal('sleepModal');
-    document.getElementById('sleepDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('sleepDate').value = localToday();
 }
 function closeSleepModal() {
     closeModal('sleepModal');

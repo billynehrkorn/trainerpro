@@ -1,0 +1,544 @@
+{% extends "client/base.html" %}
+{% block title %}My Nutrition - TrainerPro{% endblock %}
+
+{% block head %}
+<style>
+  :root {
+    --navy:#0F172A; --slate-600:#475569; --slate-400:#94A3B8;
+    --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+    --emerald:#059669; --emerald-hover:#047857; --emerald-light:#D1FAE5; --emerald-text:#065F46;
+    --blue:#2563EB; --red:#EF4444; --red-light:#FEE2E2;
+    --amber:#F59E0B; --amber-light:#FEF3C7; --amber-text:#92400E;
+    --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { box-sizing:border-box; }
+  .page-wrap { max-width:760px; margin:0 auto; padding:2rem 1.5rem; }
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.75rem; gap:1rem; flex-wrap:wrap; }
+  .page-title    { font-size:1.5rem; font-weight:700; color:var(--navy); }
+  .page-subtitle { font-size:0.82rem; color:var(--slate-400); margin-top:0.2rem; }
+  .btn-add { display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600; color:white; background:var(--emerald); transition:background 0.15s; }
+  .btn-add:hover { background:var(--emerald-hover); }
+  .card { background:white; border:1.5px solid var(--slate-200); border-radius:var(--radius); box-shadow:var(--shadow-sm); margin-bottom:1.25rem; overflow:hidden; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1.5px solid var(--slate-100); }
+  .card-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--slate-400); }
+  /* Entry list */
+  .entry-list { display:flex; flex-direction:column; }
+  .entry-item { display:flex; align-items:stretch; border-bottom:1px solid var(--slate-100); }
+  .entry-item:last-child { border-bottom:none; }
+  .entry-accent { width:4px; flex-shrink:0; background:var(--emerald); }
+  .entry-body { flex:1; padding:0.85rem 1rem; display:flex; align-items:flex-start; gap:0.85rem; }
+  .entry-icon { width:38px; height:38px; border-radius:8px; flex-shrink:0; background:var(--emerald-light); color:var(--emerald); display:flex; align-items:center; justify-content:center; font-size:0.9rem; }
+  .entry-main { flex:1; min-width:0; }
+  .entry-date  { font-size:0.75rem; color:var(--slate-400); margin-bottom:0.35rem; }
+  .entry-diet  { font-size:0.9rem; font-weight:600; color:var(--navy); margin-bottom:0.35rem; }
+  .entry-stats { display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.25rem; }
+  .entry-stat  { font-size:0.75rem; color:var(--slate-600); display:flex; align-items:center; gap:0.25rem; }
+  .entry-stat i { font-size:0.65rem; color:var(--slate-400); }
+  .entry-notes { font-size:0.75rem; color:var(--slate-600); font-style:italic; }
+  .entry-actions { display:flex; align-items:center; gap:0.25rem; padding:0 0.75rem; }
+  .icon-btn { background:none; border:none; cursor:pointer; padding:0.35rem; color:var(--slate-400); border-radius:5px; font-size:0.8rem; transition:color 0.15s,background 0.15s; }
+  .icon-btn.edit:hover   { color:var(--blue); background:#EFF6FF; }
+  .icon-btn.delete:hover { color:var(--red);  background:var(--red-light); }
+  /* Diet quality badge */
+  .diet-badge { display:inline-block; padding:0.15rem 0.55rem; border-radius:99px; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-left:0.35rem; }
+  .diet-excellent { background:var(--emerald-light); color:var(--emerald-text); }
+  .diet-good      { background:#D1FAE5; color:#065F46; }
+  .diet-ok        { background:var(--amber-light); color:var(--amber-text); }
+  .diet-poor      { background:var(--red-light); color:#991B1B; }
+  /* Empty */
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:3rem 1rem; text-align:center; color:var(--slate-400); }
+  .empty-state i { font-size:2rem; margin-bottom:0.75rem; opacity:0.4; }
+  .empty-state p { font-size:0.85rem; margin-bottom:1.25rem; }
+  /* Modal */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,0.5); display:none; align-items:center; justify-content:center; z-index:50; padding:1rem; }
+  .modal-backdrop.open { display:flex; }
+  .modal-box { background:white; border-radius:14px; width:100%; max-width:460px; box-shadow:0 20px 60px rgba(0,0,0,0.2); max-height:92vh; overflow-y:auto; }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1.5px solid var(--slate-100); position:sticky; top:0; background:white; z-index:1; }
+  .modal-title { font-size:1rem; font-weight:700; color:var(--navy); }
+  .modal-close { background:none; border:none; cursor:pointer; color:var(--slate-400); font-size:1rem; padding:0.25rem; border-radius:5px; transition:color 0.15s; }
+  .modal-close:hover { color:var(--navy); }
+  .modal-body { padding:1.5rem; }
+  .modal-footer { display:flex; gap:0.6rem; margin-top:1.25rem; }
+  .modal-btn { flex:1; padding:0.6rem; border-radius:8px; border:none; font-size:0.875rem; font-weight:600; cursor:pointer; transition:background 0.15s; }
+  .modal-btn-primary   { background:var(--emerald); color:white; }
+  .modal-btn-primary:hover { background:var(--emerald-hover); }
+  .modal-btn-secondary { background:var(--slate-100); color:var(--slate-600); border:1.5px solid var(--slate-200); }
+  .modal-btn-secondary:hover { background:var(--slate-200); }
+  .modal-btn-danger    { background:var(--red); color:white; }
+  .modal-btn-danger:hover { background:#DC2626; }
+  .form-group { margin-bottom:1rem; }
+  .form-label { display:block; font-size:0.78rem; font-weight:600; color:var(--slate-600); margin-bottom:0.35rem; }
+  .form-input, .form-textarea, .form-select { width:100%; padding:0.55rem 0.75rem; border:1.5px solid var(--slate-200); border-radius:8px; font-size:0.875rem; color:var(--navy); outline:none; transition:border-color 0.15s; box-sizing:border-box; font-family:inherit; background:white; }
+  .form-input:focus, .form-textarea:focus, .form-select:focus { border-color:var(--emerald); box-shadow:0 0 0 3px rgba(5,150,105,0.1); }
+  .form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
+  .form-hint { font-size:0.72rem; color:var(--slate-400); margin-top:0.3rem; }
+  .readonly-notice { display:flex; align-items:center; gap:0.6rem; background:var(--emerald-light); border:1.5px solid #A7F3D0; border-radius:8px; padding:0.65rem 1rem; font-size:0.8rem; color:var(--emerald); margin-bottom:1.5rem; }
+  html.dark .readonly-notice { background:rgba(5,150,105,0.15); border-color:rgba(5,150,105,0.3); color:#6EE7B7; }
+  @media (max-width:500px) { .page-wrap{padding:1rem;} .page-header{flex-direction:column;align-items:flex-start;} .modal-backdrop{padding:0;align-items:flex-end;} .modal-box{border-radius:14px 14px 0 0;} .form-grid-2{grid-template-columns:1fr;} }
+
+  /* ── Dark mode ── */
+  html.dark .page-title    { color:#F1F5F9; }
+  html.dark .page-subtitle { color:#94A3B8; }
+  html.dark .entry-diet    { color:#F1F5F9; }
+  html.dark .entry-date    { color:#94A3B8; }
+  html.dark .entry-stat    { color:#94A3B8; }
+  html.dark .entry-stat i  { color:#475569; }
+  html.dark .entry-notes   { color:#94A3B8; }
+  html.dark .entry-icon    { background:rgba(5,150,105,0.2); }
+  html.dark .form-label    { color:#CBD5E1; }
+  html.dark .form-hint     { color:#64748B; }
+  html.dark .form-input, html.dark .form-textarea, html.dark .form-select { background:#1E293B; color:#F1F5F9; border-color:#334155; }
+  html.dark .modal-btn-secondary { background:#1E293B; color:#CBD5E1; border-color:#334155; }
+  html.dark .modal-body p  { color:#CBD5E1; }
+  html.dark .modal-box     { background:#1E293B; }
+  html.dark .modal-header  { background:#1E293B; border-color:#334155; }
+  html.dark .modal-title   { color:#F1F5F9; }
+  html.dark .modal-close   { color:#64748B; }
+  html.dark .modal-close:hover { color:#F1F5F9; }
+  html.dark .delete-confirm-text { color:#CBD5E1; }
+
+  /* ── Chart + toggles ── */
+  .view-toggle { display:flex; gap:0.4rem; flex-wrap:wrap; }
+  .toggle-btn { padding:0.4rem 0.85rem; border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1.5px solid var(--slate-200); background:white; color:var(--slate-600); transition:background 0.15s,color 0.15s,border-color 0.15s; }
+  .toggle-btn:hover { background:var(--slate-50); }
+  .toggle-btn.active { background:var(--emerald); color:white; border-color:var(--emerald); }
+  html.dark .toggle-btn        { background:#0F172A; border-color:#334155; color:#94A3B8; }
+  html.dark .toggle-btn:hover  { background:#1a2535; }
+  html.dark .toggle-btn.active { background:var(--emerald); color:white; border-color:var(--emerald); }
+  .chart-subbar { display:flex; justify-content:flex-end; margin-bottom:1rem; }
+  .chart-wrap { position:relative; height:280px; }
+  .chart-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:280px; color:var(--slate-400); text-align:center; }
+  .chart-empty i { font-size:1.75rem; margin-bottom:0.6rem; opacity:0.4; }
+  .chart-empty p { font-size:0.82rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Nutrition Log</div>
+      <div class="page-subtitle">Track your daily diet and nutrition</div>
+    </div>
+    {% if can_edit %}
+    <button onclick="openAddModal()" class="btn-add">
+      <i class="fas fa-plus"></i> Log Nutrition
+    </button>
+    {% endif %}
+  </div>
+
+  {% if not can_edit %}
+  <div class="readonly-notice">
+    <i class="fas fa-lock"></i>
+    <span>Your trainer hasn't enabled logging for this section. You can still view your history below.</span>
+  </div>
+  {% endif %}
+
+  {% if nutrition_history %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Nutrition Progress</span>
+      <div class="view-toggle">
+        <button id="metricCaloriesBtn" class="toggle-btn active" onclick="changeMetric('calories')">Calories</button>
+        <button id="metricProteinBtn" class="toggle-btn" onclick="changeMetric('protein')">Protein</button>
+        <button id="metricSodiumBtn" class="toggle-btn" onclick="changeMetric('sodium')">Sodium</button>
+        <button id="metricSatFatBtn" class="toggle-btn" onclick="changeMetric('saturated_fat')">Sat. Fat</button>
+      </div>
+    </div>
+    <div style="padding:1rem 1.25rem;">
+      <div class="chart-subbar">
+        <div class="view-toggle">
+          <button id="view30Btn" class="toggle-btn active" onclick="changeView(30)">Last 30</button>
+          <button id="viewAllBtn" class="toggle-btn" onclick="changeView('all')">All Time</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="nutritionChart"></canvas>
+        <div id="chartEmpty" class="chart-empty" style="display:none;">
+          <i class="fas fa-chart-line"></i>
+          <p>No data for this metric yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">History</span></div>
+    {% if nutrition_history %}
+      <div class="entry-list">
+        {% for entry in nutrition_history %}
+        <div class="entry-item">
+          <div class="entry-accent"></div>
+          <div class="entry-body">
+            <div class="entry-icon"><i class="fas fa-utensils"></i></div>
+            <div class="entry-main">
+              <div class="entry-date nutrition-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
+              {% if entry.diet %}
+              <div class="entry-diet">{{ entry.diet }}</div>
+              {% endif %}
+              <div class="entry-stats">
+                {% if entry.estimated_calories %}
+                <span class="entry-stat"><i class="fas fa-fire"></i> {{ entry.estimated_calories }} cal</span>
+                {% endif %}
+                {% if entry.estimated_protein %}
+                <span class="entry-stat"><i class="fas fa-drumstick-bite"></i> {{ entry.estimated_protein }}g protein</span>
+                {% endif %}
+                {% if entry.estimated_sodium %}
+                <span class="entry-stat"><i class="fas fa-shaker"></i> {{ entry.estimated_sodium }}mg sodium</span>
+                {% endif %}
+                {% if entry.estimated_saturated_fat %}
+                <span class="entry-stat"><i class="fas fa-droplet"></i> {{ entry.estimated_saturated_fat }}g sat fat</span>
+                {% endif %}
+              </div>
+              {% if entry.notes %}<div class="entry-notes">{{ entry.notes }}</div>{% endif %}
+            </div>
+          </div>
+          {% if can_edit %}
+          <div class="entry-actions">
+            <button class="icon-btn edit" title="Edit"
+                    data-id="{{ entry.id }}"
+                    data-date="{{ entry.date }}"
+                    data-diet="{{ entry.diet or '' }}"
+                    data-calories="{{ entry.estimated_calories or '' }}"
+                    data-protein="{{ entry.estimated_protein or '' }}"
+                    data-sodium="{{ entry.estimated_sodium or '' }}"
+                    data-satfat="{{ entry.estimated_saturated_fat or '' }}"
+                    data-notes="{{ entry.notes or '' }}"
+                    onclick="openEditFromData(this)">
+              <i class="fas fa-pen"></i>
+            </button>
+            <button class="icon-btn delete" title="Delete" onclick="openDeleteModal('{{ entry.id }}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-utensils"></i>
+        <p>No nutrition entries yet. Log your first one!</p>
+        {% if can_edit %}<button onclick="openAddModal()" class="btn-add"><i class="fas fa-plus"></i> Log Nutrition</button>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if can_edit %}
+<!-- Add Modal -->
+<div id="addModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Log Nutrition</span>
+      <button class="modal-close" onclick="closeModal('addModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="addDate" class="form-input" required></div>
+      <div class="form-group">
+        <label class="form-label">How would you describe today's diet?</label>
+        <textarea id="addDiet" rows="2" class="form-textarea" placeholder="e.g. Mostly clean, had a cheat meal at dinner…"></textarea>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Calories <span style="font-weight:400;color:var(--slate-400)">(est.)</span></label>
+          <input type="number" id="addCalories" min="0" class="form-input" placeholder="e.g. 2200">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Protein <span style="font-weight:400;color:var(--slate-400)">(g, est.)</span></label>
+          <input type="number" id="addProtein" step="0.5" min="0" class="form-input" placeholder="e.g. 150">
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Sodium <span style="font-weight:400;color:var(--slate-400)">(mg, est.)</span></label>
+          <input type="number" id="addSodium" min="0" class="form-input" placeholder="e.g. 1800">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saturated Fat <span style="font-weight:400;color:var(--slate-400)">(g, est.)</span></label>
+          <input type="number" id="addSatFat" step="0.5" min="0" class="form-input" placeholder="e.g. 12">
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-hint">All nutritional values are estimates — enter what you can.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label>
+        <textarea id="addNotes" rows="2" class="form-textarea" placeholder="Any additional notes…"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-primary" onclick="submitAdd()">Save</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Edit Entry</span>
+      <button class="modal-close" onclick="closeModal('editModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="editDate" class="form-input" required></div>
+      <div class="form-group">
+        <label class="form-label">How would you describe today's diet?</label>
+        <textarea id="editDiet" rows="2" class="form-textarea"></textarea>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Calories <span style="font-weight:400;color:var(--slate-400)">(est.)</span></label>
+          <input type="number" id="editCalories" min="0" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Protein <span style="font-weight:400;color:var(--slate-400)">(g, est.)</span></label>
+          <input type="number" id="editProtein" step="0.5" min="0" class="form-input">
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Sodium <span style="font-weight:400;color:var(--slate-400)">(mg, est.)</span></label>
+          <input type="number" id="editSodium" min="0" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saturated Fat <span style="font-weight:400;color:var(--slate-400)">(g, est.)</span></label>
+          <input type="number" id="editSatFat" step="0.5" min="0" class="form-input">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label>
+        <textarea id="editNotes" rows="2" class="form-textarea"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-primary" onclick="submitEdit()">Update</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Delete Entry</span>
+      <button class="modal-close" onclick="closeModal('deleteModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem;line-height:1.5;margin:0 0 1.25rem;" class="delete-confirm-text">Delete this nutrition entry? This cannot be undone.</p>
+      <input type="hidden" id="deleteId">
+      <div class="modal-footer" style="margin-top:0">
+        <button class="modal-btn modal-btn-danger" onclick="submitDelete()">Delete</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+  function openModal(id)  { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  document.querySelectorAll('.modal-backdrop').forEach(el =>
+    el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); })
+  );
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.nutrition-date').forEach(el => {
+      const d = el.dataset.date;
+      if (d) el.textContent = new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    });
+  });
+
+  function openAddModal() {
+    document.getElementById('addDate').value     = localToday();
+    document.getElementById('addDiet').value     = '';
+    document.getElementById('addCalories').value = '';
+    document.getElementById('addProtein').value  = '';
+    document.getElementById('addSodium').value   = '';
+    document.getElementById('addSatFat').value   = '';
+    document.getElementById('addNotes').value    = '';
+    openModal('addModal');
+  }
+  async function submitAdd() {
+    const date = document.getElementById('addDate').value;
+    if (!date) { alert('Please enter a date.'); return; }
+    const payload = {
+      date,
+      diet:                  document.getElementById('addDiet').value,
+      estimated_calories:    parseFloat(document.getElementById('addCalories').value) || null,
+      estimated_protein:     parseFloat(document.getElementById('addProtein').value)  || null,
+      estimated_sodium:      parseFloat(document.getElementById('addSodium').value)   || null,
+      estimated_saturated_fat: parseFloat(document.getElementById('addSatFat').value) || null,
+      notes:                 document.getElementById('addNotes').value
+    };
+    try {
+      const r = await fetch('/client-portal/nutrition', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      if (r.ok) location.reload(); else alert('Error saving entry.');
+    } catch { alert('Error saving entry.'); }
+  }
+
+  function openEditFromData(btn) {
+    openEditModal(
+      btn.dataset.id,
+      btn.dataset.date,
+      btn.dataset.diet,
+      btn.dataset.calories || null,
+      btn.dataset.protein  || null,
+      btn.dataset.sodium   || null,
+      btn.dataset.satfat   || null,
+      btn.dataset.notes
+    );
+  }
+
+  function openEditModal(id, date, diet, calories, protein, sodium, satFat, notes) {
+    document.getElementById('editId').value       = id;
+    document.getElementById('editDate').value     = date;
+    document.getElementById('editDiet').value     = diet || '';
+    document.getElementById('editCalories').value = calories || '';
+    document.getElementById('editProtein').value  = protein || '';
+    document.getElementById('editSodium').value   = sodium || '';
+    document.getElementById('editSatFat').value   = satFat || '';
+    document.getElementById('editNotes').value    = notes || '';
+    openModal('editModal');
+  }
+  async function submitEdit() {
+    const id   = document.getElementById('editId').value;
+    const date = document.getElementById('editDate').value;
+    if (!date) { alert('Please enter a date.'); return; }
+    const payload = {
+      date,
+      diet:                  document.getElementById('editDiet').value,
+      estimated_calories:    parseFloat(document.getElementById('editCalories').value) || null,
+      estimated_protein:     parseFloat(document.getElementById('editProtein').value)  || null,
+      estimated_sodium:      parseFloat(document.getElementById('editSodium').value)   || null,
+      estimated_saturated_fat: parseFloat(document.getElementById('editSatFat').value) || null,
+      notes:                 document.getElementById('editNotes').value
+    };
+    try {
+      const r = await fetch(`/client-portal/api/nutrition/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      if (r.ok) location.reload(); else alert('Error updating entry.');
+    } catch { alert('Error updating entry.'); }
+  }
+
+  function openDeleteModal(id) { document.getElementById('deleteId').value = id; openModal('deleteModal'); }
+  async function submitDelete() {
+    const id = document.getElementById('deleteId').value;
+    try {
+      const r = await fetch(`/client-portal/api/nutrition/${id}`, { method:'DELETE' });
+      if (r.ok) location.reload(); else alert('Error deleting entry.');
+    } catch { alert('Error deleting entry.'); }
+  }
+
+  // ── Nutrition progress chart ──
+  let nutritionChart = null;
+  let currentView = 30;
+  let currentMetric = 'calories';
+  const nutritionData = {{ nutrition_history | tojson }};
+
+  const METRICS = {
+    calories:      { field: 'estimated_calories',      label: 'Calories',      color: '#059669', unit: ' cal' },
+    protein:       { field: 'estimated_protein',       label: 'Protein',       color: '#DC2626', unit: ' g'   },
+    sodium:        { field: 'estimated_sodium',        label: 'Sodium',        color: '#2563EB', unit: ' mg'  },
+    saturated_fat: { field: 'estimated_saturated_fat', label: 'Saturated Fat', color: '#CA8A04', unit: ' g'   },
+  };
+
+  function initChart() {
+    if (!nutritionData || nutritionData.length === 0) return;
+    renderChart();
+  }
+
+  function renderChart() {
+    const ctx = document.getElementById('nutritionChart');
+    if (!ctx) return;
+    const m = METRICS[currentMetric];
+
+    const sorted = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let displayData = sorted;
+    if (currentView !== 'all' && sorted.length > currentView) displayData = sorted.slice(-currentView);
+
+    const filtered = displayData.filter(e => e[m.field] != null && e[m.field] !== '');
+
+    const emptyEl = document.getElementById('chartEmpty');
+    if (filtered.length === 0) {
+      if (nutritionChart) { nutritionChart.destroy(); nutritionChart = null; }
+      ctx.style.display = 'none';
+      if (emptyEl) emptyEl.style.display = 'flex';
+      return;
+    }
+    ctx.style.display = '';
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    const labels = filtered.map(e => new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }));
+    const values = filtered.map(e => e[m.field]);
+
+    const minV = Math.min(...values), maxV = Math.max(...values);
+    const pad = (maxV - minV) * 0.1 || 5;
+
+    if (nutritionChart) nutritionChart.destroy();
+    nutritionChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: m.label, data: values,
+          borderColor: m.color, backgroundColor: m.color + '1A',
+          borderWidth: 3, fill: true, tension: 0.4,
+          pointRadius: 5, pointHoverRadius: 7,
+          pointBackgroundColor: m.color, pointBorderColor: '#fff', pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.9)', padding: 12,
+            callbacks: { label: c => c.parsed.y + m.unit }
+          }
+        },
+        scales: {
+          y: { beginAtZero: false, min: minV - pad, max: maxV + pad,
+               ticks: { callback: v => v.toFixed(0) + m.unit, font: { size: 12 } },
+               grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } }, grid: { display: false } }
+        },
+        interaction: { intersect: false, mode: 'index' }
+      }
+    });
+  }
+
+  function changeMetric(metric) {
+    currentMetric = metric;
+    ['calories','protein','sodium','saturated_fat'].forEach(k => {
+      const id = 'metric' + ({calories:'Calories', protein:'Protein', sodium:'Sodium', saturated_fat:'SatFat'})[k] + 'Btn';
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', metric === k);
+    });
+    renderChart();
+  }
+
+  function changeView(view) {
+    currentView = view;
+    document.getElementById('view30Btn').classList.toggle('active', view === 30);
+    document.getElementById('viewAllBtn').classList.toggle('active', view === 'all');
+    renderChart();
+  }
+
+  document.addEventListener('DOMContentLoaded', initChart);
+</script>
+{% endblock %}

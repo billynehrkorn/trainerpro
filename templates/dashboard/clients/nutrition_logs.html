@@ -90,6 +90,31 @@
   }
   .toggle-btn:hover { background: var(--slate-50); }
   .toggle-btn.active { background: var(--emerald); color: white; border-color: var(--emerald); }
+  html.dark .toggle-btn        { background: #0F172A; border-color: #334155; color: #94A3B8; }
+  html.dark .toggle-btn:hover  { background: #1a2535; }
+  html.dark .toggle-btn.active { background: var(--emerald); color: white; border-color: var(--emerald); }
+  html.dark .nl-title          { color: #F1F5F9; }
+  html.dark .back-link         { background: #1E293B; border-color: #334155; color: #94A3B8; }
+  html.dark .back-link:hover   { background: #273548; border-color: #475569; color: #F1F5F9; }
+  html.dark .card              { background: #1E293B; border-color: #334155; }
+  html.dark .card-header       { border-color: #334155; }
+  html.dark .entry-card        { background: #1E293B; border-color: #334155; }
+  html.dark .entry-card:hover  { border-color: #475569; }
+  html.dark .entry-icon        { background: rgba(5,150,105,0.2); }
+  html.dark .entry-date-text   { color: #F1F5F9; }
+  html.dark .entry-diet        { color: #94A3B8; }
+  html.dark .entry-macros      { color: #94A3B8; }
+  html.dark .empty-state h3    { color: #CBD5E1; }
+  html.dark .modal-box         { background: #1E293B; }
+  html.dark .modal-title       { color: #F1F5F9; }
+  html.dark .modal-close       { color: #64748B; }
+  html.dark .modal-close:hover { color: #F1F5F9; }
+  html.dark .modal-text        { color: #CBD5E1; }
+  html.dark .form-label        { color: #CBD5E1; }
+  html.dark .form-input,
+  html.dark .form-textarea     { background: #0F172A; color: #F1F5F9; border-color: #334155; }
+  html.dark .modal-btn-secondary       { background: #0F172A; color: #CBD5E1; border-color: #334155; }
+  html.dark .modal-btn-secondary:hover { background: #1a2535; }
   .chart-subbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
   .chart-wrap { position: relative; height: 300px; }
 
@@ -125,6 +150,7 @@
   }
   .entry-macros .macro i { margin-right: 0.3rem; }
   .macro-cal i { color: var(--orange); }
+  .macro-protein i { color: #DC2626; }
   .macro-sodium i { color: var(--blue); }
   .macro-fat i { color: var(--amber); }
   .entry-actions {
@@ -177,6 +203,7 @@
 
   .form-group { margin-bottom: 1rem; }
   .form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
+  .form-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.85rem; }
   .form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-600); margin-bottom: 0.35rem; }
   .form-label .req { color: #EF4444; }
   .form-input, .form-textarea {
@@ -211,6 +238,7 @@
     .page-wrap { padding: 1rem; }
     .nl-header { flex-direction: column; align-items: flex-start; }
     .form-row { grid-template-columns: 1fr; }
+    .form-row-2 { grid-template-columns: 1fr; }
   }
 </style>
 
@@ -241,6 +269,7 @@
       <span class="card-title">Nutrition Progress</span>
       <div class="view-toggle">
         <button id="metricCaloriesBtn" class="toggle-btn active" onclick="changeMetric('calories')">Calories</button>
+        <button id="metricProteinBtn" class="toggle-btn" onclick="changeMetric('protein')">Protein</button>
         <button id="metricSodiumBtn" class="toggle-btn" onclick="changeMetric('sodium')">Sodium</button>
         <button id="metricSatFatBtn" class="toggle-btn" onclick="changeMetric('saturated_fat')">Sat. Fat</button>
       </div>
@@ -273,10 +302,13 @@
             <div class="entry-main">
               <div class="entry-date-text nutrition-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
               <div class="entry-diet">{{ entry.diet }}</div>
-              {% if entry.estimated_calories or entry.estimated_sodium or entry.estimated_saturated_fat %}
+              {% if entry.estimated_calories or entry.estimated_protein or entry.estimated_sodium or entry.estimated_saturated_fat %}
               <div class="entry-macros">
                 {% if entry.estimated_calories %}
                 <span class="macro macro-cal"><i class="fas fa-fire"></i>{{ entry.estimated_calories }} cal</span>
+                {% endif %}
+                {% if entry.estimated_protein %}
+                <span class="macro macro-protein"><i class="fas fa-drumstick-bite"></i>{{ entry.estimated_protein }} g protein</span>
                 {% endif %}
                 {% if entry.estimated_sodium %}
                 <span class="macro macro-sodium"><i class="fas fa-vial"></i>{{ entry.estimated_sodium }} mg sodium</span>
@@ -331,11 +363,17 @@
         <textarea id="nutritionDiet" rows="4" class="form-textarea" required
                   placeholder="Describe meals eaten today...&#10;Example:&#10;Breakfast: Oatmeal with berries&#10;Lunch: Chicken salad&#10;Dinner: Grilled salmon with vegetables"></textarea>
       </div>
-      <div class="form-group form-row">
+      <div class="form-group form-row-2">
         <div>
           <label class="form-label">Est. Calories</label>
           <input type="number" id="nutritionCalories" min="0" class="form-input" placeholder="e.g., 2000">
         </div>
+        <div>
+          <label class="form-label">Est. Protein (g)</label>
+          <input type="number" id="nutritionProtein" min="0" step="0.1" class="form-input" placeholder="e.g., 150">
+        </div>
+      </div>
+      <div class="form-group form-row-2">
         <div>
           <label class="form-label">Est. Sodium (mg)</label>
           <input type="number" id="nutritionSodium" min="0" class="form-input" placeholder="e.g., 2300">
@@ -375,11 +413,17 @@
         <textarea id="editNutritionDiet" rows="4" class="form-textarea" required
                   placeholder="Describe meals eaten today..."></textarea>
       </div>
-      <div class="form-group form-row">
+      <div class="form-group form-row-2">
         <div>
           <label class="form-label">Est. Calories</label>
           <input type="number" id="editNutritionCalories" min="0" class="form-input">
         </div>
+        <div>
+          <label class="form-label">Est. Protein (g)</label>
+          <input type="number" id="editNutritionProtein" min="0" step="0.1" class="form-input">
+        </div>
+      </div>
+      <div class="form-group form-row-2">
         <div>
           <label class="form-label">Est. Sodium (mg)</label>
           <input type="number" id="editNutritionSodium" min="0" class="form-input">
@@ -418,6 +462,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+
 function formatDates() {
   document.querySelectorAll('.nutrition-date').forEach(element => {
     const dateStr = element.getAttribute('data-date');
@@ -437,7 +490,7 @@ function formatDates() {
 
 function openNutritionModal() {
   document.getElementById('nutritionModal').classList.add('open');
-  document.getElementById('nutritionDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('nutritionDate').value = localToday();
 }
 function closeNutritionModal() {
   document.getElementById('nutritionModal').classList.remove('open');
@@ -449,6 +502,7 @@ function editNutritionEntry(entry) {
   document.getElementById('editNutritionDate').value = entry.date;
   document.getElementById('editNutritionDiet').value = entry.diet;
   document.getElementById('editNutritionCalories').value = entry.estimated_calories || '';
+  document.getElementById('editNutritionProtein').value = entry.estimated_protein || '';
   document.getElementById('editNutritionSodium').value = entry.estimated_sodium || '';
   document.getElementById('editNutritionSatFat').value = entry.estimated_saturated_fat || '';
   document.getElementById('editNutritionNotes').value = entry.notes || '';
@@ -503,6 +557,7 @@ function renderChart(data) {
 
   const filteredData = displayData.filter(entry => {
     if (currentMetric === 'calories') return entry.estimated_calories != null;
+    if (currentMetric === 'protein') return entry.estimated_protein != null;
     if (currentMetric === 'sodium') return entry.estimated_sodium != null;
     if (currentMetric === 'saturated_fat') return entry.estimated_saturated_fat != null;
     return false;
@@ -517,6 +572,9 @@ function renderChart(data) {
   if (currentMetric === 'calories') {
     values = filteredData.map(entry => entry.estimated_calories);
     label = 'Calories'; color = '#059669'; unit = ' cal';
+  } else if (currentMetric === 'protein') {
+    values = filteredData.map(entry => entry.estimated_protein);
+    label = 'Protein'; color = '#DC2626'; unit = ' g';
   } else if (currentMetric === 'sodium') {
     values = filteredData.map(entry => entry.estimated_sodium);
     label = 'Sodium'; color = '#2563EB'; unit = ' mg';
@@ -601,6 +659,7 @@ function changeView(view) {
 function changeMetric(metric) {
   currentMetric = metric;
   document.getElementById('metricCaloriesBtn').classList.toggle('active', metric === 'calories');
+  document.getElementById('metricProteinBtn').classList.toggle('active', metric === 'protein');
   document.getElementById('metricSodiumBtn').classList.toggle('active', metric === 'sodium');
   document.getElementById('metricSatFatBtn').classList.toggle('active', metric === 'saturated_fat');
   const sortedData = [...nutritionData].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -619,6 +678,7 @@ document.getElementById('nutritionForm').addEventListener('submit', async functi
     date: document.getElementById('nutritionDate').value,
     diet: document.getElementById('nutritionDiet').value,
     estimated_calories: document.getElementById('nutritionCalories').value || null,
+    estimated_protein: document.getElementById('nutritionProtein').value || null,
     estimated_sodium: document.getElementById('nutritionSodium').value || null,
     estimated_saturated_fat: document.getElementById('nutritionSatFat').value || null,
     notes: document.getElementById('nutritionNotes').value
@@ -646,6 +706,7 @@ document.getElementById('editNutritionForm').addEventListener('submit', async fu
     date: document.getElementById('editNutritionDate').value,
     diet: document.getElementById('editNutritionDiet').value,
     estimated_calories: document.getElementById('editNutritionCalories').value || null,
+    estimated_protein: document.getElementById('editNutritionProtein').value || null,
     estimated_sodium: document.getElementById('editNutritionSodium').value || null,
     estimated_saturated_fat: document.getElementById('editNutritionSatFat').value || null,
     notes: document.getElementById('editNutritionNotes').value

@@ -1,0 +1,299 @@
+{% extends "client/base.html" %}
+{% block title %}My Weight - TrainerPro{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:#0F172A; --slate-600:#475569; --slate-400:#94A3B8;
+    --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+    --purple:#7C3AED; --purple-hover:#6D28D9; --purple-light:#F3E8FF;
+    --blue:#2563EB; --red:#EF4444; --red-light:#FEE2E2;
+    --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { box-sizing:border-box; }
+  .page-wrap { max-width:760px; margin:0 auto; padding:2rem 1.5rem; }
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.75rem; gap:1rem; flex-wrap:wrap; }
+  .page-title    { font-size:1.5rem; font-weight:700; color:var(--navy); }
+  .page-subtitle { font-size:0.82rem; color:var(--slate-400); margin-top:0.2rem; }
+  .btn-add { display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600; color:white; background:var(--purple); transition:background 0.15s; }
+  .btn-add:hover { background:var(--purple-hover); }
+  .card { background:white; border:1.5px solid var(--slate-200); border-radius:var(--radius); box-shadow:var(--shadow-sm); margin-bottom:1.25rem; overflow:hidden; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1.5px solid var(--slate-100); }
+  .card-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--slate-400); }
+  .view-toggle { display:flex; gap:0.4rem; }
+  .toggle-btn { padding:0.3rem 0.7rem; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1.5px solid var(--slate-200); background:white; color:var(--slate-600); transition:all 0.15s; }
+  .toggle-btn.active { background:var(--purple); border-color:var(--purple); color:white; }
+  .chart-wrap { position:relative; height:240px; padding:1rem 1.25rem; }
+  .chart-avg { text-align:center; font-size:0.8rem; color:var(--slate-600); padding:0 1.25rem 1rem; }
+  .chart-avg span { font-weight:700; color:var(--purple); }
+  .entry-list { display:flex; flex-direction:column; }
+  .entry-item { display:flex; align-items:stretch; border-bottom:1px solid var(--slate-100); }
+  .entry-item:last-child { border-bottom:none; }
+  .entry-accent { width:4px; flex-shrink:0; background:var(--purple); }
+  .entry-body { flex:1; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.85rem; }
+  .entry-icon { width:38px; height:38px; border-radius:8px; flex-shrink:0; background:var(--purple-light); color:var(--purple); display:flex; align-items:center; justify-content:center; font-size:0.9rem; }
+  .entry-main { flex:1; min-width:0; }
+  .entry-weight { font-size:1rem; font-weight:700; color:var(--navy); }
+  .entry-date   { font-size:0.75rem; color:var(--slate-400); margin-top:0.1rem; }
+  .entry-notes  { font-size:0.75rem; color:var(--slate-600); font-style:italic; margin-top:0.2rem; }
+  .entry-actions { display:flex; align-items:center; gap:0.25rem; padding:0 0.75rem; }
+  .icon-btn { background:none; border:none; cursor:pointer; padding:0.35rem; color:var(--slate-400); border-radius:5px; font-size:0.8rem; transition:color 0.15s,background 0.15s; }
+  .icon-btn.edit:hover   { color:var(--blue); background:#EFF6FF; }
+  .icon-btn.delete:hover { color:var(--red);  background:var(--red-light); }
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:3rem 1rem; text-align:center; color:var(--slate-400); }
+  .empty-state i { font-size:2rem; margin-bottom:0.75rem; opacity:0.4; }
+  .empty-state p { font-size:0.85rem; margin-bottom:1.25rem; }
+  .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,0.5); display:none; align-items:center; justify-content:center; z-index:50; padding:1rem; }
+  .modal-backdrop.open { display:flex; }
+  .modal-box { background:white; border-radius:14px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1.5px solid var(--slate-100); }
+  .modal-title { font-size:1rem; font-weight:700; color:var(--navy); }
+  .modal-close { background:none; border:none; cursor:pointer; color:var(--slate-400); font-size:1rem; padding:0.25rem; border-radius:5px; transition:color 0.15s; }
+  .modal-close:hover { color:var(--navy); }
+  .modal-body { padding:1.5rem; }
+  .modal-footer { display:flex; gap:0.6rem; margin-top:1.25rem; }
+  .modal-btn { flex:1; padding:0.6rem; border-radius:8px; border:none; font-size:0.875rem; font-weight:600; cursor:pointer; transition:background 0.15s; }
+  .modal-btn-primary   { background:var(--purple); color:white; }
+  .modal-btn-primary:hover { background:var(--purple-hover); }
+  .modal-btn-secondary { background:var(--slate-100); color:var(--slate-600); border:1.5px solid var(--slate-200); }
+  .modal-btn-secondary:hover { background:var(--slate-200); }
+  .modal-btn-danger    { background:var(--red); color:white; }
+  .modal-btn-danger:hover { background:#DC2626; }
+  .form-group { margin-bottom:1rem; }
+  .form-label { display:block; font-size:0.78rem; font-weight:600; color:var(--slate-600); margin-bottom:0.35rem; }
+  .form-input, .form-textarea { width:100%; padding:0.55rem 0.75rem; border:1.5px solid var(--slate-200); border-radius:8px; font-size:0.875rem; color:var(--navy); outline:none; transition:border-color 0.15s; box-sizing:border-box; font-family:inherit; }
+  .form-input:focus, .form-textarea:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
+  .readonly-notice { display:flex; align-items:center; gap:0.6rem; background:var(--purple-light); border:1.5px solid #DDD6FE; border-radius:8px; padding:0.65rem 1rem; font-size:0.8rem; color:var(--purple); margin-bottom:1.5rem; }
+  html.dark .readonly-notice { background:rgba(124,58,237,0.15); border-color:rgba(124,58,237,0.3); color:#C4B5FD; }
+  @media (max-width:500px) { .page-wrap{padding:1rem;} .page-header{flex-direction:column;align-items:flex-start;} .modal-backdrop{padding:0;align-items:flex-end;} .modal-box{border-radius:14px 14px 0 0;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Weight Log</div>
+      <div class="page-subtitle">Track your progress over time</div>
+    </div>
+    {% if can_edit %}
+    <button onclick="openAddModal()" class="btn-add">
+      <i class="fas fa-plus"></i> Log Weight
+    </button>
+    {% endif %}
+  </div>
+
+  {% if weight_history %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Progress</span>
+      <div class="view-toggle">
+        <button class="toggle-btn active" id="btn30" onclick="changeView(30)">Last 30</button>
+        <button class="toggle-btn" id="btnAll" onclick="changeView('all')">All Time</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+    <div class="chart-avg">Average: <span id="chartAvg">—</span></div>
+  </div>
+  {% endif %}
+
+  {% if not can_edit %}
+  <div class="readonly-notice">
+    <i class="fas fa-lock"></i>
+    <span>Your trainer hasn't enabled logging for this section. You can still view your history below.</span>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">History</span></div>
+    {% if weight_history %}
+      <div class="entry-list">
+        {% for entry in weight_history %}
+        <div class="entry-item">
+          <div class="entry-accent"></div>
+          <div class="entry-body">
+            <div class="entry-icon"><i class="fas fa-weight-scale"></i></div>
+            <div class="entry-main">
+              <div class="entry-weight">{{ entry.weight }} lbs</div>
+              <div class="entry-date weight-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
+              {% if entry.notes %}<div class="entry-notes">{{ entry.notes }}</div>{% endif %}
+            </div>
+          </div>
+          {% if can_edit %}
+          <div class="entry-actions">
+            <button class="icon-btn edit" title="Edit"
+                    onclick="openEditModal('{{ entry.id }}','{{ entry.date }}','{{ entry.weight }}','{{ entry.notes or '' }}')">
+              <i class="fas fa-pen"></i>
+            </button>
+            <button class="icon-btn delete" title="Delete" onclick="openDeleteModal('{{ entry.id }}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-weight-scale"></i>
+        <p>No weight entries yet. Log your first one!</p>
+        {% if can_edit %}<button onclick="openAddModal()" class="btn-add"><i class="fas fa-plus"></i> Log Weight</button>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if can_edit %}
+<!-- Add Modal -->
+<div id="addModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Log Weight</span>
+      <button class="modal-close" onclick="closeModal('addModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="addDate" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" id="addWeight" step="0.1" min="0" class="form-input" required placeholder="e.g. 175.5"></div>
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label><textarea id="addNotes" rows="2" class="form-textarea" placeholder="Any notes…"></textarea></div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-primary" onclick="submitAdd()">Save</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Edit Entry</span>
+      <button class="modal-close" onclick="closeModal('editModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="editDate" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" id="editWeight" step="0.1" min="0" class="form-input" required></div>
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label><textarea id="editNotes" rows="2" class="form-textarea"></textarea></div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-primary" onclick="submitEdit()">Update</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Delete Entry</span>
+      <button class="modal-close" onclick="closeModal('deleteModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem;color:var(--slate-600);line-height:1.5;margin:0 0 1.25rem;">Are you sure you want to delete this weight entry? This cannot be undone.</p>
+      <input type="hidden" id="deleteId">
+      <div class="modal-footer" style="margin-top:0">
+        <button class="modal-btn modal-btn-danger" onclick="submitDelete()">Delete</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+  function openModal(id)  { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  document.querySelectorAll('.modal-backdrop').forEach(el =>
+    el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); })
+  );
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.weight-date').forEach(el => {
+      const d = el.dataset.date;
+      if (d) el.textContent = new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    });
+    initChart();
+  });
+  function openAddModal() {
+    document.getElementById('addDate').value   = localToday();
+    document.getElementById('addWeight').value = '';
+    document.getElementById('addNotes').value  = '';
+    openModal('addModal');
+  }
+  async function submitAdd() {
+    const weight = parseFloat(document.getElementById('addWeight').value);
+    const date   = document.getElementById('addDate').value;
+    if (!date || isNaN(weight)) { alert('Please enter a date and weight.'); return; }
+    try {
+      const r = await fetch('/client-portal/weight', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({date,weight,notes:document.getElementById('addNotes').value}) });
+      if (r.ok) location.reload(); else alert('Error saving entry.');
+    } catch { alert('Error saving entry.'); }
+  }
+  function openEditModal(id, date, weight, notes) {
+    document.getElementById('editId').value     = id;
+    document.getElementById('editDate').value   = date;
+    document.getElementById('editWeight').value = weight;
+    document.getElementById('editNotes').value  = notes;
+    openModal('editModal');
+  }
+  async function submitEdit() {
+    const id     = document.getElementById('editId').value;
+    const weight = parseFloat(document.getElementById('editWeight').value);
+    const date   = document.getElementById('editDate').value;
+    if (!date || isNaN(weight)) { alert('Please enter a date and weight.'); return; }
+    try {
+      const r = await fetch(`/client-portal/api/weight/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({date,weight,notes:document.getElementById('editNotes').value}) });
+      if (r.ok) location.reload(); else alert('Error updating entry.');
+    } catch { alert('Error updating entry.'); }
+  }
+  function openDeleteModal(id) { document.getElementById('deleteId').value = id; openModal('deleteModal'); }
+  async function submitDelete() {
+    const id = document.getElementById('deleteId').value;
+    try {
+      const r = await fetch(`/client-portal/api/weight/${id}`, { method:'DELETE' });
+      if (r.ok) location.reload(); else alert('Error deleting entry.');
+    } catch { alert('Error deleting entry.'); }
+  }
+  const weightData = {{ weight_history | tojson }};
+  let chart = null, currentView = 30;
+  function initChart() {
+    if (!weightData || !weightData.length) return;
+    renderChart([...weightData].sort((a,b) => new Date(a.date)-new Date(b.date)));
+  }
+  function renderChart(data) {
+    const ctx = document.getElementById('weightChart');
+    if (!ctx) return;
+    let display = data;
+    if (currentView !== 'all' && data.length > currentView) display = data.slice(-currentView);
+    const weights = display.map(e => e.weight);
+    const avg = (weights.reduce((s,w)=>s+w,0)/weights.length).toFixed(1);
+    document.getElementById('chartAvg').textContent = avg + ' lbs';
+    const labels = display.map(e => new Date(e.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    const min = Math.min(...weights), max = Math.max(...weights), pad = (max-min)*0.15||5;
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets:[{ data:weights, borderColor:'#7C3AED', backgroundColor:'rgba(124,58,237,0.08)', borderWidth:2.5, fill:true, tension:0.4, pointRadius:4, pointHoverRadius:6, pointBackgroundColor:'#7C3AED', pointBorderColor:'#fff', pointBorderWidth:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'rgba(15,23,42,0.9)', padding:10, callbacks:{ label:ctx=>ctx.parsed.y+' lbs' } } }, scales:{ y:{ min:min-pad, max:max+pad, ticks:{callback:v=>v.toFixed(1)+' lbs',font:{size:11}}, grid:{color:'rgba(0,0,0,0.04)'} }, x:{ ticks:{maxRotation:45,minRotation:45,font:{size:11}}, grid:{display:false} } }, interaction:{intersect:false,mode:'index'} }
+    });
+  }
+  function changeView(view) {
+    currentView = view;
+    document.getElementById('btn30').classList.toggle('active', view===30);
+    document.getElementById('btnAll').classList.toggle('active', view==='all');
+    renderChart([...weightData].sort((a,b) => new Date(a.date)-new Date(b.date)));
+  }
+</script>
+{% endblock %}

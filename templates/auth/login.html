@@ -1,193 +1,362 @@
 {% extends "base.html" %}
-
 {% block title %}Login - TrainerPro{% endblock %}
 
 {% block content %}
 <style>
-    .auth-wrap {
-        --navy: #0F172A;
-        --bg: #F8FAFC;
-        --emerald: #059669;
-        --emerald-dark: #047857;
-        --border: #E2E8F0;
-        --muted: #64748B;
-        --faint: #94A3B8;
-        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-        --radius: 10px;
-        min-height: calc(100vh - 4rem);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 3rem 1rem;
-        background: var(--bg);
-    }
+  :root {
+    --navy:#0F172A; --slate-800:#1E293B; --slate-600:#475569;
+    --slate-400:#94A3B8; --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+    --emerald:#059669; --emerald-dark:#047857; --emerald-light:#D1FAE5;
+    --blue:#2563EB; --blue-dark:#1D4ED8; --blue-light:#EFF6FF;
+    --radius:12px; --shadow:0 4px 24px rgba(15,23,42,0.10);
+  }
+  *, *::before, *::after { box-sizing:border-box; }
 
-    .auth-card {
-        width: 100%;
-        max-width: 420px;
-        background: #FFFFFF;
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-sm);
-        overflow: hidden;
-    }
+  .login-page {
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--slate-50);
+    padding:2rem 1rem;
+  }
 
-    .auth-brand {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.6rem;
-        padding: 1.75rem 2rem 0;
-    }
+  .login-shell {
+    width:100%;
+    max-width:460px;
+  }
 
-    .auth-brand-mark {
-        width: 38px;
-        height: 38px;
-        border-radius: var(--radius);
-        background: var(--emerald);
-        color: #FFFFFF;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-    }
+  /* ── Logo ── */
+  .login-logo {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:0.65rem;
+    margin-bottom:2rem;
+  }
+  .login-logo-mark {
+    width:44px; height:44px;
+    border-radius:11px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1rem; color:white;
+    background:var(--emerald);
+    box-shadow:0 2px 8px rgba(5,150,105,0.35);
+  }
+  .login-logo-name {
+    font-size:1.3rem; font-weight:800;
+    color:var(--navy); letter-spacing:-0.03em;
+  }
 
-    .auth-brand-name {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: var(--navy);
-        letter-spacing: -0.01em;
-    }
+  /* ── Switcher ── */
+  .login-switcher {
+    display:flex;
+    background:var(--slate-200);
+    border-radius:10px;
+    padding:4px;
+    margin-bottom:1.5rem;
+    gap:4px;
+  }
+  .switcher-btn {
+    flex:1;
+    padding:0.6rem 1rem;
+    border:none;
+    border-radius:7px;
+    font-size:0.85rem;
+    font-weight:700;
+    cursor:pointer;
+    transition:all 0.18s;
+    background:transparent;
+    color:var(--slate-600);
+  }
+  .switcher-btn.active {
+    background:white;
+    color:var(--navy);
+    box-shadow:0 1px 4px rgba(15,23,42,0.10);
+  }
 
-    .auth-head {
-        padding: 1.25rem 2rem 1.5rem;
-        text-align: center;
-        border-bottom: 1.5px solid var(--border);
-    }
+  /* ── Card ── */
+  .login-card {
+    background:white;
+    border-radius:var(--radius);
+    border:1.5px solid var(--slate-200);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
 
-    .auth-label {
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.07em;
-        color: var(--faint);
-        margin-bottom: 0.5rem;
-    }
+  .card-accent {
+    height:4px;
+    background:var(--emerald);
+    transition:background 0.2s;
+  }
+  .card-accent.blue { background:var(--blue); }
 
-    .auth-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--navy);
-        letter-spacing: -0.02em;
-        margin: 0 0 0.4rem;
-    }
+  .card-head {
+    padding:1.75rem 2rem 1.5rem;
+    border-bottom:1.5px solid var(--slate-100);
+  }
+  .card-eyebrow {
+    font-size:0.7rem; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.08em;
+    color:var(--slate-400); margin-bottom:0.4rem;
+  }
+  .card-eyebrow.blue { color:var(--blue); }
+  .card-title {
+    font-size:1.45rem; font-weight:800;
+    color:var(--navy); letter-spacing:-0.02em;
+    margin:0 0 0.3rem;
+  }
+  .card-sub {
+    font-size:0.85rem; color:var(--slate-600);
+    margin:0; line-height:1.5;
+  }
 
-    .auth-sub {
-        font-size: 0.875rem;
-        color: var(--muted);
-        line-height: 1.5;
-        margin: 0;
-    }
+  /* ── Body / Form ── */
+  .card-body { padding:1.75rem 2rem 2rem; }
 
-    .auth-body {
-        padding: 1.75rem 2rem 2rem;
-    }
+  /* Sub-tabs (Sign In / Register) inside client card */
+  .inner-tabs {
+    display:flex;
+    border:1.5px solid var(--slate-200);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .inner-tab {
+    flex:1; padding:0.55rem; border:none; cursor:pointer;
+    font-size:0.8rem; font-weight:700;
+    transition:background 0.15s, color 0.15s;
+    background:white; color:var(--slate-400);
+  }
+  .inner-tab + .inner-tab { border-left:1.5px solid var(--slate-200); }
+  .inner-tab.active { background:var(--blue); color:white; }
 
-    .auth-field {
-        margin-bottom: 1.1rem;
-    }
+  /* Fields */
+  .form-field { margin-bottom:1rem; }
+  .form-field label {
+    display:block; font-size:0.78rem; font-weight:600;
+    color:var(--slate-600); margin-bottom:0.35rem;
+  }
+  .form-input {
+    width:100%; padding:0.65rem 0.85rem;
+    font-size:0.9rem; color:var(--navy);
+    background:var(--slate-50);
+    border:1.5px solid var(--slate-200);
+    border-radius:9px;
+    transition:border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    font-family:inherit;
+  }
+  .form-input::placeholder { color:var(--slate-400); }
+  .form-input:focus {
+    outline:none; background:white;
+    border-color:var(--emerald);
+    box-shadow:0 0 0 3px rgba(5,150,105,0.12);
+  }
+  .form-input.blue:focus {
+    border-color:var(--blue);
+    box-shadow:0 0 0 3px rgba(37,99,235,0.12);
+  }
 
-    .auth-field label {
-        display: block;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--navy);
-        margin-bottom: 0.4rem;
-    }
+  /* Submit */
+  .form-btn {
+    width:100%; padding:0.72rem 1rem;
+    font-size:0.9rem; font-weight:700;
+    color:white; background:var(--emerald);
+    border:none; border-radius:9px;
+    cursor:pointer; transition:background 0.15s;
+    margin-top:0.5rem;
+  }
+  .form-btn:hover { background:var(--emerald-dark); }
+  .form-btn.blue { background:var(--blue); }
+  .form-btn.blue:hover { background:var(--blue-dark); }
 
-    .auth-input {
-        width: 100%;
-        padding: 0.65rem 0.85rem;
-        font-size: 0.9rem;
-        color: var(--navy);
-        background: var(--bg);
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius);
-        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-        box-sizing: border-box;
-    }
+  /* Footer link */
+  .form-foot {
+    text-align:center; font-size:0.8rem;
+    color:var(--slate-400); margin-top:1.2rem;
+  }
+  .form-foot a { color:var(--emerald); font-weight:600; text-decoration:none; }
+  .form-foot a:hover { text-decoration:underline; }
+  .form-foot a.blue { color:var(--blue); }
 
-    .auth-input::placeholder { color: var(--faint); }
+  /* Flash */
+  .auth-flash {
+    display:flex; align-items:center; gap:0.5rem;
+    background:#FEF2F2; border:1.5px solid #FECACA;
+    border-radius:8px; padding:0.6rem 0.85rem;
+    font-size:0.83rem; color:#991B1B;
+    margin-bottom:1rem;
+  }
 
-    .auth-input:focus {
-        outline: none;
-        background: #FFFFFF;
-        border-color: var(--emerald);
-        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
-    }
+  /* Hint text */
+  .form-hint {
+    font-size:0.75rem; color:var(--slate-400);
+    margin-bottom:1rem; line-height:1.5;
+  }
 
-    .auth-btn {
-        width: 100%;
-        padding: 0.7rem 1rem;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #FFFFFF;
-        background: var(--emerald);
-        border: none;
-        border-radius: var(--radius);
-        cursor: pointer;
-        transition: background 0.15s;
-        margin-top: 0.4rem;
-    }
-
-    .auth-btn:hover { background: var(--emerald-dark); }
-
-    .auth-foot {
-        text-align: center;
-        font-size: 0.85rem;
-        color: var(--muted);
-        margin-top: 1.4rem;
-    }
-
-    .auth-foot a {
-        color: var(--emerald);
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    .auth-foot a:hover { color: var(--emerald-dark); text-decoration: underline; }
+  @media(max-width:480px) {
+    .login-page { padding:1rem; align-items:flex-start; padding-top:2rem; }
+    .card-head  { padding:1.25rem 1.25rem 1rem; }
+    .card-body  { padding:1.25rem; }
+  }
 </style>
 
-<div class="auth-wrap">
-    <div class="auth-card">
-        <div class="auth-brand">
-            <span class="auth-brand-mark"><i class="fas fa-dumbbell"></i></span>
-            <span class="auth-brand-name">TrainerPro</span>
-        </div>
-        <div class="auth-head">
-            <div class="auth-label">Welcome Back</div>
-            <h2 class="auth-title">Sign in to your account</h2>
-            <p class="auth-sub">Manage your clients and grow your fitness business</p>
-        </div>
-        <div class="auth-body">
-            <form method="POST">
-                <div class="auth-field">
-                    <label for="email">Email Address</label>
-                    <input id="email" name="email" type="email" required
-                           class="auth-input" placeholder="your@email.com">
-                </div>
-                <div class="auth-field">
-                    <label for="password">Password</label>
-                    <input id="password" name="password" type="password" required
-                           class="auth-input" placeholder="Enter your password">
-                </div>
-                <button type="submit" class="auth-btn">Sign In</button>
-            </form>
-            <div class="auth-foot">
-                Don&apos;t have an account?
-                <a href="{{ url_for('signup') }}">Sign up here</a>
-            </div>
-        </div>
+<div class="login-page">
+  <div class="login-shell">
+
+    <!-- Logo -->
+    <div class="login-logo">
+      <div class="login-logo-mark"><i class="fas fa-dumbbell"></i></div>
+      <span class="login-logo-name">TrainerPro</span>
     </div>
+
+    <!-- Switcher -->
+    <div class="login-switcher">
+      <button class="switcher-btn active" id="sw-client" onclick="switchPortal('client')">
+        <i class="fas fa-user" style="margin-right:0.35rem;"></i>Client Portal
+      </button>
+      <button class="switcher-btn" id="sw-trainer" onclick="switchPortal('trainer')">
+        <i class="fas fa-dumbbell" style="margin-right:0.35rem;"></i>Trainer Login
+      </button>
+    </div>
+
+    <!-- ── CLIENT CARD ── -->
+    <div class="login-card" id="card-client">
+      <div class="card-accent blue" id="accent-client"></div>
+      <div class="card-head">
+        <div class="card-eyebrow blue">Client Account</div>
+        <h2 class="card-title">Welcome back</h2>
+        <p class="card-sub">Sign in or register with the access code your trainer gave you</p>
+      </div>
+      <div class="card-body">
+
+        <!-- Inner tabs -->
+        <div class="inner-tabs">
+          <button class="inner-tab active" id="itab-login" onclick="showInnerTab('login')">Sign In</button>
+          <button class="inner-tab" id="itab-register" onclick="showInnerTab('register')">First Time? Register</button>
+        </div>
+
+        <!-- Sign In -->
+        <div id="ipanel-login">
+          {% with messages = get_flashed_messages(category_filter=["client_error"]) %}
+            {% if messages %}
+              {% for msg in messages %}
+                <div class="auth-flash"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+          <form method="POST" action="{{ url_for('client_login') }}">
+            <input type="hidden" name="action" value="login">
+            <div class="form-field">
+              <label>Access Code</label>
+              <input name="access_code" type="text" required class="form-input blue"
+                     placeholder="e.g. FX7K-P2QR" autocomplete="off" spellcheck="false"
+                     style="text-transform:uppercase;letter-spacing:0.06em;">
+            </div>
+            <div class="form-field">
+              <label>Password</label>
+              <input name="password" type="password" required class="form-input blue" placeholder="Your password">
+            </div>
+            <button type="submit" class="form-btn blue">Sign In</button>
+          </form>
+          <div class="form-foot">
+            First time here? <a href="#" class="blue" onclick="showInnerTab('register');return false;">Register instead</a>
+          </div>
+        </div>
+
+        <!-- Register -->
+        <div id="ipanel-register" style="display:none;">
+          {% with messages = get_flashed_messages(category_filter=["client_register_error"]) %}
+            {% if messages %}
+              {% for msg in messages %}
+                <div class="auth-flash"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+          <p class="form-hint">Enter the access code your trainer gave you and choose a password.</p>
+          <form method="POST" action="{{ url_for('client_login') }}">
+            <input type="hidden" name="action" value="register">
+            <div class="form-field">
+              <label>Access Code</label>
+              <input name="access_code" type="text" required class="form-input blue"
+                     placeholder="e.g. FX7K-P2QR" autocomplete="off" spellcheck="false"
+                     style="text-transform:uppercase;letter-spacing:0.06em;">
+            </div>
+            <div class="form-field">
+              <label>Choose Password</label>
+              <input name="password" type="password" required class="form-input blue"
+                     placeholder="At least 6 characters" minlength="6">
+            </div>
+            <div class="form-field">
+              <label>Confirm Password</label>
+              <input name="confirm_password" type="password" required class="form-input blue"
+                     placeholder="Repeat your password" minlength="6">
+            </div>
+            <button type="submit" class="form-btn blue">Create Account &amp; Sign In</button>
+          </form>
+          <div class="form-foot">
+            Already registered? <a href="#" class="blue" onclick="showInnerTab('login');return false;">Sign in instead</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── TRAINER CARD ── -->
+    <div class="login-card" id="card-trainer" style="display:none;">
+      <div class="card-accent"></div>
+      <div class="card-head">
+        <div class="card-eyebrow">Trainer Account</div>
+        <h2 class="card-title">Sign in</h2>
+        <p class="card-sub">Manage your clients and grow your fitness business</p>
+      </div>
+      <div class="card-body">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for msg in messages %}
+              <div class="auth-flash"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <form method="POST" action="{{ url_for('login') }}">
+          <div class="form-field">
+            <label>Email Address</label>
+            <input name="email" type="email" required class="form-input" placeholder="your@email.com">
+          </div>
+          <div class="form-field">
+            <label>Password</label>
+            <input name="password" type="password" required class="form-input" placeholder="Enter your password">
+          </div>
+          <button type="submit" class="form-btn">Sign In</button>
+        </form>
+        <div class="form-foot">
+          Don&apos;t have an account? <a href="{{ url_for('signup') }}">Sign up here</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
+
+<script>
+function switchPortal(portal) {
+  const isClient = portal === 'client';
+  document.getElementById('card-client').style.display  = isClient ? '' : 'none';
+  document.getElementById('card-trainer').style.display = isClient ? 'none' : '';
+  document.getElementById('sw-client').classList.toggle('active', isClient);
+  document.getElementById('sw-trainer').classList.toggle('active', !isClient);
+}
+
+function showInnerTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('ipanel-login').style.display    = isLogin ? '' : 'none';
+  document.getElementById('ipanel-register').style.display = isLogin ? 'none' : '';
+  document.getElementById('itab-login').classList.toggle('active', isLogin);
+  document.getElementById('itab-register').classList.toggle('active', !isLogin);
+}
+
+// Auto-open register tab if a register error was flashed
+{% if get_flashed_messages(category_filter=["client_register_error"]) %}
+showInnerTab('register');
+{% endif %}
+</script>
 {% endblock %}

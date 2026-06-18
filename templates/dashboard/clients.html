@@ -211,6 +211,11 @@
                 <option value="potential" {% if status_filter == 'potential' %}selected{% endif %}>Lead</option>
                 <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
             </select>
+            <select name="sort" class="filter-select" onchange="this.form.submit()">
+                <option value="">Sort</option>
+                <option value="name_asc" {% if sort == 'name_asc' %}selected{% endif %}>A–Z</option>
+                <option value="name_desc" {% if sort == 'name_desc' %}selected{% endif %}>Z–A</option>
+            </select>
             <button type="submit" class="filter-btn">
                 <i class="fas fa-search"></i>
             </button>

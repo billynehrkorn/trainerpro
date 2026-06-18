@@ -261,6 +261,10 @@
                class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'calendar' %}active{% endif %}">
                 <i class="fas fa-calendar mr-3 w-4 text-center"></i>Calendar
             </a>
+            <a href="{{ url_for('activity_stream') }}"
+               class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'activity_stream' %}active{% endif %}">
+                <i class="fas fa-wave-square mr-3 w-4 text-center"></i>Activity
+            </a>
             <p class="sidebar-section-label mt-4 mb-1">Tools</p>
             <a href="{{ url_for('workout_templates') }}"
                class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'workout_templates' %}active{% endif %}">
@@ -299,6 +303,10 @@
                     <a href="{{ url_for('calendar') }}"
                        class="sidebar-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'calendar' %}active{% endif %}">
                         <i class="fas fa-calendar mr-3 w-4 text-center"></i>Calendar
+                    </a>
+                    <a href="{{ url_for('activity_stream') }}"
+                       class="sidebar-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 {% if request.endpoint == 'activity_stream' %}active{% endif %}">
+                        <i class="fas fa-wave-square mr-3 w-4 text-center"></i>Activity
                     </a>
 
                     <p class="sidebar-section-label mt-4 mb-1">Tools</p>
@@ -348,10 +356,11 @@
         <main class="flex-1">
             {% endif %}
 
-            {% with messages = get_flashed_messages() %}
-                {% if messages %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% set filtered = messages | selectattr('0', 'ne', 'client_error') | selectattr('0', 'ne', 'client_register_error') | list %}
+                {% if filtered %}
                     <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4 mx-4 mt-4">
-                        {% for message in messages %}
+                        {% for category, message in filtered %}
                             <p class="text-blue-800">{{ message }}</p>
                         {% endfor %}
                     </div>

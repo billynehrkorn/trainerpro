@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Stream - TrainerPro{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --navy:#0F172A; --slate-600:#475569; --slate-400:#94A3B8;
+    --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+    --emerald:#059669; --emerald-light:#D1FAE5; --emerald-text:#065F46;
+    --blue:#2563EB; --blue-light:#EFF6FF; --blue-text:#1E40AF;
+    --purple:#7C3AED; --purple-light:#F3E8FF; --purple-text:#5B21B6;
+    --indigo:#4F46E5; --indigo-light:#EEF2FF; --indigo-text:#3730A3;
+    --amber:#D97706; --amber-light:#FEF3C7; --amber-text:#92400E;
+    --red:#DC2626; --red-light:#FEE2E2; --red-text:#991B1B;
+    --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--slate-50); }
+  .as-wrap { max-width:1080px; margin:0 auto; padding:2rem 1.5rem; }
+
+  /* ── Header / week nav ── */
+  .as-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.75rem; flex-wrap:wrap; }
+  .as-title { font-size:1.6rem; font-weight:700; color:var(--navy); }
+  .as-subtitle { font-size:0.85rem; color:var(--slate-400); margin-top:0.15rem; }
+  .week-nav { display:flex; align-items:center; gap:0.5rem; }
+  .week-range { font-size:0.85rem; font-weight:600; color:var(--slate-600); min-width:170px; text-align:center; }
+  .week-btn { display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px; border:1.5px solid var(--slate-200); background:white; color:var(--slate-600); cursor:pointer; text-decoration:none; transition:background 0.15s,border-color 0.15s,color 0.15s; }
+  .week-btn:hover { background:var(--slate-50); border-color:var(--slate-400); color:var(--navy); }
+  .week-today { padding:0 0.85rem; width:auto; font-size:0.8rem; font-weight:600; }
+
+  /* ── Day sections ── */
+  .day-list { display:flex; flex-direction:column; gap:1.25rem; }
+  .day-block { background:white; border:1.5px solid var(--slate-200); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .day-block.is-today { border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,0.08); }
+  .day-head { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.25rem; border-bottom:1.5px solid var(--slate-100); background:var(--slate-50); }
+  .day-head.is-today { background:var(--blue-light); }
+  .day-name { font-size:0.95rem; font-weight:700; color:var(--navy); }
+  .day-name .dow { color:var(--slate-400); font-weight:600; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; margin-right:0.5rem; }
+  .day-count { font-size:0.72rem; font-weight:600; color:var(--slate-400); }
+  .day-body { padding:0.85rem 1.25rem; display:flex; flex-direction:column; gap:0.5rem; }
+
+  /* ── Session rows (upcoming) ── */
+  .session-row { display:flex; align-items:center; gap:0.85rem; padding:0.65rem 0.85rem; border-radius:9px; background:var(--blue-light); border:1px solid #DBEAFE; }
+  .session-icon { width:34px; height:34px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:0.85rem; background:var(--blue); color:white; }
+  .session-main { flex:1; min-width:0; }
+  .session-title { font-size:0.875rem; font-weight:600; color:var(--navy); }
+  .session-meta { font-size:0.75rem; color:var(--slate-600); margin-top:0.1rem; }
+  .session-badge { font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; padding:0.15rem 0.55rem; border-radius:99px; background:white; color:var(--blue-text); }
+  .session-badge.completed { background:var(--emerald-light); color:var(--emerald-text); }
+  .session-badge.cancelled { background:var(--red-light); color:var(--red-text); }
+
+  /* ── Activity rows ── */
+  .activity-row { display:flex; align-items:flex-start; gap:0.85rem; padding:0.6rem 0.85rem; border-radius:9px; transition:background 0.12s; }
+  .activity-row:hover { background:var(--slate-50); }
+  .activity-icon { width:32px; height:32px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:0.8rem; }
+  .activity-icon.workout   { background:var(--blue-light);    color:var(--blue); }
+  .activity-icon.weight    { background:var(--purple-light);  color:var(--purple); }
+  .activity-icon.sleep     { background:var(--indigo-light);  color:var(--indigo); }
+  .activity-icon.nutrition { background:var(--emerald-light); color:var(--emerald); }
+  .activity-main { flex:1; min-width:0; }
+  .activity-text { font-size:0.85rem; color:var(--navy); line-height:1.4; }
+  .activity-text strong { font-weight:700; }
+  .activity-text .verb-created    { color:var(--emerald-text); font-weight:600; }
+  .activity-text .verb-updated    { color:var(--amber-text);   font-weight:600; }
+  .activity-text .verb-deleted    { color:var(--red-text);     font-weight:600; }
+  .activity-text .verb-duplicated { color:var(--blue-text);    font-weight:600; }
+  .activity-detail { font-size:0.75rem; color:var(--slate-400); margin-top:0.1rem; }
+  .activity-time { font-size:0.72rem; color:var(--slate-400); white-space:nowrap; flex-shrink:0; margin-top:0.15rem; }
+
+  .day-empty { font-size:0.8rem; color:var(--slate-400); font-style:italic; padding:0.35rem 0.85rem; }
+
+  .section-label { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--slate-400); margin:0.35rem 0 0.15rem 0.1rem; }
+
+  /* ── Dark mode ── */
+  html.dark body { background:#0F172A; }
+  html.dark .as-title { color:#F1F5F9; }
+  html.dark .week-range { color:#CBD5E1; }
+  html.dark .week-btn { background:#1E293B; border-color:#334155; color:#94A3B8; }
+  html.dark .week-btn:hover { background:#273548; border-color:#475569; color:#F1F5F9; }
+  html.dark .day-block { background:#1E293B; border-color:#334155; }
+  html.dark .day-head { background:#172033; border-color:#334155; }
+  html.dark .day-head.is-today { background:rgba(37,99,235,0.18); }
+  html.dark .day-name { color:#F1F5F9; }
+  html.dark .activity-row:hover { background:#172033; }
+  html.dark .activity-text { color:#E2E8F0; }
+  html.dark .session-row { background:rgba(37,99,235,0.15); border-color:#1E3A8A; }
+  html.dark .session-title { color:#F1F5F9; }
+  html.dark .session-meta { color:#CBD5E1; }
+  html.dark .session-badge { background:#0F172A; }
+
+  @media (max-width:640px) {
+    .as-wrap { padding:1rem; }
+    .as-header { flex-direction:column; align-items:flex-start; }
+    .week-range { min-width:0; }
+  }
+</style>
+
+<div class="as-wrap">
+
+  <!-- ── Header + week navigation ── -->
+  <div class="as-header">
+    <div>
+      <div class="as-title">Activity Stream</div>
+      <div class="as-subtitle">Client portal updates and upcoming sessions</div>
+    </div>
+    <div class="week-nav">
+      <a href="{{ url_for('activity_stream', week_offset=week_offset - 1) }}" class="week-btn" title="Previous week">
+        <i class="fas fa-chevron-left"></i>
+      </a>
+      <span class="week-range" id="weekRange"
+            data-start="{{ week_start }}" data-end="{{ week_end }}">
+        {{ week_start }} – {{ week_end }}
+      </span>
+      <a href="{{ url_for('activity_stream', week_offset=week_offset + 1) }}" class="week-btn" title="Next week">
+        <i class="fas fa-chevron-right"></i>
+      </a>
+      {% if week_offset != 0 %}
+      <a href="{{ url_for('activity_stream') }}" class="week-btn week-today" title="Jump to this week">Today</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Days ── -->
+  <div class="day-list">
+    {% for day in week_dates %}
+    {% set day_key = day.strftime('%Y-%m-%d') %}
+    {% set day_sessions = week_sessions.get(day_key, []) %}
+    {% set day_activity = week_activity.get(day_key, []) %}
+    <div class="day-block" data-day="{{ day_key }}">
+      <div class="day-head" data-day="{{ day_key }}">
+        <div class="day-name">
+          <span class="dow">{{ day.strftime('%a') }}</span>
+          <span class="day-label" data-date="{{ day_key }}">{{ day.strftime('%B') }} {{ day.day }}</span>
+        </div>
+        <span class="day-count">
+          {{ day_activity | length }} update{{ '' if day_activity | length == 1 else 's' }}
+          {% if day_sessions %}· {{ day_sessions | length }} session{{ '' if day_sessions | length == 1 else 's' }}{% endif %}
+        </span>
+      </div>
+      <div class="day-body">
+
+        {% if day_sessions %}
+        <div class="section-label">Sessions</div>
+        {% for s in day_sessions %}
+        <div class="session-row">
+          <div class="session-icon"><i class="fas fa-calendar-check"></i></div>
+          <div class="session-main">
+            <div class="session-title">{{ s.client_name }}</div>
+            <div class="session-meta session-time"
+                 data-start="{{ s.start_time }}" data-end="{{ s.end_time }}">
+              {{ s.start_time }} – {{ s.end_time }} · {{ s.session_type | capitalize }}
+            </div>
+          </div>
+          <span class="session-badge {{ s.status }}">{{ s.status }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if day_activity %}
+        {% if day_sessions %}<div class="section-label">Portal Activity</div>{% endif %}
+        {% for a in day_activity | reverse %}
+        <div class="activity-row">
+          <div class="activity-icon {{ a.category }}">
+            {% if a.category == 'workout' %}<i class="fas fa-dumbbell"></i>
+            {% elif a.category == 'weight' %}<i class="fas fa-weight-scale"></i>
+            {% elif a.category == 'sleep' %}<i class="fas fa-moon"></i>
+            {% elif a.category == 'nutrition' %}<i class="fas fa-utensils"></i>
+            {% else %}<i class="fas fa-circle-info"></i>{% endif %}
+          </div>
+          <div class="activity-main">
+            <div class="activity-text">
+              <strong>{{ a.client_name or 'A client' }}</strong>
+              <span class="verb-{{ a.action }}">{{ a.action }}</span>
+              a {{ a.category }} entry{% if a.detail %} for <span class="activity-day" data-date="{{ a.detail }}">{{ a.detail }}</span>{% endif %}.
+            </div>
+          </div>
+          <div class="activity-time" data-ts="{{ a.created_at }}">{{ a.created_at }}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if not day_sessions and not day_activity %}
+        <div class="day-empty">No activity</div>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // ── Format header week range ──
+  const fmtRange = iso => {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  const wr = document.getElementById('weekRange');
+  if (wr) wr.textContent = `${fmtRange(wr.dataset.start)} – ${fmtRange(wr.dataset.end)}`;
+
+  // ── Highlight today's block ──
+  const todayKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+  document.querySelectorAll('.day-block').forEach(b => {
+    if (b.dataset.day === todayKey) {
+      b.classList.add('is-today');
+      b.querySelector('.day-head')?.classList.add('is-today');
+    }
+  });
+
+  // ── Format the "for <date>" detail in each activity row ──
+  const fmtDay = iso => {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  document.querySelectorAll('.activity-day').forEach(el => {
+    el.textContent = fmtDay(el.dataset.date);
+  });
+
+  // ── Format the received time (right side of each activity row) ──
+  const fmtTime = ts => {
+    if (!ts) return '';
+    // ts like "2026-06-17 15:31:13" or with microseconds; make it ISO-ish for parsing
+    const norm = ts.replace(' ', 'T');
+    const d = new Date(norm);
+    if (isNaN(d)) return ts;
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  };
+  document.querySelectorAll('.activity-time').forEach(el => {
+    el.textContent = fmtTime(el.dataset.ts);
+  });
+
+  // ── Format session times to 12-hour ──
+  const fmt12 = t => {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h, 10);
+    return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+  };
+  document.querySelectorAll('.session-time').forEach(el => {
+    const type = el.textContent.split('·')[1] || '';
+    el.textContent = `${fmt12(el.dataset.start)} – ${fmt12(el.dataset.end)}${type ? ' ·' + type : ''}`;
+  });
+});
+</script>
+{% endblock %}

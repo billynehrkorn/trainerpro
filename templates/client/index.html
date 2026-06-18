@@ -1,0 +1,168 @@
+{% extends "client/base.html" %}
+{% block title %}My Portal - TrainerPro{% endblock %}
+
+{% block head %}
+<style>
+  :root {
+    --navy:#0F172A; --slate-400:#94A3B8; --slate-200:#E2E8F0;
+    --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+    --emerald:#059669; --emerald-light:#D1FAE5;
+    --blue:#2563EB; --blue-light:#EFF6FF;
+    --purple:#7C3AED; --purple-light:#F3E8FF;
+    --indigo:#4F46E5; --indigo-light:#EEF2FF;
+    --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { box-sizing:border-box; }
+  .page-wrap { max-width:860px; margin:0 auto; padding:2rem 1.5rem; }
+  .page-header { margin-bottom:2rem; }
+  .page-greeting { font-size:1.6rem; font-weight:700; color:var(--navy); }
+  .page-sub { font-size:0.875rem; color:var(--slate-400); margin-top:0.25rem; }
+  .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem; }
+  .stat-card { background:white; border:1.5px solid var(--slate-200); border-radius:var(--radius); padding:1.1rem 1.25rem; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:0.85rem; }
+  .stat-icon { width:40px; height:40px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:0.95rem; }
+  .stat-icon.purple  { background:var(--purple-light); color:var(--purple); }
+  .stat-icon.emerald { background:var(--emerald-light); color:var(--emerald); }
+  .stat-icon.indigo  { background:var(--indigo-light);  color:var(--indigo); }
+  .stat-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--slate-400); }
+  .stat-value { font-size:1.4rem; font-weight:700; color:var(--navy); line-height:1.1; margin-top:0.1rem; }
+  .stat-sub   { font-size:0.72rem; color:var(--slate-400); margin-top:0.1rem; }
+  .main-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  .card { background:white; border:1.5px solid var(--slate-200); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1.5px solid var(--slate-100); }
+  .card-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--slate-400); }
+  .session-list { display:flex; flex-direction:column; }
+  .session-item { display:flex; align-items:stretch; border-bottom:1px solid var(--slate-100); }
+  .session-item:last-child { border-bottom:none; }
+  .session-accent { width:4px; flex-shrink:0; background:var(--emerald); }
+  .session-body { flex:1; padding:0.75rem 1rem; }
+  .session-date-text { font-size:0.875rem; font-weight:600; color:var(--navy); }
+  .session-time-text { font-size:0.75rem; color:var(--slate-400); margin-top:0.1rem; }
+  .session-type-badge { display:inline-block; margin-top:0.3rem; padding:0.12rem 0.5rem; border-radius:99px; font-size:0.68rem; font-weight:600; text-transform:uppercase; background:var(--blue-light); color:var(--blue); }
+  .workout-list { display:flex; flex-direction:column; }
+  .workout-item { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.25rem; border-bottom:1px solid var(--slate-100); }
+  .workout-item:last-child { border-bottom:none; }
+  .workout-date-text { font-size:0.875rem; font-weight:600; color:var(--navy); }
+  .workout-ex-count  { font-size:0.75rem; color:var(--slate-400); margin-top:0.1rem; }
+  .quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.65rem; padding:1.1rem; }
+  .quick-btn { display:flex; align-items:center; gap:0.6rem; padding:0.8rem 1rem; border-radius:9px; text-decoration:none; font-size:0.85rem; font-weight:600; color:white; transition:filter 0.15s,transform 0.1s; }
+  .quick-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
+  .quick-btn .btn-icon { width:30px; height:30px; border-radius:7px; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; font-size:0.85rem; flex-shrink:0; }
+  .quick-btn.workouts  { background:linear-gradient(135deg,#2563EB,#1D4ED8); }
+  .quick-btn.weight    { background:linear-gradient(135deg,#7C3AED,#6D28D9); }
+  .quick-btn.nutrition { background:linear-gradient(135deg,#059669,#047857); }
+  .quick-btn.sleep     { background:linear-gradient(135deg,#4F46E5,#4338CA); }
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2.5rem 1rem; text-align:center; color:var(--slate-400); }
+  .empty-state i { font-size:1.5rem; margin-bottom:0.5rem; opacity:0.4; }
+  .empty-state p { font-size:0.82rem; }
+  @media (max-width:640px) { .page-wrap{padding:1rem;} .stats-grid{grid-template-columns:1fr;} .main-grid{grid-template-columns:1fr;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-greeting">Hey, {{ session.client_name.split()[0] }}! 👋</div>
+    <div class="page-sub">Here's a snapshot of your progress.</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon purple"><i class="fas fa-weight-scale"></i></div>
+      <div>
+        <div class="stat-label">Current Weight</div>
+        {% if latest_weight %}
+          <div class="stat-value">{{ latest_weight.weight }} <span style="font-size:0.85rem;font-weight:500;color:var(--slate-400)">lbs</span></div>
+          <div class="stat-sub session-date" data-date="{{ latest_weight.date }}">{{ latest_weight.date }}</div>
+        {% else %}
+          <div class="stat-value" style="font-size:1rem;color:var(--slate-400)">Not logged</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon emerald"><i class="fas fa-dumbbell"></i></div>
+      <div>
+        <div class="stat-label">Recent Workouts</div>
+        <div class="stat-value">{{ recent_workouts | length }}</div>
+        <div class="stat-sub">in history</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon indigo"><i class="fas fa-moon"></i></div>
+      <div>
+        <div class="stat-label">Last Sleep</div>
+        {% if latest_sleep %}
+          <div class="stat-value">{{ latest_sleep.hours }} <span style="font-size:0.85rem;font-weight:500;color:var(--slate-400)">hrs</span></div>
+          <div class="stat-sub session-date" data-date="{{ latest_sleep.date }}">{{ latest_sleep.date }}</div>
+        {% else %}
+          <div class="stat-value" style="font-size:1rem;color:var(--slate-400)">Not logged</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Upcoming Sessions</span></div>
+      {% if upcoming_sessions %}
+        <div class="session-list">
+          {% for s in upcoming_sessions %}
+          <div class="session-item">
+            <div class="session-accent"></div>
+            <div class="session-body">
+              <div class="session-date-text session-date" data-date="{{ s.session_date }}">{{ s.session_date }}</div>
+              <div class="session-time-text session-time" data-start="{{ s.start_time }}" data-end="{{ s.end_time }}">{{ s.start_time }} – {{ s.end_time }}</div>
+              <span class="session-type-badge">{{ s.session_type }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state"><i class="fas fa-calendar-xmark"></i><p>No upcoming sessions</p></div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Log &amp; Track</span></div>
+      <div class="quick-grid">
+        <a href="{{ url_for('client_portal_workouts') }}" class="quick-btn workouts"><span class="btn-icon"><i class="fas fa-dumbbell"></i></span><span>Workouts</span></a>
+        <a href="{{ url_for('client_portal_weight') }}" class="quick-btn weight"><span class="btn-icon"><i class="fas fa-weight-scale"></i></span><span>Weight</span></a>
+        <a href="{{ url_for('client_portal_nutrition') }}" class="quick-btn nutrition"><span class="btn-icon"><i class="fas fa-utensils"></i></span><span>Nutrition</span></a>
+        <a href="{{ url_for('client_portal_sleep') }}" class="quick-btn sleep"><span class="btn-icon"><i class="fas fa-moon"></i></span><span>Sleep</span></a>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1;">
+      <div class="card-header">
+        <span class="card-title">Recent Workouts</span>
+        <a href="{{ url_for('client_portal_workouts') }}" style="font-size:0.78rem;font-weight:600;color:var(--blue);text-decoration:none;">View all</a>
+      </div>
+      {% if recent_workouts %}
+        <div class="workout-list">
+          {% for w in recent_workouts %}
+          <div class="workout-item">
+            <div>
+              <div class="workout-date-text workout-date" data-date="{{ w.workout_date }}">{{ w.workout_date }}</div>
+              <div class="workout-ex-count">{{ w.exercise_count }} exercise{{ 's' if w.exercise_count != 1 else '' }}</div>
+            </div>
+            <i class="fas fa-chevron-right" style="color:var(--slate-200);font-size:0.75rem;"></i>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state"><i class="fas fa-dumbbell"></i><p>No workouts logged yet</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const fmtDate = d => { if (!d) return ''; return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+  const fmtTime = t => { if (!t) return ''; const [h,m]=t.split(':'); const hr=parseInt(h); return `${hr%12||12}:${m} ${hr>=12?'PM':'AM'}`; };
+  document.querySelectorAll('.session-date,.workout-date').forEach(el=>{el.textContent=fmtDate(el.dataset.date);});
+  document.querySelectorAll('.session-time').forEach(el=>{el.textContent=`${fmtTime(el.dataset.start)} – ${fmtTime(el.dataset.end)}`;});
+});
+</script>
+{% endblock %}

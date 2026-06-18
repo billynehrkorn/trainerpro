@@ -15,12 +15,8 @@
     --emerald-hover: #047857;
     --emerald-light: #D1FAE5;
     --emerald-text: #065F46;
-    --amber-light: #FEF3C7;
-    --amber-text: #92400E;
     --red-light: #FEE2E2;
-    --red-text: #991B1B;
     --blue: #2563EB;
-    --blue-hover: #1D4ED8;
     --purple: #7C3AED;
     --purple-hover: #6D28D9;
     --radius: 10px;
@@ -28,18 +24,10 @@
   }
 
   body { background: var(--slate-50); }
-
   .page-wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
 
   /* ── Header ── */
-  .wl-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 2rem;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
+  .wl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
   .wl-header-left { display: flex; align-items: center; gap: 1rem; }
   .back-link {
     display: flex; align-items: center; justify-content: center;
@@ -51,153 +39,93 @@
   .back-link:hover { background: var(--slate-50); border-color: var(--slate-400); color: var(--navy); }
   .wl-title { font-size: 1.75rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
   .wl-subtitle { font-size: 0.85rem; color: var(--slate-400); margin-top: 0.15rem; }
-
   .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.55rem 1rem; border-radius: 8px;
-    font-size: 0.85rem; font-weight: 600; cursor: pointer;
-    border: none; text-decoration: none; transition: background 0.15s, box-shadow 0.15s;
-    white-space: nowrap;
-  }
+  .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: background 0.15s; white-space: nowrap; }
   .btn-primary { background: var(--emerald); color: white; }
   .btn-primary:hover { background: var(--emerald-hover); }
 
   /* ── Cards ── */
-  .card {
-    background: white;
-    border: 1.5px solid var(--slate-200);
-    border-radius: var(--radius);
-    padding: 1.25rem 1.5rem;
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 1.25rem;
-  }
-  .card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1.5px solid var(--slate-100);
-    gap: 1rem; flex-wrap: wrap;
-  }
-  .card-title {
-    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.07em; color: var(--slate-400);
-  }
+  .card { background: white; border: 1.5px solid var(--slate-200); border-radius: var(--radius); padding: 1.25rem 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.25rem; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1.5px solid var(--slate-100); gap: 1rem; flex-wrap: wrap; }
+  .card-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--slate-400); }
 
-  /* ── Chart View Toggle ── */
+  /* ── Toggle ── */
   .view-toggle { display: flex; gap: 0.4rem; }
-  .toggle-btn {
-    padding: 0.4rem 0.85rem; border-radius: 7px;
-    font-size: 0.78rem; font-weight: 600; cursor: pointer;
-    border: 1.5px solid var(--slate-200); background: white; color: var(--slate-600);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
+  .toggle-btn { padding: 0.4rem 0.85rem; border-radius: 7px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--slate-200); background: white; color: var(--slate-600); transition: background 0.15s, color 0.15s, border-color 0.15s; }
   .toggle-btn:hover { background: var(--slate-50); }
   .toggle-btn.active { background: var(--purple); color: white; border-color: var(--purple); }
   .chart-wrap { position: relative; height: 300px; }
 
-  /* ── Weight Entries ── */
+  /* ── Entries ── */
   .entries-list { display: flex; flex-direction: column; gap: 0.6rem; }
-  .entry-card {
-    display: flex; align-items: stretch;
-    border: 1.5px solid var(--slate-200); border-radius: 8px;
-    overflow: hidden; background: white;
-    transition: border-color 0.15s;
-  }
+  .entry-card { display: flex; align-items: stretch; border: 1.5px solid var(--slate-200); border-radius: 8px; overflow: hidden; background: white; transition: border-color 0.15s; }
   .entry-card:hover { border-color: var(--slate-400); }
   .entry-accent { width: 4px; flex-shrink: 0; background: var(--purple); }
-  .entry-body {
-    flex: 1; padding: 0.75rem 0.95rem;
-    display: flex; align-items: center; gap: 0.85rem;
-  }
-  .entry-icon {
-    width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
-    background: #F3E8FF; color: var(--purple);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.95rem;
-  }
+  .entry-body { flex: 1; padding: 0.75rem 0.95rem; display: flex; align-items: center; gap: 0.85rem; }
+  .entry-icon { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; background: #F3E8FF; color: var(--purple); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
   .entry-main { flex: 1; min-width: 0; }
   .entry-weight { font-size: 1rem; font-weight: 700; color: var(--navy); }
   .entry-date-text { font-size: 0.78rem; color: var(--slate-600); margin-top: 0.1rem; }
-  .entry-notes {
-    font-size: 0.78rem; color: var(--slate-600); font-style: italic;
-    margin-top: 0.25rem;
-  }
-  .entry-actions {
-    display: flex; align-items: center; gap: 0.25rem; padding: 0 0.6rem;
-  }
-  .entry-icon-btn {
-    background: none; border: none; cursor: pointer; padding: 0.4rem;
-    color: var(--slate-400); border-radius: 5px; font-size: 0.8rem;
-    transition: color 0.15s, background 0.15s;
-  }
+  .entry-notes { font-size: 0.78rem; color: var(--slate-600); font-style: italic; margin-top: 0.25rem; }
+  .entry-actions { display: flex; align-items: center; gap: 0.25rem; padding: 0 0.6rem; }
+  .entry-icon-btn { background: none; border: none; cursor: pointer; padding: 0.4rem; color: var(--slate-400); border-radius: 5px; font-size: 0.8rem; transition: color 0.15s, background 0.15s; }
   .entry-icon-btn.edit:hover { color: var(--blue); background: #EFF6FF; }
   .entry-icon-btn.remove:hover { color: #EF4444; background: var(--red-light); }
 
-  /* ── Empty States ── */
-  .empty-state {
-    display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 3rem 1rem; text-align: center;
-    color: var(--slate-400);
-  }
+  /* ── Empty ── */
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem; text-align: center; color: var(--slate-400); }
   .empty-state i { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.5; }
   .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--navy); margin-bottom: 0.35rem; }
   .empty-state p { font-size: 0.85rem; margin-bottom: 1.25rem; }
 
   /* ── Modals ── */
-  .modal-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(15,23,42,0.45);
-    display: none; align-items: center; justify-content: center;
-    z-index: 50; padding: 1rem;
-  }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 50; padding: 1rem; }
   .modal-backdrop.open { display: flex; }
-  .modal-box {
-    background: white; border-radius: 14px;
-    padding: 1.75rem; width: 100%; max-width: 440px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
-  }
-  .modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.25rem;
-  }
+  .modal-box { background: white; border-radius: 14px; padding: 1.75rem; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
   .modal-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
-  .modal-close {
-    background: none; border: none; cursor: pointer;
-    color: var(--slate-400); font-size: 1rem; padding: 0.25rem;
-    border-radius: 5px; transition: color 0.15s;
-  }
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--slate-400); font-size: 1rem; padding: 0.25rem; border-radius: 5px; transition: color 0.15s; }
   .modal-close:hover { color: var(--navy); }
-
   .form-group { margin-bottom: 1rem; }
   .form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-600); margin-bottom: 0.35rem; }
-  .form-input, .form-textarea {
-    width: 100%; padding: 0.55rem 0.75rem;
-    border: 1.5px solid var(--slate-200); border-radius: 8px;
-    font-size: 0.875rem; color: var(--navy);
-    outline: none; transition: border-color 0.15s;
-    box-sizing: border-box; font-family: inherit;
-  }
-  .form-input:focus, .form-textarea:focus {
-    border-color: var(--emerald);
-    box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
-  }
-
+  .form-input, .form-textarea { width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid var(--slate-200); border-radius: 8px; font-size: 0.875rem; color: var(--navy); outline: none; transition: border-color 0.15s; box-sizing: border-box; font-family: inherit; background: white; }
+  .form-input:focus, .form-textarea:focus { border-color: var(--emerald); box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
   .modal-footer { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
-  .modal-btn {
-    flex: 1; padding: 0.6rem; border-radius: 8px; border: none;
-    font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
-  }
+  .modal-btn { flex: 1; padding: 0.6rem; border-radius: 8px; border: none; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
   .modal-btn-primary { background: var(--emerald); color: white; }
   .modal-btn-primary:hover { background: var(--emerald-hover); }
-  .modal-btn-secondary {
-    background: var(--slate-100); color: var(--slate-600);
-    border: 1.5px solid var(--slate-200);
-  }
+  .modal-btn-secondary { background: var(--slate-100); color: var(--slate-600); border: 1.5px solid var(--slate-200); }
   .modal-btn-secondary:hover { background: var(--slate-200); }
   .modal-btn-danger { background: #EF4444; color: white; }
   .modal-btn-danger:hover { background: #DC2626; }
   .modal-text { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
+
+  /* ── Dark mode ── */
+  html.dark .wl-title        { color: #F1F5F9; }
+  html.dark .back-link       { background: #1E293B; border-color: #334155; color: #94A3B8; }
+  html.dark .back-link:hover { background: #273548; border-color: #475569; color: #F1F5F9; }
+  html.dark .card            { background: #1E293B; border-color: #334155; }
+  html.dark .card-header     { border-color: #334155; }
+  html.dark .toggle-btn      { background: #0F172A; border-color: #334155; color: #94A3B8; }
+  html.dark .toggle-btn:hover { background: #1a2535; }
+  html.dark .toggle-btn.active { background: var(--purple); color: white; border-color: var(--purple); }
+  html.dark .entry-card      { background: #1E293B; border-color: #334155; }
+  html.dark .entry-card:hover { border-color: #475569; }
+  html.dark .entry-icon      { background: rgba(124,58,237,0.2); }
+  html.dark .entry-weight    { color: #F1F5F9; }
+  html.dark .entry-date-text { color: #94A3B8; }
+  html.dark .entry-notes     { color: #94A3B8; }
+  html.dark .empty-state h3  { color: #CBD5E1; }
+  html.dark .modal-box       { background: #1E293B; }
+  html.dark .modal-title     { color: #F1F5F9; }
+  html.dark .modal-close     { color: #64748B; }
+  html.dark .modal-close:hover { color: #F1F5F9; }
+  html.dark .modal-text      { color: #CBD5E1; }
+  html.dark .form-label      { color: #CBD5E1; }
+  html.dark .form-input,
+  html.dark .form-textarea   { background: #0F172A; color: #F1F5F9; border-color: #334155; }
+  html.dark .modal-btn-secondary { background: #0F172A; color: #CBD5E1; border-color: #334155; }
+  html.dark .modal-btn-secondary:hover { background: #1a2535; }
 
   @media (max-width: 680px) {
     .page-wrap { padding: 1rem; }
@@ -206,8 +134,6 @@
 </style>
 
 <div class="page-wrap">
-
-  <!-- ── Header ── -->
   <div class="wl-header">
     <div class="wl-header-left">
       <a href="{{ url_for('client_detail', client_id=client.id) }}" class="back-link" title="Back to client">
@@ -225,7 +151,6 @@
     </div>
   </div>
 
-  <!-- ── Weight Progress Chart ── -->
   {% if weight_history %}
   <div class="card">
     <div class="card-header">
@@ -235,18 +160,12 @@
         <button id="viewAllBtn" class="toggle-btn" onclick="changeView('all')">All Time</button>
       </div>
     </div>
-    <div class="chart-wrap">
-      <canvas id="weightChart"></canvas>
-    </div>
+    <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
   </div>
   {% endif %}
 
-  <!-- ── Weight Entries ── -->
   <div class="card">
-    <div class="card-header">
-      <span class="card-title">Entry History</span>
-    </div>
-
+    <div class="card-header"><span class="card-title">Entry History</span></div>
     {% if weight_history %}
       <div class="entries-list">
         {% for entry in weight_history %}
@@ -257,18 +176,15 @@
             <div class="entry-main">
               <div class="entry-weight">{{ entry.weight }} lbs</div>
               <div class="entry-date-text weight-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
-              {% if entry.notes %}
-              <div class="entry-notes">"{{ entry.notes }}"</div>
-              {% endif %}
+              {% if entry.notes %}<div class="entry-notes">"{{ entry.notes }}"</div>{% endif %}
             </div>
           </div>
           <div class="entry-actions">
             <button onclick="editWeightEntry('{{ entry.id }}', '{{ entry.date }}', '{{ entry.weight }}', '{{ entry.notes or '' }}')"
-                    class="entry-icon-btn edit" title="Edit weight entry">
+                    class="entry-icon-btn edit" title="Edit">
               <i class="fas fa-pencil-alt"></i>
             </button>
-            <button onclick="deleteWeightEntry('{{ entry.id }}')"
-                    class="entry-icon-btn remove" title="Delete weight entry">
+            <button onclick="deleteWeightEntry('{{ entry.id }}')" class="entry-icon-btn remove" title="Delete">
               <i class="fas fa-trash"></i>
             </button>
           </div>
@@ -280,15 +196,13 @@
         <i class="fas fa-weight"></i>
         <h3>No weight entries yet</h3>
         <p>Start tracking {{ client.name }}'s weight progress</p>
-        <button onclick="openWeightModal()" class="btn btn-primary">
-          <i class="fas fa-plus"></i> Add First Weight Entry
-        </button>
+        <button onclick="openWeightModal()" class="btn btn-primary"><i class="fas fa-plus"></i> Add First Weight Entry</button>
       </div>
     {% endif %}
   </div>
 </div>
 
-<!-- ── Add Weight Modal ── -->
+<!-- Add Modal -->
 <div id="weightModal" class="modal-backdrop" onclick="if(event.target===this)closeWeightModal()">
   <div class="modal-box">
     <div class="modal-header">
@@ -296,19 +210,9 @@
       <button onclick="closeWeightModal()" class="modal-close"><i class="fas fa-times"></i></button>
     </div>
     <form id="weightForm">
-      <div class="form-group">
-        <label class="form-label">Date</label>
-        <input type="date" id="weightDate" class="form-input" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Weight (lbs)</label>
-        <input type="number" id="weightValue" step="0.1" class="form-input" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes (optional)</label>
-        <textarea id="weightNotes" rows="3" class="form-textarea"
-                  placeholder="Any additional notes about this weight entry..."></textarea>
-      </div>
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="weightDate" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" id="weightValue" step="0.1" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="weightNotes" rows="3" class="form-textarea" placeholder="Any additional notes..."></textarea></div>
       <div class="modal-footer">
         <button type="submit" class="modal-btn modal-btn-primary">Save Weight</button>
         <button type="button" onclick="closeWeightModal()" class="modal-btn modal-btn-secondary">Cancel</button>
@@ -317,7 +221,7 @@
   </div>
 </div>
 
-<!-- ── Edit Weight Modal ── -->
+<!-- Edit Modal -->
 <div id="editWeightModal" class="modal-backdrop" onclick="if(event.target===this)closeEditWeightModal()">
   <div class="modal-box">
     <div class="modal-header">
@@ -326,19 +230,9 @@
     </div>
     <form id="editWeightForm">
       <input type="hidden" id="editWeightId">
-      <div class="form-group">
-        <label class="form-label">Date</label>
-        <input type="date" id="editWeightDate" class="form-input" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Weight (lbs)</label>
-        <input type="number" id="editWeightValue" step="0.1" class="form-input" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes (optional)</label>
-        <textarea id="editWeightNotes" rows="3" class="form-textarea"
-                  placeholder="Any additional notes about this weight entry..."></textarea>
-      </div>
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="editWeightDate" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" id="editWeightValue" step="0.1" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="editWeightNotes" rows="3" class="form-textarea" placeholder="Any additional notes..."></textarea></div>
       <div class="modal-footer">
         <button type="submit" class="modal-btn modal-btn-primary">Update Weight</button>
         <button type="button" onclick="closeEditWeightModal()" class="modal-btn modal-btn-secondary">Cancel</button>
@@ -347,7 +241,7 @@
   </div>
 </div>
 
-<!-- ── Delete Confirmation Modal ── -->
+<!-- Delete Modal -->
 <div id="deleteWeightModal" class="modal-backdrop" onclick="if(event.target===this)closeDeleteModal()">
   <div class="modal-box">
     <div class="modal-header">
@@ -364,31 +258,36 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+
 function formatDates() {
-  document.querySelectorAll('.weight-date').forEach(element => {
-    const dateStr = element.getAttribute('data-date');
-    if (dateStr) {
-      const date = new Date(dateStr + 'T00:00:00');
-      const options = { year: 'numeric', month: 'long', day: 'numeric' };
-      const formattedDate = date.toLocaleDateString('en-US', options);
-      const dayNum = date.getDate();
-      let suffix = 'th';
-      if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
-      else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
-      else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
-      element.textContent = formattedDate.replace(/(\d+),/, `$1${suffix},`);
-    }
+  document.querySelectorAll('.weight-date').forEach(el => {
+    const d = el.getAttribute('data-date');
+    if (!d) return;
+    const date = new Date(d + 'T00:00:00');
+    const opts = { year: 'numeric', month: 'long', day: 'numeric' };
+    let formatted = date.toLocaleDateString('en-US', opts);
+    const day = date.getDate();
+    let suffix = 'th';
+    if (day % 10 === 1 && day !== 11) suffix = 'st';
+    else if (day % 10 === 2 && day !== 12) suffix = 'nd';
+    else if (day % 10 === 3 && day !== 13) suffix = 'rd';
+    el.textContent = formatted.replace(/(\d+),/, `$1${suffix},`);
   });
 }
 
 function openWeightModal() {
   document.getElementById('weightModal').classList.add('open');
-  document.getElementById('weightDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('weightDate').value = localToday();
 }
-function closeWeightModal() {
-  document.getElementById('weightModal').classList.remove('open');
-  document.getElementById('weightForm').reset();
-}
+function closeWeightModal() { document.getElementById('weightModal').classList.remove('open'); document.getElementById('weightForm').reset(); }
 
 function editWeightEntry(id, date, weight, notes) {
   document.getElementById('editWeightId').value = id;
@@ -397,31 +296,16 @@ function editWeightEntry(id, date, weight, notes) {
   document.getElementById('editWeightNotes').value = notes;
   document.getElementById('editWeightModal').classList.add('open');
 }
-function closeEditWeightModal() {
-  document.getElementById('editWeightModal').classList.remove('open');
-  document.getElementById('editWeightForm').reset();
-}
+function closeEditWeightModal() { document.getElementById('editWeightModal').classList.remove('open'); document.getElementById('editWeightForm').reset(); }
 
 let pendingDeleteId = null;
-function deleteWeightEntry(id) {
-  pendingDeleteId = id;
-  document.getElementById('deleteWeightModal').classList.add('open');
-}
-function closeDeleteModal() {
-  pendingDeleteId = null;
-  document.getElementById('deleteWeightModal').classList.remove('open');
-}
+function deleteWeightEntry(id) { pendingDeleteId = id; document.getElementById('deleteWeightModal').classList.add('open'); }
+function closeDeleteModal() { pendingDeleteId = null; document.getElementById('deleteWeightModal').classList.remove('open'); }
 function confirmDeleteWeight() {
   if (!pendingDeleteId) return;
   fetch(`/api/weight-log/${pendingDeleteId}`, { method: 'DELETE' })
-    .then(response => {
-      if (response.ok) {
-        location.reload();
-      } else {
-        alert('Error deleting weight entry. Please try again.');
-      }
-    })
-    .catch(() => alert('Error deleting weight entry. Please try again.'));
+    .then(r => { if (r.ok) location.reload(); else alert('Error deleting entry.'); })
+    .catch(() => alert('Error deleting entry.'));
 }
 
 let weightChart = null;
@@ -429,85 +313,28 @@ let currentView = 30;
 const weightData = {{ weight_history | tojson }};
 
 function initializeChart() {
-  if (!weightData || weightData.length === 0) return;
-  const sortedData = [...weightData].sort((a, b) => new Date(a.date) - new Date(b.date));
-  renderChart(sortedData);
+  if (!weightData || !weightData.length) return;
+  renderChart([...weightData].sort((a, b) => new Date(a.date) - new Date(b.date)));
 }
 
 function renderChart(data) {
   const ctx = document.getElementById('weightChart');
   if (!ctx) return;
-
-  let displayData = data;
-  if (currentView !== 'all' && data.length > currentView) {
-    displayData = data.slice(-currentView);
-  }
-
-  const labels = displayData.map(entry => {
-    const date = new Date(entry.date + 'T00:00:00');
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  });
-  const weights = displayData.map(entry => entry.weight);
-
-  const minWeight = Math.min(...weights);
-  const maxWeight = Math.max(...weights);
-  const padding = (maxWeight - minWeight) * 0.1 || 5;
-
+  let display = data;
+  if (currentView !== 'all' && data.length > currentView) display = data.slice(-currentView);
+  const labels  = display.map(e => new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+  const weights = display.map(e => e.weight);
+  const min = Math.min(...weights), max = Math.max(...weights), pad = (max - min) * 0.1 || 5;
   if (weightChart) weightChart.destroy();
-
   weightChart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Weight (lbs)',
-        data: weights,
-        borderColor: '#7C3AED',
-        backgroundColor: 'rgba(124, 58, 237, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointBackgroundColor: '#7C3AED',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointHoverBackgroundColor: '#7C3AED',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 3
-      }]
-    },
+    data: { labels, datasets: [{ label: 'Weight (lbs)', data: weights, borderColor: '#7C3AED', backgroundColor: 'rgba(124,58,237,0.1)', borderWidth: 3, fill: true, tension: 0.4, pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: '#7C3AED', pointBorderColor: '#fff', pointBorderWidth: 2 }] },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(15, 23, 42, 0.9)',
-          padding: 12,
-          titleFont: { size: 14 },
-          bodyFont: { size: 14 },
-          callbacks: {
-            title: function(context) { return context[0].label; },
-            label: function(context) { return context.parsed.y + ' lbs'; }
-          }
-        }
-      },
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,0.9)', padding: 12, callbacks: { label: ctx => ctx.parsed.y + ' lbs' } } },
       scales: {
-        y: {
-          beginAtZero: false,
-          min: minWeight - padding,
-          max: maxWeight + padding,
-          ticks: {
-            callback: function(value) { return value.toFixed(2) + ' lbs'; },
-            font: { size: 12 }
-          },
-          grid: { color: 'rgba(0, 0, 0, 0.05)' }
-        },
-        x: {
-          ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } },
-          grid: { display: false }
-        }
+        y: { beginAtZero: false, min: min - pad, max: max + pad, ticks: { callback: v => v.toFixed(1) + ' lbs', font: { size: 12 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } }, grid: { display: false } }
       },
       interaction: { intersect: false, mode: 'index' }
     }
@@ -516,74 +343,28 @@ function renderChart(data) {
 
 function changeView(view) {
   currentView = view;
-  const view30Btn = document.getElementById('view30Btn');
-  const viewAllBtn = document.getElementById('viewAllBtn');
-
-  if (view === 30) {
-    view30Btn.classList.add('active');
-    viewAllBtn.classList.remove('active');
-  } else {
-    view30Btn.classList.remove('active');
-    viewAllBtn.classList.add('active');
-  }
-
-  const sortedData = [...weightData].sort((a, b) => new Date(a.date) - new Date(b.date));
-  renderChart(sortedData);
+  document.getElementById('view30Btn').classList.toggle('active', view === 30);
+  document.getElementById('viewAllBtn').classList.toggle('active', view === 'all');
+  renderChart([...weightData].sort((a, b) => new Date(a.date) - new Date(b.date)));
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  formatDates();
-  initializeChart();
-});
+document.addEventListener('DOMContentLoaded', () => { formatDates(); initializeChart(); });
 
-document.getElementById('weightForm').addEventListener('submit', async function(e) {
+document.getElementById('weightForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const formData = {
-    client_id: '{{ client.id }}',
-    date: document.getElementById('weightDate').value,
-    weight: parseFloat(document.getElementById('weightValue').value),
-    notes: document.getElementById('weightNotes').value
-  };
   try {
-    const response = await fetch('/api/weight-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-    if (response.ok) {
-      closeWeightModal();
-      location.reload();
-    } else {
-      alert('Error logging weight. Please try again.');
-    }
-  } catch (error) {
-    alert('Error logging weight. Please try again.');
-  }
+    const r = await fetch('/api/weight-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: '{{ client.id }}', date: document.getElementById('weightDate').value, weight: parseFloat(document.getElementById('weightValue').value), notes: document.getElementById('weightNotes').value }) });
+    if (r.ok) { closeWeightModal(); location.reload(); } else alert('Error logging weight.');
+  } catch { alert('Error logging weight.'); }
 });
 
-document.getElementById('editWeightForm').addEventListener('submit', async function(e) {
+document.getElementById('editWeightForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const formData = {
-    date: document.getElementById('editWeightDate').value,
-    weight: parseFloat(document.getElementById('editWeightValue').value),
-    notes: document.getElementById('editWeightNotes').value
-  };
   const id = document.getElementById('editWeightId').value;
   try {
-    const response = await fetch(`/api/weight-log/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-    if (response.ok) {
-      closeEditWeightModal();
-      location.reload();
-    } else {
-      alert('Error updating weight entry. Please try again.');
-    }
-  } catch (error) {
-    alert('Error updating weight entry. Please try again.');
-  }
+    const r = await fetch(`/api/weight-log/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: document.getElementById('editWeightDate').value, weight: parseFloat(document.getElementById('editWeightValue').value), notes: document.getElementById('editWeightNotes').value }) });
+    if (r.ok) { closeEditWeightModal(); location.reload(); } else alert('Error updating weight.');
+  } catch { alert('Error updating weight.'); }
 });
 </script>
 {% endblock %}

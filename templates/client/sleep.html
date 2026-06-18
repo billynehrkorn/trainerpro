@@ -1,0 +1,354 @@
+{% extends "client/base.html" %}
+{% block title %}My Sleep - TrainerPro{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:#0F172A; --slate-600:#475569; --slate-400:#94A3B8;
+    --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+    --indigo:#4F46E5; --indigo-hover:#4338CA; --indigo-light:#EEF2FF;
+    --blue:#2563EB; --red:#EF4444; --red-light:#FEE2E2;
+    --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { box-sizing:border-box; }
+  .page-wrap { max-width:760px; margin:0 auto; padding:2rem 1.5rem; }
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.75rem; gap:1rem; flex-wrap:wrap; }
+  .page-title    { font-size:1.5rem; font-weight:700; color:var(--navy); }
+  .page-subtitle { font-size:0.82rem; color:var(--slate-400); margin-top:0.2rem; }
+  .btn-add { display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600; color:white; background:var(--indigo); transition:background 0.15s; }
+  .btn-add:hover { background:var(--indigo-hover); }
+  .card { background:white; border:1.5px solid var(--slate-200); border-radius:var(--radius); box-shadow:var(--shadow-sm); margin-bottom:1.25rem; overflow:hidden; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1.5px solid var(--slate-100); }
+  .card-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--slate-400); }
+  .view-toggle { display:flex; gap:0.4rem; }
+  .toggle-btn { padding:0.3rem 0.7rem; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; border:1.5px solid var(--slate-200); background:white; color:var(--slate-600); transition:all 0.15s; }
+  .toggle-btn.active { background:var(--indigo); border-color:var(--indigo); color:white; }
+  .chart-wrap { position:relative; height:240px; padding:1rem 1.25rem; }
+  .chart-avg { text-align:center; font-size:0.8rem; color:var(--slate-600); padding:0 1.25rem 1rem; }
+  .chart-avg span { font-weight:700; color:var(--indigo); }
+  .entry-list { display:flex; flex-direction:column; }
+  .entry-item { display:flex; align-items:stretch; border-bottom:1px solid var(--slate-100); }
+  .entry-item:last-child { border-bottom:none; }
+  .entry-accent { width:4px; flex-shrink:0; background:var(--indigo); }
+  .entry-body { flex:1; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.85rem; }
+  .entry-icon { width:38px; height:38px; border-radius:8px; flex-shrink:0; background:var(--indigo-light); color:var(--indigo); display:flex; align-items:center; justify-content:center; font-size:0.9rem; }
+  .entry-main { flex:1; min-width:0; }
+  .entry-value { font-size:1rem; font-weight:700; color:var(--navy); }
+  .entry-date  { font-size:0.75rem; color:var(--slate-400); margin-top:0.1rem; }
+  .entry-notes { font-size:0.75rem; color:var(--slate-600); font-style:italic; margin-top:0.2rem; }
+  .entry-actions { display:flex; align-items:center; gap:0.25rem; padding:0 0.75rem; }
+  .icon-btn { background:none; border:none; cursor:pointer; padding:0.35rem; color:var(--slate-400); border-radius:5px; font-size:0.8rem; transition:color 0.15s,background 0.15s; }
+  .icon-btn.edit:hover   { color:var(--blue); background:#EFF6FF; }
+  .icon-btn.delete:hover { color:var(--red);  background:var(--red-light); }
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:3rem 1rem; text-align:center; color:var(--slate-400); }
+  .empty-state i { font-size:2rem; margin-bottom:0.75rem; opacity:0.4; }
+  .empty-state p { font-size:0.85rem; margin-bottom:1.25rem; }
+  .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,0.5); display:none; align-items:center; justify-content:center; z-index:50; padding:1rem; }
+  .modal-backdrop.open { display:flex; }
+  .modal-box { background:white; border-radius:14px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1.5px solid var(--slate-100); }
+  .modal-title { font-size:1rem; font-weight:700; color:var(--navy); }
+  .modal-close { background:none; border:none; cursor:pointer; color:var(--slate-400); font-size:1rem; padding:0.25rem; border-radius:5px; transition:color 0.15s; }
+  .modal-close:hover { color:var(--navy); }
+  .modal-body { padding:1.5rem; }
+  .modal-footer { display:flex; gap:0.6rem; margin-top:1.25rem; }
+  .modal-btn { flex:1; padding:0.6rem; border-radius:8px; border:none; font-size:0.875rem; font-weight:600; cursor:pointer; transition:background 0.15s; }
+  .modal-btn-primary   { background:var(--indigo); color:white; }
+  .modal-btn-primary:hover { background:var(--indigo-hover); }
+  .modal-btn-secondary { background:var(--slate-100); color:var(--slate-600); border:1.5px solid var(--slate-200); }
+  .modal-btn-secondary:hover { background:var(--slate-200); }
+  .modal-btn-danger    { background:var(--red); color:white; }
+  .modal-btn-danger:hover { background:#DC2626; }
+  .form-group { margin-bottom:1rem; }
+  .form-label { display:block; font-size:0.78rem; font-weight:600; color:var(--slate-600); margin-bottom:0.35rem; }
+  .form-input, .form-textarea { width:100%; padding:0.55rem 0.75rem; border:1.5px solid var(--slate-200); border-radius:8px; font-size:0.875rem; color:var(--navy); outline:none; transition:border-color 0.15s; box-sizing:border-box; font-family:inherit; }
+  .form-input:focus, .form-textarea:focus { border-color:var(--indigo); box-shadow:0 0 0 3px rgba(79,70,229,0.1); }
+  /* Sleep quality badges */
+  .quality-badge { display:inline-block; padding:0.15rem 0.55rem; border-radius:99px; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-left:0.4rem; }
+  .quality-great { background:#D1FAE5; color:#065F46; }
+  .quality-good  { background:#EEF2FF; color:#4F46E5; }
+  .quality-ok    { background:#FEF3C7; color:#92400E; }
+  .quality-poor  { background:#FEE2E2; color:#991B1B; }
+  .readonly-notice { display:flex; align-items:center; gap:0.6rem; background:var(--indigo-light); border:1.5px solid #C7D2FE; border-radius:8px; padding:0.65rem 1rem; font-size:0.8rem; color:var(--indigo); margin-bottom:1.5rem; }
+  html.dark .readonly-notice { background:rgba(79,70,229,0.15); border-color:rgba(79,70,229,0.3); color:#A5B4FC; }
+  @media (max-width:500px) { .page-wrap{padding:1rem;} .page-header{flex-direction:column;align-items:flex-start;} .modal-backdrop{padding:0;align-items:flex-end;} .modal-box{border-radius:14px 14px 0 0;} }
+
+  /* ── Dark mode ── */
+  html.dark .page-title    { color:#F1F5F9; }
+  html.dark .page-subtitle { color:#94A3B8; }
+  html.dark .entry-value   { color:#F1F5F9; }
+  html.dark .entry-date    { color:#94A3B8; }
+  html.dark .entry-notes   { color:#94A3B8; }
+  html.dark .entry-icon    { background:rgba(79,70,229,0.2); }
+  html.dark .chart-avg     { color:#CBD5E1; }
+  html.dark .modal-body p  { color:#CBD5E1; }
+  html.dark .form-label    { color:#CBD5E1; }
+  html.dark .form-input, html.dark .form-textarea { background:#1E293B; color:#F1F5F9; border-color:#334155; }
+  html.dark .modal-btn-secondary { background:#1E293B; color:#CBD5E1; border-color:#334155; }
+  html.dark .modal-box     { background:#1E293B; }
+  html.dark .modal-header  { background:#1E293B; border-color:#334155; }
+  html.dark .modal-title   { color:#F1F5F9; }
+  html.dark .modal-close   { color:#64748B; }
+  html.dark .modal-close:hover { color:#F1F5F9; }
+  html.dark .delete-confirm-text { color:#CBD5E1; }
+  html.dark .quality-great { background:rgba(5,150,105,0.2);  color:#6EE7B7; }
+  html.dark .quality-good  { background:rgba(79,70,229,0.2);  color:#A5B4FC; }
+  html.dark .quality-ok    { background:rgba(245,158,11,0.2); color:#FCD34D; }
+  html.dark .quality-poor  { background:rgba(239,68,68,0.2);  color:#FCA5A5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Sleep Log</div>
+      <div class="page-subtitle">Track your sleep over time</div>
+    </div>
+    {% if can_edit %}
+    <button onclick="openAddModal()" class="btn-add">
+      <i class="fas fa-plus"></i> Log Sleep
+    </button>
+    {% endif %}
+  </div>
+
+  {% if sleep_history %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Progress</span>
+      <div class="view-toggle">
+        <button class="toggle-btn active" id="btn30" onclick="changeView(30)">Last 30</button>
+        <button class="toggle-btn" id="btnAll" onclick="changeView('all')">All Time</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="sleepChart"></canvas></div>
+    <div class="chart-avg">Average: <span id="chartAvg">—</span></div>
+  </div>
+  {% endif %}
+
+  {% if not can_edit %}
+  <div class="readonly-notice">
+    <i class="fas fa-lock"></i>
+    <span>Your trainer hasn't enabled logging for this section. You can still view your history below.</span>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">History</span></div>
+    {% if sleep_history %}
+      <div class="entry-list">
+        {% for entry in sleep_history %}
+        <div class="entry-item">
+          <div class="entry-accent"></div>
+          <div class="entry-body">
+            <div class="entry-icon"><i class="fas fa-moon"></i></div>
+            <div class="entry-main">
+              <div class="entry-value">
+                {{ entry.hours }} hrs
+                {% set h = entry.hours | float %}
+                {% if h >= 8 %}
+                  <span class="quality-badge quality-great">Great</span>
+                {% elif h >= 7 %}
+                  <span class="quality-badge quality-good">Good</span>
+                {% elif h >= 6 %}
+                  <span class="quality-badge quality-ok">Ok</span>
+                {% else %}
+                  <span class="quality-badge quality-poor">Poor</span>
+                {% endif %}
+              </div>
+              <div class="entry-date sleep-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
+              {% if entry.notes %}<div class="entry-notes">{{ entry.notes }}</div>{% endif %}
+            </div>
+          </div>
+          {% if can_edit %}
+          <div class="entry-actions">
+            <button class="icon-btn edit" title="Edit"
+                    onclick="openEditModal('{{ entry.id }}','{{ entry.date }}','{{ entry.hours }}','{{ entry.notes or '' }}')">
+              <i class="fas fa-pen"></i>
+            </button>
+            <button class="icon-btn delete" title="Delete" onclick="openDeleteModal('{{ entry.id }}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-moon"></i>
+        <p>No sleep entries yet. Log your first one!</p>
+        {% if can_edit %}<button onclick="openAddModal()" class="btn-add"><i class="fas fa-plus"></i> Log Sleep</button>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if can_edit %}
+<!-- Add Modal -->
+<div id="addModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Log Sleep</span>
+      <button class="modal-close" onclick="closeModal('addModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="addDate" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Hours Slept</label><input type="number" id="addHours" step="0.5" min="0" max="24" class="form-input" required placeholder="e.g. 7.5"></div>
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label><textarea id="addNotes" rows="2" class="form-textarea" placeholder="How did you sleep?"></textarea></div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-primary" onclick="submitAdd()">Save</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Edit Entry</span>
+      <button class="modal-close" onclick="closeModal('editModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="editDate" class="form-input" required></div>
+      <div class="form-group"><label class="form-label">Hours Slept</label><input type="number" id="editHours" step="0.5" min="0" max="24" class="form-input" required></div>
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label><textarea id="editNotes" rows="2" class="form-textarea"></textarea></div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-primary" onclick="submitEdit()">Update</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Delete Entry</span>
+      <button class="modal-close" onclick="closeModal('deleteModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem;line-height:1.5;margin:0 0 1.25rem;" class="delete-confirm-text">Delete this sleep entry? This cannot be undone.</p>
+      <input type="hidden" id="deleteId">
+      <div class="modal-footer" style="margin-top:0">
+        <button class="modal-btn modal-btn-danger" onclick="submitDelete()">Delete</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+  function openModal(id)  { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  document.querySelectorAll('.modal-backdrop').forEach(el =>
+    el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); })
+  );
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.sleep-date').forEach(el => {
+      const d = el.dataset.date;
+      if (d) el.textContent = new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    });
+    initChart();
+  });
+
+  function openAddModal() {
+    document.getElementById('addDate').value  = localToday();
+    document.getElementById('addHours').value = '';
+    document.getElementById('addNotes').value = '';
+    openModal('addModal');
+  }
+  async function submitAdd() {
+    const hours = parseFloat(document.getElementById('addHours').value);
+    const date  = document.getElementById('addDate').value;
+    if (!date || isNaN(hours)) { alert('Please enter a date and hours.'); return; }
+    try {
+      const r = await fetch('/client-portal/sleep', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({date, hours, notes:document.getElementById('addNotes').value}) });
+      if (r.ok) location.reload(); else alert('Error saving entry.');
+    } catch { alert('Error saving entry.'); }
+  }
+
+  function openEditModal(id, date, hours, notes) {
+    document.getElementById('editId').value    = id;
+    document.getElementById('editDate').value  = date;
+    document.getElementById('editHours').value = hours;
+    document.getElementById('editNotes').value = notes;
+    openModal('editModal');
+  }
+  async function submitEdit() {
+    const id    = document.getElementById('editId').value;
+    const hours = parseFloat(document.getElementById('editHours').value);
+    const date  = document.getElementById('editDate').value;
+    if (!date || isNaN(hours)) { alert('Please enter a date and hours.'); return; }
+    try {
+      const r = await fetch(`/client-portal/api/sleep/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({date, hours, notes:document.getElementById('editNotes').value}) });
+      if (r.ok) location.reload(); else alert('Error updating entry.');
+    } catch { alert('Error updating entry.'); }
+  }
+
+  function openDeleteModal(id) { document.getElementById('deleteId').value = id; openModal('deleteModal'); }
+  async function submitDelete() {
+    const id = document.getElementById('deleteId').value;
+    try {
+      const r = await fetch(`/client-portal/api/sleep/${id}`, { method:'DELETE' });
+      if (r.ok) location.reload(); else alert('Error deleting entry.');
+    } catch { alert('Error deleting entry.'); }
+  }
+
+  const sleepData = {{ sleep_history | tojson }};
+  let chart = null, currentView = 30;
+
+  function initChart() {
+    if (!sleepData || !sleepData.length) return;
+    renderChart([...sleepData].sort((a,b) => new Date(a.date)-new Date(b.date)));
+  }
+  function renderChart(data) {
+    const ctx = document.getElementById('sleepChart');
+    if (!ctx) return;
+    let display = data;
+    if (currentView !== 'all' && data.length > currentView) display = data.slice(-currentView);
+    const hours  = display.map(e => e.hours);
+    const avg    = (hours.reduce((s,h)=>s+h,0)/hours.length).toFixed(1);
+    document.getElementById('chartAvg').textContent = avg + ' hrs';
+    const labels = display.map(e => new Date(e.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    const min = Math.min(...hours), max = Math.max(...hours), pad = (max-min)*0.2||1;
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets:[{ data:hours, borderColor:'#4F46E5', backgroundColor:'rgba(79,70,229,0.08)', borderWidth:2.5, fill:true, tension:0.4, pointRadius:4, pointHoverRadius:6, pointBackgroundColor:'#4F46E5', pointBorderColor:'#fff', pointBorderWidth:2 }] },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'rgba(15,23,42,0.9)', padding:10, callbacks:{ label:ctx=>ctx.parsed.y+' hrs' } } },
+        scales:{
+          y:{ min:Math.max(0,min-pad), max:max+pad, ticks:{callback:v=>v+'h',font:{size:11}}, grid:{color:'rgba(0,0,0,0.04)'},
+              annotation:{line:{value:8,color:'rgba(5,150,105,0.3)',width:1}} },
+          x:{ ticks:{maxRotation:45,minRotation:45,font:{size:11}}, grid:{display:false} }
+        },
+        interaction:{intersect:false,mode:'index'}
+      }
+    });
+  }
+  function changeView(view) {
+    currentView = view;
+    document.getElementById('btn30').classList.toggle('active', view===30);
+    document.getElementById('btnAll').classList.toggle('active', view==='all');
+    renderChart([...sleepData].sort((a,b) => new Date(a.date)-new Date(b.date)));
+  }
+</script>
+{% endblock %}

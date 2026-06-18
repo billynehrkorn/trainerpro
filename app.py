@@ -1,11 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import sqlite3
 import os
 from datetime import datetime, timedelta
 import uuid
-from functools import wraps
 import json
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
@@ -13,6 +11,10 @@ from openpyxl import load_workbook
 import csv
 import io
 import zipfile
+
+# Shared helpers split out of this file
+from db import get_db
+from auth_utils import login_required, client_login_required
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
@@ -23,26 +25,12 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 16 * 1024  # 16MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
-def get_db():
-    conn = sqlite3.connect('trainer_app.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-
-    return decorated_function
-
-
 @app.route('/')
 def index():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
+    if 'client_account_id' in session:
+        return redirect(url_for('client_portal'))
     return redirect(url_for('login'))
 
 
@@ -126,7 +114,6 @@ def update_theme():
     session['theme'] = theme
     return jsonify({'success': True, 'theme': theme})
 
-
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -162,6 +149,7 @@ def dashboard():
 def clients():
     search = request.args.get('search', '')
     status_filter = request.args.get('status', '')
+    sort = request.args.get('sort', '')
 
     conn = get_db()
 
@@ -181,12 +169,18 @@ def clients():
         query += ' AND c.status = ?'
         params.append(status_filter)
 
-    query += ' ORDER BY c.created_at DESC'
+    # Whitelist the sort options — never interpolate raw user input into SQL.
+    sort_clauses = {
+        'name_asc':  ' ORDER BY c.name COLLATE NOCASE ASC',
+        'name_desc': ' ORDER BY c.name COLLATE NOCASE DESC',
+    }
+    query += sort_clauses.get(sort, ' ORDER BY c.created_at DESC')
 
     clients = conn.execute(query, params).fetchall()
     conn.close()
 
-    return render_template('dashboard/clients.html', clients=clients, search=search, status_filter=status_filter)
+    return render_template('dashboard/clients.html', clients=clients,
+                           search=search, status_filter=status_filter, sort=sort)
 
 
 @app.route('/clients/new', methods=['GET', 'POST'])
@@ -221,6 +215,23 @@ def new_client():
         ''', (client_id, session['user_id'], name, email, phone, age, gender, weight, height, status, notes, photo_url,
               datetime.now()))
         conn.commit()
+
+        generate_portal = request.form.get('generate_portal_code')
+        if generate_portal:
+            import random, string
+            def make_code():
+                chars = string.ascii_uppercase + string.digits
+                return f"{''.join(random.choices(chars, k=4))}-{''.join(random.choices(chars, k=4))}"
+
+            code = make_code()
+            while conn.execute('SELECT id FROM client_accounts WHERE access_code = ?', (code,)).fetchone():
+                code = make_code()
+            conn.execute('''
+                INSERT INTO client_accounts (id, client_id, access_code, is_active, created_at)
+                VALUES (?, ?, ?, 1, ?)
+            ''', (str(uuid.uuid4()), client_id, code, datetime.now()))
+            conn.commit()
+
         conn.close()
 
         flash('Client added successfully!')
@@ -298,6 +309,12 @@ def client_detail(client_id):
         LIMIT 5
     ''', (client_id,)).fetchall()
 
+    portal_account_row = conn.execute('''
+        SELECT access_code, is_active, last_login
+        FROM client_accounts WHERE client_id = ?
+    ''', (client_id,)).fetchone()
+    portal_account = dict(portal_account_row) if portal_account_row else None
+
     conn.close()
 
     app.logger.info(f"[v0] Rendering template with latest_weight: {latest_weight}")
@@ -307,7 +324,8 @@ def client_detail(client_id):
                            recent_workouts=recent_workouts,
                            weight_history=weight_history,
                            latest_weight=latest_weight,
-                           client_notes=client_notes)
+                           client_notes=client_notes,
+                           portal_account=portal_account)
 
 
 @app.route('/clients/<client_id>/edit', methods=['GET', 'POST'])
@@ -356,7 +374,6 @@ def edit_client(client_id):
         conn.commit()
         conn.close()
 
-        flash('Client updated successfully!')
         return redirect(url_for('client_detail', client_id=client_id))
 
     latest_weight_log = conn.execute('''
@@ -369,12 +386,18 @@ def edit_client(client_id):
     latest_weight = latest_weight_log['weight'] if latest_weight_log else None
     latest_weight_date = latest_weight_log['date'] if latest_weight_log else None
 
+    portal_account_row = conn.execute('''
+        SELECT access_code, is_active, last_login
+        FROM client_accounts WHERE client_id = ?
+    ''', (client_id,)).fetchone()
+    portal_account = dict(portal_account_row) if portal_account_row else None
+
     conn.close()
     return render_template('dashboard/clients/edit.html',
                            client=client,
                            latest_weight=latest_weight,
-                           latest_weight_date=latest_weight_date)
-
+                           latest_weight_date=latest_weight_date,
+                           portal_account=portal_account)
 
 @app.route('/clients/<client_id>/delete', methods=['POST'])
 @login_required
@@ -401,6 +424,7 @@ def delete_client(client_id):
     conn.execute('DELETE FROM workout_logs WHERE client_id = ?', (client_id,))
     conn.execute('DELETE FROM sessions WHERE client_id = ?', (client_id,))
     conn.execute('DELETE FROM client_notes WHERE client_id = ?', (client_id,))
+    conn.execute('DELETE FROM client_accounts WHERE client_id = ?', (client_id,))  # ← add here
     conn.execute('DELETE FROM clients WHERE id = ? AND trainer_id = ?', (client_id, session['user_id']))
 
     conn.commit()
@@ -610,6 +634,72 @@ def calendar():
                            week_end=end_of_week,
                            week_offset=week_offset,
                            clients=clients)
+
+
+@app.route('/activity-stream')
+@login_required
+def activity_stream():
+    """Trainer view: a week of client portal activity plus upcoming sessions."""
+    week_offset = request.args.get('week_offset', 0, type=int)
+
+    today = datetime.now().date()
+    start_of_week = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)
+    end_of_week = start_of_week + timedelta(days=6)
+
+    week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
+
+    user_id = session['user_id']
+    conn = get_db()
+
+    # Activity events for this trainer within the week.
+    # created_at is a full timestamp; compare on its date portion.
+    activity_rows = conn.execute('''
+        SELECT id, client_id, client_name, category, action, detail, created_at
+        FROM activity_log
+        WHERE trainer_id = ?
+          AND date(created_at) BETWEEN ? AND ?
+        ORDER BY created_at DESC
+    ''', (user_id, start_of_week.isoformat(), end_of_week.isoformat())).fetchall()
+
+    # Upcoming sessions in the same week (booked on the calendar).
+    session_rows = conn.execute('''
+        SELECT s.id, s.session_date, s.start_time, s.end_time, s.session_type,
+               s.status, c.name AS client_name
+        FROM sessions s
+        JOIN clients c ON s.client_id = c.id
+        WHERE s.trainer_id = ?
+          AND s.session_date BETWEEN ? AND ?
+        ORDER BY s.session_date, s.start_time
+    ''', (user_id, start_of_week.isoformat(), end_of_week.isoformat())).fetchall()
+
+    conn.close()
+
+    # Group both into per-day buckets keyed by YYYY-MM-DD.
+    week_activity = {}
+    week_sessions = {}
+    for d in week_dates:
+        key = d.strftime('%Y-%m-%d')
+        week_activity[key] = []
+        week_sessions[key] = []
+
+    for r in activity_rows:
+        # created_at may be 'YYYY-MM-DD HH:MM:SS(.ffffff)'
+        day_key = str(r['created_at'])[:10]
+        if day_key in week_activity:
+            week_activity[day_key].append(dict(r))
+
+    for s in session_rows:
+        day_key = s['session_date']
+        if day_key in week_sessions:
+            week_sessions[day_key].append(dict(s))
+
+    return render_template('dashboard/activity_stream.html',
+                           week_activity=week_activity,
+                           week_sessions=week_sessions,
+                           week_dates=week_dates,
+                           week_start=start_of_week,
+                           week_end=end_of_week,
+                           week_offset=week_offset)
 
 
 @app.route('/api/sessions', methods=['POST'])
@@ -2146,8 +2236,33 @@ def import_sleep_logs():
         return jsonify({'error': str(e)}), 500
 
 
+# ════════════════════════════════════════════════════════
+# CLIENT PORTAL — routes live in clients.py
+# ════════════════════════════════════════════════════════
+from clients import (
+    register_client_routes,
+    init_client_accounts_table,
+    backfill_client_access_codes,
+    init_activity_log_table,
+    init_nutrition_protein_column,
+)
+
+register_client_routes(app)
+
+# Ensure the activity_log table exists even under WSGI (PythonAnywhere never runs
+# the __main__ block). CREATE TABLE IF NOT EXISTS is idempotent, so this is safe.
+init_activity_log_table()
+# Ensure nutrition_logs has the estimated_protein column (idempotent migration).
+# This also runs at module level so it applies under WSGI and protects against
+# any database file being swapped/imported without the column.
+init_nutrition_protein_column()
+
+
 if __name__ == '__main__':
     from init_db import init_database
-
     init_database()
+    init_client_accounts_table()
+    backfill_client_access_codes()
+    init_activity_log_table()
+    init_nutrition_protein_column()
     app.run(debug=True)
