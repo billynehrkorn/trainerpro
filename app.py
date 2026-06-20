@@ -25,6 +25,24 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 16 * 1024  # 16MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
+def init_template_client_column():
+    """Add a nullable client_id column to workout_templates if missing.
+
+    NULL  = universal template (any client).
+    value = template that belongs to one specific client.
+    Idempotent; safe to run on every startup (also under WSGI).
+    """
+    conn = get_db()
+    try:
+        conn.execute('ALTER TABLE workout_templates ADD COLUMN client_id TEXT')
+        conn.commit()
+        print('[templates] added client_id column to workout_templates')
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+
 @app.route('/')
 def index():
     if 'user_id' in session:
@@ -118,30 +136,59 @@ def update_theme():
 @login_required
 def dashboard():
     conn = get_db()
+    trainer_id = session['user_id']
+
+    today = datetime.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
 
     # Get client counts
     total_clients = \
-        conn.execute('SELECT COUNT(*) as count FROM clients WHERE trainer_id = ?', (session['user_id'],)).fetchone()[
+        conn.execute('SELECT COUNT(*) as count FROM clients WHERE trainer_id = ?', (trainer_id,)).fetchone()[
             'count']
     active_clients = conn.execute('SELECT COUNT(*) as count FROM clients WHERE trainer_id = ? AND status = "active"',
-                                  (session['user_id'],)).fetchone()['count']
+                                  (trainer_id,)).fetchone()['count']
 
-    # Get recent sessions
+    # Sessions scheduled for today (excluding cancelled)
+    today_session_count = conn.execute('''
+        SELECT COUNT(*) as count FROM sessions
+        WHERE trainer_id = ? AND session_date = ? AND status != 'cancelled'
+    ''', (trainer_id, today.isoformat())).fetchone()['count']
+
+    # Sessions scheduled for the rest of this week (excluding cancelled)
+    week_session_count = conn.execute('''
+        SELECT COUNT(*) as count FROM sessions
+        WHERE trainer_id = ? AND session_date BETWEEN ? AND ? AND status != 'cancelled'
+    ''', (trainer_id, week_start.isoformat(), week_end.isoformat())).fetchone()['count']
+
+    # Get upcoming sessions for the "Upcoming Sessions" card
     recent_sessions = conn.execute('''
         SELECT s.*, c.name as client_name
         FROM sessions s
         JOIN clients c ON s.client_id = c.id
-        WHERE s.trainer_id = ? AND s.session_date >= date('now')
+        WHERE s.trainer_id = ? AND s.session_date >= date('now') AND s.status != 'cancelled'
         ORDER BY s.session_date, s.start_time
         LIMIT 5
-    ''', (session['user_id'],)).fetchall()
+    ''', (trainer_id,)).fetchall()
+
+    # Recent client-portal activity (workouts, weight, sleep, nutrition logs)
+    recent_activity = conn.execute('''
+        SELECT id, client_id, client_name, category, action, detail, created_at
+        FROM activity_log
+        WHERE trainer_id = ?
+        ORDER BY created_at DESC
+        LIMIT 8
+    ''', (trainer_id,)).fetchall()
 
     conn.close()
 
     return render_template('dashboard/index.html',
                            total_clients=total_clients,
                            active_clients=active_clients,
-                           recent_sessions=recent_sessions)
+                           today_session_count=today_session_count,
+                           week_session_count=week_session_count,
+                           recent_sessions=recent_sessions,
+                           recent_activity=recent_activity)
 
 
 @app.route('/clients')
@@ -450,6 +497,16 @@ def client_workouts(client_id):
         exercises = request.form.getlist('exercise_name[]')
         notes_list = request.form.getlist('exercise_notes[]')
         workout_tags = request.form.get('workout_tags', '')
+        override = request.form.get('override', 'false') == 'true'
+
+        if not override:
+            existing = conn.execute(
+                'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
+                (client_id, workout_date)
+            ).fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'conflict': True}), 409
 
         for i, exercise in enumerate(exercises):
             if exercise.strip():  # Only save non-empty exercises
@@ -1024,6 +1081,7 @@ def duplicate_workout(client_id):
     data = request.get_json()
     original_date = data.get('original_date')
     new_date = data.get('new_date')
+    override = data.get('override', False)
 
     app.logger.info(f"[v0] Duplicating workout from {original_date} to {new_date}")
 
@@ -1032,9 +1090,18 @@ def duplicate_workout(client_id):
         conn.close()
         return jsonify({'error': 'Missing date parameters'}), 400
 
+    if not override:
+        existing = conn.execute(
+            'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
+            (client_id, new_date)
+        ).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'conflict': True}), 409
+
     # Fetch all exercises from the original workout
     exercises = conn.execute('''
-        SELECT exercise_name, sets_data, notes
+        SELECT exercise_name, sets_data, notes, tags
         FROM workout_logs
         WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
         ORDER BY created_at
@@ -1060,10 +1127,10 @@ def duplicate_workout(client_id):
             [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
 
         conn.execute('''
-            INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise['exercise_name'],
-              total_sets, avg_reps, avg_weight, exercise['notes'], new_date, sets_data, datetime.now()))
+              total_sets, avg_reps, avg_weight, exercise['notes'], new_date, sets_data, exercise['tags'], datetime.now()))
 
     conn.commit()
     conn.close()
@@ -1080,6 +1147,7 @@ def add_weight_log():
     date = data['date']
     weight = data['weight']
     notes = data.get('notes', '')
+    override = data.get('override', False)
 
     # Verify client belongs to current trainer
     conn = get_db()
@@ -1090,16 +1158,34 @@ def add_weight_log():
         conn.close()
         return jsonify({'error': 'Client not found'}), 404
 
-    weight_id = str(uuid.uuid4())
+    existing = conn.execute(
+        'SELECT id, weight, notes FROM weight_logs WHERE client_id = ? AND date = ?',
+        (client_id, date)
+    ).fetchone()
+
+    if existing and not override:
+        conn.close()
+        return jsonify({
+            'conflict': True,
+            'existing': {'id': existing['id'], 'weight': existing['weight'], 'notes': existing['notes']}
+        }), 409
 
     try:
-        conn.execute('''
-            INSERT OR REPLACE INTO weight_logs (id, client_id, date, weight, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (weight_id, client_id, date, weight, notes, datetime.now(), datetime.now()))
+        if existing and override:
+            conn.execute(
+                'UPDATE weight_logs SET weight = ?, notes = ?, updated_at = ? WHERE id = ? AND client_id = ?',
+                (weight, notes, datetime.now(), existing['id'], client_id)
+            )
+            weight_id = existing['id']
+        else:
+            weight_id = str(uuid.uuid4())
+            conn.execute('''
+                INSERT INTO weight_logs (id, client_id, date, weight, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (weight_id, client_id, date, weight, notes, datetime.now(), datetime.now()))
         conn.commit()
         conn.close()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'id': weight_id})
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
@@ -1316,16 +1402,57 @@ def client_weight_logs(client_id):
 @login_required
 def workout_templates():
     conn = get_db()
+
+    # Universal templates (client_id IS NULL)
+    universal_templates = conn.execute('''
+        SELECT id, name, created_at,
+               (SELECT COUNT(*) FROM template_exercises WHERE template_id = workout_templates.id) as exercise_count
+        FROM workout_templates
+        WHERE trainer_id = ? AND client_id IS NULL
+        ORDER BY created_at DESC
+    ''', (session['user_id'],)).fetchall()
+
+    # Client cards, each with how many client-specific templates they have
+    clients = conn.execute('''
+        SELECT c.id, c.name, c.status, c.photo_url,
+               (SELECT COUNT(*) FROM workout_templates wt
+                WHERE wt.client_id = c.id AND wt.trainer_id = ?) as template_count
+        FROM clients c
+        WHERE c.trainer_id = ?
+        ORDER BY c.name COLLATE NOCASE
+    ''', (session['user_id'], session['user_id'])).fetchall()
+
+    conn.close()
+
+    return render_template('dashboard/workout_templates.html',
+                           universal_templates=universal_templates,
+                           clients=clients)
+
+
+@app.route('/templates/client/<client_id>')
+@login_required
+def specific_workout_templates(client_id):
+    conn = get_db()
+
+    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+    if not client:
+        conn.close()
+        flash('Client not found')
+        return redirect(url_for('workout_templates'))
+
     templates = conn.execute('''
         SELECT id, name, created_at,
                (SELECT COUNT(*) FROM template_exercises WHERE template_id = workout_templates.id) as exercise_count
         FROM workout_templates
-        WHERE trainer_id = ?
+        WHERE trainer_id = ? AND client_id = ?
         ORDER BY created_at DESC
-    ''', (session['user_id'],)).fetchall()
+    ''', (session['user_id'], client_id)).fetchall()
+
     conn.close()
 
-    return render_template('dashboard/workout_templates.html', templates=templates)
+    return render_template('dashboard/specific_workout_templates.html',
+                           client=client, templates=templates)
 
 
 @app.route('/exports')
@@ -1678,16 +1805,25 @@ def create_template():
     data = request.json
     template_name = data['name']
     exercises = data['exercises']
+    client_id = data.get('client_id') or None
 
     template_id = str(uuid.uuid4())
 
     conn = get_db()
     try:
+        # If assigned to a client, verify the client belongs to this trainer
+        if client_id:
+            owns = conn.execute('SELECT 1 FROM clients WHERE id = ? AND trainer_id = ?',
+                                (client_id, session['user_id'])).fetchone()
+            if not owns:
+                conn.close()
+                return jsonify({'error': 'Client not found'}), 404
+
         # Create template
         conn.execute('''
-            INSERT INTO workout_templates (id, trainer_id, name, created_at)
-            VALUES (?, ?, ?, ?)
-        ''', (template_id, session['user_id'], template_name, datetime.now()))
+            INSERT INTO workout_templates (id, trainer_id, client_id, name, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (template_id, session['user_id'], client_id, template_name, datetime.now()))
 
         # Add exercises to template
         for exercise in exercises:
@@ -1731,6 +1867,7 @@ def get_template(template_id):
     return jsonify({
         'id': template['id'],
         'name': template['name'],
+        'client_id': template['client_id'] if 'client_id' in template.keys() else None,
         'exercises': [{
             'name': ex['exercise_name'],
             'sets': json.loads(ex['sets_data']) if ex['sets_data'] else [],
@@ -1781,14 +1918,22 @@ def update_template(template_id):
     data = request.json
     template_name = data['name']
     exercises = data['exercises']
+    client_id = data.get('client_id') or None
 
     try:
-        # Update template name
+        if client_id:
+            owns = conn.execute('SELECT 1 FROM clients WHERE id = ? AND trainer_id = ?',
+                                (client_id, session['user_id'])).fetchone()
+            if not owns:
+                conn.close()
+                return jsonify({'error': 'Client not found'}), 404
+
+        # Update template name + client assignment
         conn.execute('''
             UPDATE workout_templates
-            SET name = ?, updated_at = ?
+            SET name = ?, client_id = ?, updated_at = ?
             WHERE id = ? AND trainer_id = ?
-        ''', (template_name, datetime.now(), template_id, session['user_id']))
+        ''', (template_name, client_id, datetime.now(), template_id, session['user_id']))
 
         # Delete existing exercises
         conn.execute('DELETE FROM template_exercises WHERE template_id = ?', (template_id,))
@@ -1813,16 +1958,36 @@ def update_template(template_id):
 @app.route('/api/templates/list')
 @login_required
 def list_templates():
+    """For the workout-logging import dropdown.
+
+    ?client_id=<id> → universal templates PLUS that client's own templates.
+    (no param)       → universal templates only.
+    """
+    client_id = request.args.get('client_id')
     conn = get_db()
-    templates = conn.execute('''
-        SELECT id, name
-        FROM workout_templates
-        WHERE trainer_id = ?
-        ORDER BY name
-    ''', (session['user_id'],)).fetchall()
+
+    if client_id:
+        templates = conn.execute('''
+            SELECT id, name, client_id
+            FROM workout_templates
+            WHERE trainer_id = ? AND (client_id IS NULL OR client_id = ?)
+            ORDER BY client_id IS NULL, name COLLATE NOCASE
+        ''', (session['user_id'], client_id)).fetchall()
+    else:
+        templates = conn.execute('''
+            SELECT id, name, client_id
+            FROM workout_templates
+            WHERE trainer_id = ? AND client_id IS NULL
+            ORDER BY name COLLATE NOCASE
+        ''', (session['user_id'],)).fetchall()
+
     conn.close()
 
-    return jsonify([{'id': t['id'], 'name': t['name']} for t in templates])
+    return jsonify([{
+        'id': t['id'],
+        'name': t['name'],
+        'is_client_specific': bool(t['client_id'])
+    } for t in templates])
 
 
 @app.route('/clients/<client_id>/nutrition-logs')
@@ -1860,9 +2025,11 @@ def add_nutrition_log():
     date = data['date']
     diet = data['diet']
     estimated_calories = data.get('estimated_calories')
+    estimated_protein = data.get('estimated_protein')
     estimated_sodium = data.get('estimated_sodium')
     estimated_saturated_fat = data.get('estimated_saturated_fat')
     notes = data.get('notes', '')
+    override = data.get('override', False)
 
     # Verify client belongs to current trainer
     conn = get_db()
@@ -1873,18 +2040,48 @@ def add_nutrition_log():
         conn.close()
         return jsonify({'error': 'Client not found'}), 404
 
-    nutrition_id = str(uuid.uuid4())
+    existing = conn.execute(
+        'SELECT id, diet, estimated_calories, estimated_protein, estimated_sodium, estimated_saturated_fat, notes '
+        'FROM nutrition_logs WHERE client_id = ? AND date = ?',
+        (client_id, date)
+    ).fetchone()
+
+    if existing and not override:
+        conn.close()
+        return jsonify({
+            'conflict': True,
+            'existing': {
+                'id': existing['id'],
+                'diet': existing['diet'],
+                'estimated_calories': existing['estimated_calories'],
+                'estimated_protein': existing['estimated_protein'],
+                'estimated_sodium': existing['estimated_sodium'],
+                'estimated_saturated_fat': existing['estimated_saturated_fat'],
+                'notes': existing['notes']
+            }
+        }), 409
 
     try:
-        conn.execute('''
-            INSERT OR REPLACE INTO nutrition_logs
-            (id, client_id, date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (nutrition_id, client_id, date, diet, estimated_calories, estimated_sodium,
-              estimated_saturated_fat, notes, datetime.now(), datetime.now()))
+        if existing and override:
+            conn.execute('''
+                UPDATE nutrition_logs
+                SET diet = ?, estimated_calories = ?, estimated_protein = ?, estimated_sodium = ?,
+                    estimated_saturated_fat = ?, notes = ?, updated_at = ?
+                WHERE id = ? AND client_id = ?
+            ''', (diet, estimated_calories, estimated_protein, estimated_sodium,
+                  estimated_saturated_fat, notes, datetime.now(), existing['id'], client_id))
+            nutrition_id = existing['id']
+        else:
+            nutrition_id = str(uuid.uuid4())
+            conn.execute('''
+                INSERT INTO nutrition_logs
+                (id, client_id, date, diet, estimated_calories, estimated_protein, estimated_sodium, estimated_saturated_fat, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (nutrition_id, client_id, date, diet, estimated_calories, estimated_protein, estimated_sodium,
+                  estimated_saturated_fat, notes, datetime.now(), datetime.now()))
         conn.commit()
         conn.close()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'id': nutrition_id})
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
@@ -1897,6 +2094,7 @@ def update_nutrition_log(nutrition_id):
     date = data['date']
     diet = data['diet']
     estimated_calories = data.get('estimated_calories')
+    estimated_protein = data.get('estimated_protein')
     estimated_sodium = data.get('estimated_sodium')
     estimated_saturated_fat = data.get('estimated_saturated_fat')
     notes = data.get('notes', '')
@@ -1917,10 +2115,10 @@ def update_nutrition_log(nutrition_id):
     try:
         conn.execute('''
             UPDATE nutrition_logs
-            SET date = ?, diet = ?, estimated_calories = ?, estimated_sodium = ?,
+            SET date = ?, diet = ?, estimated_calories = ?, estimated_protein = ?, estimated_sodium = ?,
                 estimated_saturated_fat = ?, notes = ?, updated_at = ?
             WHERE id = ?
-        ''', (date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat,
+        ''', (date, diet, estimated_calories, estimated_protein, estimated_sodium, estimated_saturated_fat,
               notes, datetime.now(), nutrition_id))
         conn.commit()
         conn.close()
@@ -1996,6 +2194,7 @@ def add_sleep_log():
     date = data['date']
     hours = data['hours']
     notes = data.get('notes', '')
+    override = data.get('override', False)
 
     conn = get_db()
     client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
@@ -2005,16 +2204,34 @@ def add_sleep_log():
         conn.close()
         return jsonify({'error': 'Client not found'}), 404
 
-    sleep_id = str(uuid.uuid4())
+    existing = conn.execute(
+        'SELECT id, hours, notes FROM sleep_logs WHERE client_id = ? AND date = ?',
+        (client_id, date)
+    ).fetchone()
+
+    if existing and not override:
+        conn.close()
+        return jsonify({
+            'conflict': True,
+            'existing': {'id': existing['id'], 'hours': existing['hours'], 'notes': existing['notes']}
+        }), 409
 
     try:
-        conn.execute('''
-            INSERT OR REPLACE INTO sleep_logs (id, client_id, date, hours, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (sleep_id, client_id, date, hours, notes, datetime.now(), datetime.now()))
+        if existing and override:
+            conn.execute(
+                'UPDATE sleep_logs SET hours = ?, notes = ?, updated_at = ? WHERE id = ? AND client_id = ?',
+                (hours, notes, datetime.now(), existing['id'], client_id)
+            )
+            sleep_id = existing['id']
+        else:
+            sleep_id = str(uuid.uuid4())
+            conn.execute('''
+                INSERT INTO sleep_logs (id, client_id, date, hours, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (sleep_id, client_id, date, hours, notes, datetime.now(), datetime.now()))
         conn.commit()
         conn.close()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'id': sleep_id})
     except Exception as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
@@ -2256,6 +2473,8 @@ init_activity_log_table()
 # This also runs at module level so it applies under WSGI and protects against
 # any database file being swapped/imported without the column.
 init_nutrition_protein_column()
+# Ensure workout_templates has the client_id column (universal vs client-specific).
+init_template_client_column()
 
 
 if __name__ == '__main__':
@@ -2265,4 +2484,5 @@ if __name__ == '__main__':
     backfill_client_access_codes()
     init_activity_log_table()
     init_nutrition_protein_column()
+    init_template_client_column()
     app.run(debug=True)

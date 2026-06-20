@@ -154,7 +154,7 @@ def log_activity(conn, client_id, category, action, detail=''):
             (id, trainer_id, client_id, client_name, category, action, detail, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (str(uuid.uuid4()), trainer_id, client_id, client_name,
-              category, action, detail, datetime.now()))
+              category, action, detail, datetime.utcnow()))
     except Exception as e:
         print(f"[activity] log_activity failed: {e}")
 
@@ -600,9 +600,18 @@ def register_client_routes(app):
             workout_date = data.get('date')
             exercises    = data.get('exercises', [])
             workout_tags = data.get('tags', '')
+            override     = data.get('override', False)
             if not workout_date or not exercises:
                 conn.close()
                 return jsonify({'error': 'Missing date or exercises'}), 400
+            if not override:
+                existing = conn.execute(
+                    'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
+                    (client_id, workout_date)
+                ).fetchone()
+                if existing:
+                    conn.close()
+                    return jsonify({'conflict': True}), 409
             for ex in exercises:
                 sets = ex.get('sets', []) or [{'weight': None, 'reps': None}]
                 total_sets = len(sets)
@@ -699,9 +708,19 @@ def register_client_routes(app):
             data = request.get_json()
             original_date = data.get('original_date')
             new_date = data.get('new_date')
+            override = data.get('override', False)
             if not original_date or not new_date:
                 conn.close()
                 return jsonify({'error': 'Missing date parameters'}), 400
+
+            if not override:
+                existing = conn.execute(
+                    'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
+                    (client_id, new_date)
+                ).fetchone()
+                if existing:
+                    conn.close()
+                    return jsonify({'conflict': True}), 409
 
             exercises = conn.execute('''
                 SELECT exercise_name, sets_data, notes, tags
@@ -746,13 +765,37 @@ def register_client_routes(app):
 
         if request.method == 'POST':
             data = request.get_json()
-            entry_id = str(uuid.uuid4())
-            conn.execute('''
-                INSERT INTO weight_logs (id, client_id, date, weight, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (entry_id, client_id, data['date'], data['weight'],
-                  data.get('notes', ''), datetime.now()))
-            log_activity(conn, client_id, 'weight', 'created', data['date'])
+            override = data.get('override', False)
+
+            existing = conn.execute(
+                'SELECT id, weight, notes FROM weight_logs WHERE client_id = ? AND date = ?',
+                (client_id, data['date'])
+            ).fetchone()
+
+            if existing and not override:
+                conn.close()
+                return jsonify({
+                    'conflict': True,
+                    'existing': {'id': existing['id'], 'weight': existing['weight'], 'notes': existing['notes']}
+                }), 409
+
+            if existing and override:
+                # Replace the existing entry for that date
+                conn.execute(
+                    'UPDATE weight_logs SET weight = ?, notes = ? WHERE id = ? AND client_id = ?',
+                    (data['weight'], data.get('notes', ''), existing['id'], client_id)
+                )
+                entry_id = existing['id']
+                log_activity(conn, client_id, 'weight', 'updated', data['date'])
+            else:
+                entry_id = str(uuid.uuid4())
+                conn.execute('''
+                    INSERT INTO weight_logs (id, client_id, date, weight, notes, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (entry_id, client_id, data['date'], data['weight'],
+                      data.get('notes', ''), datetime.now()))
+                log_activity(conn, client_id, 'weight', 'created', data['date'])
+
             conn.commit()
             conn.close()
             return jsonify({'success': True, 'id': entry_id})
@@ -796,13 +839,37 @@ def register_client_routes(app):
 
         if request.method == 'POST':
             data = request.get_json()
-            entry_id = str(uuid.uuid4())
-            conn.execute('''
-                INSERT INTO sleep_logs (id, client_id, date, hours, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (entry_id, client_id, data['date'], data['hours'],
-                  data.get('notes', ''), datetime.now()))
-            log_activity(conn, client_id, 'sleep', 'created', data['date'])
+            override = data.get('override', False)
+
+            existing = conn.execute(
+                'SELECT id, hours, notes FROM sleep_logs WHERE client_id = ? AND date = ?',
+                (client_id, data['date'])
+            ).fetchone()
+
+            if existing and not override:
+                conn.close()
+                return jsonify({
+                    'conflict': True,
+                    'existing': {'id': existing['id'], 'hours': existing['hours'], 'notes': existing['notes']}
+                }), 409
+
+            if existing and override:
+                # Replace the existing entry for that date
+                conn.execute(
+                    'UPDATE sleep_logs SET hours = ?, notes = ? WHERE id = ? AND client_id = ?',
+                    (data['hours'], data.get('notes', ''), existing['id'], client_id)
+                )
+                entry_id = existing['id']
+                log_activity(conn, client_id, 'sleep', 'updated', data['date'])
+            else:
+                entry_id = str(uuid.uuid4())
+                conn.execute('''
+                    INSERT INTO sleep_logs (id, client_id, date, hours, notes, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (entry_id, client_id, data['date'], data['hours'],
+                      data.get('notes', ''), datetime.now()))
+                log_activity(conn, client_id, 'sleep', 'created', data['date'])
+
             conn.commit()
             conn.close()
             return jsonify({'success': True, 'id': entry_id})
@@ -832,17 +899,53 @@ def register_client_routes(app):
 
         if request.method == 'POST':
             data = request.get_json()
-            entry_id = str(uuid.uuid4())
-            conn.execute('''
-                INSERT OR REPLACE INTO nutrition_logs
-                (id, client_id, date, diet, estimated_calories, estimated_protein,
-                 estimated_sodium, estimated_saturated_fat, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (entry_id, client_id, data['date'], data.get('diet', ''),
-                  data.get('estimated_calories'), data.get('estimated_protein'),
-                  data.get('estimated_sodium'), data.get('estimated_saturated_fat'),
-                  data.get('notes', ''), datetime.now()))
-            log_activity(conn, client_id, 'nutrition', 'created', data['date'])
+            override = data.get('override', False)
+
+            existing = conn.execute(
+                'SELECT id, diet, estimated_calories, estimated_protein, estimated_sodium, estimated_saturated_fat, notes '
+                'FROM nutrition_logs WHERE client_id = ? AND date = ?',
+                (client_id, data['date'])
+            ).fetchone()
+
+            if existing and not override:
+                conn.close()
+                return jsonify({
+                    'conflict': True,
+                    'existing': {
+                        'id': existing['id'],
+                        'diet': existing['diet'],
+                        'estimated_calories': existing['estimated_calories'],
+                        'estimated_protein': existing['estimated_protein'],
+                        'estimated_sodium': existing['estimated_sodium'],
+                        'estimated_saturated_fat': existing['estimated_saturated_fat'],
+                        'notes': existing['notes']
+                    }
+                }), 409
+
+            if existing and override:
+                conn.execute('''
+                    UPDATE nutrition_logs
+                    SET diet = ?, estimated_calories = ?, estimated_protein = ?,
+                        estimated_sodium = ?, estimated_saturated_fat = ?, notes = ?
+                    WHERE id = ? AND client_id = ?
+                ''', (data.get('diet', ''), data.get('estimated_calories'), data.get('estimated_protein'),
+                      data.get('estimated_sodium'), data.get('estimated_saturated_fat'),
+                      data.get('notes', ''), existing['id'], client_id))
+                entry_id = existing['id']
+                log_activity(conn, client_id, 'nutrition', 'updated', data['date'])
+            else:
+                entry_id = str(uuid.uuid4())
+                conn.execute('''
+                    INSERT INTO nutrition_logs
+                    (id, client_id, date, diet, estimated_calories, estimated_protein,
+                     estimated_sodium, estimated_saturated_fat, notes, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (entry_id, client_id, data['date'], data.get('diet', ''),
+                      data.get('estimated_calories'), data.get('estimated_protein'),
+                      data.get('estimated_sodium'), data.get('estimated_saturated_fat'),
+                      data.get('notes', ''), datetime.now()))
+                log_activity(conn, client_id, 'nutrition', 'created', data['date'])
+
             conn.commit()
             conn.close()
             return jsonify({'success': True, 'id': entry_id})

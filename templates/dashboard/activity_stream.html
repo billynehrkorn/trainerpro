@@ -227,8 +227,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Format the received time (right side of each activity row) ──
   const fmtTime = ts => {
     if (!ts) return '';
-    // ts like "2026-06-17 15:31:13" or with microseconds; make it ISO-ish for parsing
-    const norm = ts.replace(' ', 'T');
+    // ts is stored in UTC (e.g. "2026-06-17 15:31:13" or with microseconds).
+    // Normalize to ISO and mark it explicitly as UTC so the browser converts
+    // it to the viewer's local time instead of assuming it's already local.
+    let norm = ts.replace(' ', 'T');
+    norm = norm.split('.')[0]; // strip microseconds, Date() doesn't need them
+    if (!norm.endsWith('Z')) norm += 'Z';
     const d = new Date(norm);
     if (isNaN(d)) return ts;
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });

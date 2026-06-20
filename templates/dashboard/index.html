@@ -123,6 +123,28 @@
     background: var(--blue-light); color: var(--blue); flex-shrink: 0;
   }
 
+  /* ── Activity feed ── */
+  .activity-card { margin-top: 1.25rem; }
+  .activity-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .activity-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.55rem 0.6rem; border-radius: 8px;
+    transition: background 0.12s;
+  }
+  .activity-item:hover { background: var(--slate-50); }
+  .activity-icon {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 0.78rem;
+  }
+  .activity-icon.workout   { background: var(--blue-light);    color: var(--blue); }
+  .activity-icon.weight    { background: var(--purple-light);  color: var(--purple); }
+  .activity-icon.sleep     { background: var(--amber-light);   color: var(--amber-text); }
+  .activity-icon.nutrition { background: var(--emerald-light); color: var(--emerald); }
+  .activity-text { flex: 1; min-width: 0; }
+  .activity-line { font-size: 0.85rem; color: var(--navy); }
+  .activity-line strong { font-weight: 600; }
+  .activity-time { font-size: 0.72rem; color: var(--slate-400); margin-top: 0.05rem; }
+
   /* ── Empty state ── */
   .empty-state {
     display: flex; flex-direction: column; align-items: center;
@@ -173,6 +195,15 @@
   html.dark .session-item { border-color: var(--slate-200); }
   html.dark .session-item:hover { border-color: var(--slate-400); }
   html.dark .session-type-badge { background: rgba(37,99,235,0.18); color: #93C5FD; }
+
+  /* Activity feed */
+  html.dark .activity-item:hover { background: rgba(255,255,255,0.04); }
+  html.dark .activity-icon.workout   { background: rgba(37,99,235,0.18);  color: #93C5FD; }
+  html.dark .activity-icon.weight    { background: rgba(124,58,237,0.2); color: #C4B5FD; }
+  html.dark .activity-icon.sleep     { background: rgba(245,158,11,0.18); color: #FCD34D; }
+  html.dark .activity-icon.nutrition { background: rgba(5,150,105,0.18);  color: #6EE7B7; }
+  html.dark .activity-line { color: #F1F5F9; }
+  html.dark .activity-time { color: #64748B; }
 </style>
 
 <div class="page-wrap">
@@ -203,14 +234,14 @@
       <div class="stat-icon purple"><i class="fas fa-calendar-check"></i></div>
       <div>
         <div class="stat-label">Today's Sessions</div>
-        <div class="stat-value">{{ recent_sessions|length }}</div>
+        <div class="stat-value">{{ today_session_count }}</div>
       </div>
     </div>
     <div class="stat-card">
       <div class="stat-icon orange"><i class="fas fa-dumbbell"></i></div>
       <div>
         <div class="stat-label">This Week</div>
-        <div class="stat-value">{{ recent_sessions|length }}</div>
+        <div class="stat-value">{{ week_session_count }}</div>
       </div>
     </div>
   </div>
@@ -268,5 +299,70 @@
     </div>
 
   </div>
+
+  <!-- Recent Activity -->
+  <div class="card activity-card">
+    <div class="card-header">
+      <span class="card-title">Recent Activity</span>
+    </div>
+    {% if recent_activity %}
+      <div class="activity-list">
+        {% for event in recent_activity %}
+        <div class="activity-item">
+          <div class="activity-icon {{ event.category }}">
+            {% if event.category == 'workout' %}<i class="fas fa-dumbbell"></i>
+            {% elif event.category == 'weight' %}<i class="fas fa-weight-scale"></i>
+            {% elif event.category == 'sleep' %}<i class="fas fa-moon"></i>
+            {% elif event.category == 'nutrition' %}<i class="fas fa-utensils"></i>
+            {% else %}<i class="fas fa-circle-info"></i>
+            {% endif %}
+          </div>
+          <div class="activity-text">
+            <div class="activity-line">
+              <strong>{{ event.client_name }}</strong>
+              {% if event.action == 'created' %}logged a new
+              {% elif event.action == 'updated' %}updated a
+              {% elif event.action == 'deleted' %}deleted a
+              {% elif event.action == 'duplicated' %}duplicated a
+              {% else %}{{ event.action }}
+              {% endif %}
+              {{ event.category }} entry{% if event.detail %} for {{ event.detail }}{% endif %}
+            </div>
+            <div class="activity-time" data-timestamp="{{ event.created_at }}">{{ event.created_at }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-wave-square"></i>
+        <p>No client activity yet</p>
+      </div>
+    {% endif %}
+  </div>
+
 </div>
+
+<script>
+  // Format activity timestamps ("created_at" comes from the server as UTC) as
+  // relative time, e.g. "5m ago", "3h ago", falling back to a plain date for
+  // anything older than a week.
+  document.querySelectorAll('.activity-time').forEach(el => {
+    const raw = el.dataset.timestamp;
+    if (!raw) return;
+    // SQLite/Python datetimes look like "2026-06-17 14:32:01.123456" — treat as UTC.
+    const isoish = raw.replace(' ', 'T') + (raw.endsWith('Z') ? '' : 'Z');
+    const then = new Date(isoish);
+    if (isNaN(then.getTime())) return;
+    const diffMs = Date.now() - then.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    let label;
+    if (diffMin < 1) label = 'just now';
+    else if (diffMin < 60) label = `${diffMin}m ago`;
+    else if (diffMin < 1440) label = `${Math.floor(diffMin / 60)}h ago`;
+    else if (diffMin < 10080) label = `${Math.floor(diffMin / 1440)}d ago`;
+    else label = then.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    el.textContent = label;
+  });
+</script>
 {% endblock %}

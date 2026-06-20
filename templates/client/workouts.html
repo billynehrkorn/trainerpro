@@ -89,6 +89,8 @@
   .modal-btn-danger:hover { background:#DC2626; }
   .modal-btn-secondary { background:var(--slate-100); color:var(--slate-600); border:1.5px solid var(--slate-200); }
   .modal-btn-secondary:hover { background:var(--slate-200); }
+  .conflict-text { font-size:0.875rem; color:var(--slate-600); line-height:1.5; margin:0 0 1.25rem; }
+  .conflict-date { color:var(--navy); }
 
   /* ── Form ── */
   .form-group { margin-bottom:1rem; }
@@ -146,6 +148,8 @@
   html.dark .modal-title { color:#F1F5F9; }
   html.dark .modal-close { color:#64748B; }
   html.dark .modal-close:hover { color:#F1F5F9; }
+  html.dark .conflict-text { color:#F1F5F9; }
+  html.dark .conflict-date { color:#F1F5F9; }
   html.dark .form-label { color:#CBD5E1; }
   html.dark .form-input, html.dark .form-textarea { background:#0F172A; color:#F1F5F9; border-color:#334155; }
   html.dark .exercise-row { background:#0F172A; border-color:#334155; }
@@ -289,6 +293,26 @@
   </div>
 </div>
 
+<!-- ── Workout Conflict Modal ── -->
+<div id="workoutConflictModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-triangle-exclamation" style="color:#D97706;margin-right:0.4rem;"></i>Workout Already Logged</span>
+      <button onclick="closeWorkoutConflictModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:1.5rem;">
+      <p class="conflict-text">
+        You already have a workout logged on <strong id="workoutConflictDateText" class="conflict-date"></strong>.
+        Do you want to add this to the existing entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0;padding:0;border:none;">
+        <button type="button" class="modal-btn modal-btn-primary" onclick="confirmWorkoutConflict()">Add to Existing</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeWorkoutConflictModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Delete Modal ── -->
 <div id="deleteModal" class="modal-backdrop">
   <div class="modal-box sm">
@@ -328,6 +352,26 @@
       <div class="modal-footer" style="padding:0;border:none;margin-top:1.25rem;">
         <button class="modal-btn modal-btn-primary" onclick="submitDuplicate()">Duplicate</button>
         <button class="modal-btn modal-btn-secondary" onclick="closeDuplicateModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Duplicate Conflict Modal ── -->
+<div id="duplicateConflictModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-triangle-exclamation" style="color:#D97706;margin-right:0.4rem;"></i>Workout Already Logged</span>
+      <button onclick="closeDuplicateConflictModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:1.5rem;">
+      <p class="conflict-text">
+        You already have a workout logged on <strong id="duplicateConflictDateText" class="conflict-date"></strong>.
+        Do you want to add the duplicated exercises to the existing entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0;padding:0;border:none;">
+        <button type="button" class="modal-btn modal-btn-primary" onclick="confirmDuplicateConflict()">Add to Existing</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeDuplicateConflictModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -516,7 +560,7 @@ if (CAN_EDIT) {
   function buildSetRow(setIdx, weight, reps, total) {
     return `<div class="set-row">
       <span class="set-label">Set ${setIdx + 1}</span>
-      <input type="number" step="0.5" min="0" placeholder="lbs" value="${weight}" class="set-input set-weight">
+      <input type="number" step="0.1" min="0" placeholder="lbs" value="${weight}" class="set-input set-weight">
       <span class="set-unit">lbs</span>
       <input type="number" min="1" placeholder="reps" value="${reps}" class="set-input set-reps">
       <span class="set-unit">reps</span>
@@ -577,19 +621,61 @@ if (CAN_EDIT) {
     }).filter(ex => ex.name);
   }
 
+  // ── Create / edit submit (with conflict handling on create) ──
+  let pendingWorkoutPayload = null;
+
   window.submitWorkout = async function() {
     const date = document.getElementById('logDate').value;
     if (!date) { alert('Please select a date.'); return; }
     const exercises = collectExercises();
     if (!exercises.length) { alert('Please add at least one exercise.'); return; }
     const payload = { date, exercises, tags: selectedTags.join(',') };
-    const url = editingDate ? `/client-portal/api/workouts/${editingDate}` : '/client-portal/api/workouts';
-    const method = editingDate ? 'PUT' : 'POST';
+
+    if (editingDate) {
+      // Editing always replaces the existing day — no conflict check needed.
+      await saveWorkout(payload, editingDate, false);
+    } else {
+      await saveWorkout(payload, null, false);
+    }
+  };
+
+  async function saveWorkout(payload, editDate, override) {
+    const url = editDate ? `/client-portal/api/workouts/${editDate}` : '/client-portal/api/workouts';
+    const method = editDate ? 'PUT' : 'POST';
+    const body = editDate ? payload : { ...payload, override };
     try {
-      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (r.ok) { closeLogModal(); location.reload(); }
-      else { const e = await r.json(); alert(e.error || 'Error saving workout.'); }
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (r.ok) { closeLogModal(); closeWorkoutConflictModal(); location.reload(); return; }
+      if (!editDate && r.status === 409) {
+        pendingWorkoutPayload = payload;
+        const d = new Date(payload.date + 'T00:00:00');
+        document.getElementById('workoutConflictDateText').textContent =
+          d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('logModal').classList.remove('open');
+        document.getElementById('workoutConflictModal').classList.add('open');
+        return;
+      }
+      const e = await r.json().catch(() => ({}));
+      alert(e.error || 'Error saving workout.');
     } catch { alert('Error saving workout.'); }
+  }
+
+  window.closeWorkoutConflictModal = function() {
+    document.getElementById('workoutConflictModal').classList.remove('open');
+    // Cancel: reopen the log form with what was already typed, untouched.
+    if (pendingWorkoutPayload) {
+      document.getElementById('logModal').classList.add('open');
+    }
+    pendingWorkoutPayload = null;
+  };
+
+  window.confirmWorkoutConflict = async function() {
+    document.getElementById('workoutConflictModal').classList.remove('open');
+    if (pendingWorkoutPayload) {
+      const payload = pendingWorkoutPayload;
+      pendingWorkoutPayload = null;
+      await saveWorkout(payload, null, true);
+    }
   };
 
   // ── Delete ──
@@ -608,6 +694,8 @@ if (CAN_EDIT) {
   };
 
   // ── Duplicate ──
+  let pendingDuplicatePayload = null;
+
   window.openDuplicateModal = function(date) {
     document.getElementById('dupOriginalDate').value = date;
     document.getElementById('dupNewDate').value = localToday();
@@ -618,20 +706,60 @@ if (CAN_EDIT) {
     const originalDate = document.getElementById('dupOriginalDate').value;
     const newDate = document.getElementById('dupNewDate').value;
     if (!newDate) { alert('Please select a date.'); return; }
+    await tryDuplicate(originalDate, newDate, false);
+  };
+
+  async function tryDuplicate(originalDate, newDate, override) {
     try {
       const r = await fetch('/client-portal/api/workouts/duplicate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ original_date: originalDate, new_date: newDate })
+        body: JSON.stringify({ original_date: originalDate, new_date: newDate, override })
       });
-      if (r.ok) { closeDuplicateModal(); location.reload(); }
-      else { const e = await r.json(); alert(e.error || 'Error duplicating workout.'); }
+      if (r.ok) {
+        closeDuplicateModal();
+        document.getElementById('duplicateConflictModal').classList.remove('open');
+        location.reload();
+        return;
+      }
+      if (r.status === 409) {
+        pendingDuplicatePayload = { originalDate, newDate };
+        const d = new Date(newDate + 'T00:00:00');
+        document.getElementById('duplicateConflictDateText').textContent =
+          d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        closeDuplicateModal();
+        document.getElementById('duplicateConflictModal').classList.add('open');
+        return;
+      }
+      const e = await r.json().catch(() => ({}));
+      alert(e.error || 'Error duplicating workout.');
     } catch { alert('Error duplicating workout.'); }
+  }
+
+  window.closeDuplicateConflictModal = function() {
+    document.getElementById('duplicateConflictModal').classList.remove('open');
+    // Cancel: reopen the duplicate form with what was already chosen, untouched.
+    if (pendingDuplicatePayload) {
+      document.getElementById('dupOriginalDate').value = pendingDuplicatePayload.originalDate;
+      document.getElementById('dupNewDate').value = pendingDuplicatePayload.newDate;
+      document.getElementById('duplicateModal').classList.add('open');
+    }
+    pendingDuplicatePayload = null;
   };
 
-  // Close on backdrop click
-  document.querySelectorAll('.modal-backdrop').forEach(el =>
-    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); })
-  );
+  window.confirmDuplicateConflict = async function() {
+    document.getElementById('duplicateConflictModal').classList.remove('open');
+    if (pendingDuplicatePayload) {
+      const { originalDate, newDate } = pendingDuplicatePayload;
+      pendingDuplicatePayload = null;
+      await tryDuplicate(originalDate, newDate, true);
+    }
+  };
+
+  // Close on backdrop click (conflict modals excluded — require explicit Add/Cancel choice)
+  document.querySelectorAll('.modal-backdrop').forEach(el => {
+    if (el.id === 'workoutConflictModal' || el.id === 'duplicateConflictModal') return;
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+  });
 }
 </script>
 {% endblock %}

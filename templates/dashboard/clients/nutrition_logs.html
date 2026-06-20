@@ -232,6 +232,10 @@
   .modal-btn-secondary:hover { background: var(--slate-200); }
   .modal-btn-danger { background: #EF4444; color: white; }
   .modal-btn-danger:hover { background: #DC2626; }
+  .conflict-text { font-size:0.875rem; color:var(--slate-600); line-height:1.5; margin:0 0 1.25rem; }
+  .conflict-date { color:var(--navy); }
+  html.dark .conflict-text { color:#F1F5F9; }
+  html.dark .conflict-date { color:#F1F5F9; }
   .modal-text { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
 
   @media (max-width: 680px) {
@@ -392,6 +396,26 @@
         <button type="button" onclick="closeNutritionModal()" class="modal-btn modal-btn-secondary">Cancel</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ── Conflict Warning Modal ── -->
+<div id="conflictModal" class="modal-backdrop" onclick="if(event.target===this)closeConflictModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-triangle-exclamation" style="color:#D97706;margin-right:0.4rem;"></i>Entry Already Exists</span>
+      <button onclick="closeConflictModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:1.5rem;">
+      <p class="conflict-text">
+        This client already has a nutrition entry on <strong id="conflictDateText" class="conflict-date"></strong>.
+        Do you want to override it with the new entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0">
+        <button type="button" class="modal-btn modal-btn-danger" onclick="confirmOverrideNutrition()">Override</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeConflictModal()">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -671,9 +695,11 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeChart();
 });
 
+let pendingNutritionData = null;
+
 document.getElementById('nutritionForm').addEventListener('submit', async function(e) {
   e.preventDefault();
-  const formData = {
+  const payload = {
     client_id: '{{ client.id }}',
     date: document.getElementById('nutritionDate').value,
     diet: document.getElementById('nutritionDiet').value,
@@ -683,22 +709,56 @@ document.getElementById('nutritionForm').addEventListener('submit', async functi
     estimated_saturated_fat: document.getElementById('nutritionSatFat').value || null,
     notes: document.getElementById('nutritionNotes').value
   };
+  await trySaveNutrition(payload, false);
+});
+
+async function trySaveNutrition(payload, override) {
   try {
     const response = await fetch('/api/nutrition-log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
+      body: JSON.stringify({ ...payload, override })
     });
     if (response.ok) {
       closeNutritionModal();
       location.reload();
-    } else {
-      alert('Error logging nutrition. Please try again.');
+      return;
     }
+    if (response.status === 409) {
+      pendingNutritionData = payload;
+      const d = new Date(payload.date + 'T00:00:00');
+      document.getElementById('conflictDateText').textContent =
+        d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      document.getElementById('nutritionModal').classList.remove('open');
+      document.getElementById('conflictModal').classList.add('open');
+      return;
+    }
+    alert('Error logging nutrition. Please try again.');
   } catch (error) {
     alert('Error logging nutrition. Please try again.');
   }
-});
+}
+
+function closeConflictModal() {
+  // Cancel: reopen the add form with everything the user already typed, untouched.
+  document.getElementById('conflictModal').classList.remove('open');
+  if (pendingNutritionData) {
+    document.getElementById('nutritionDate').value     = pendingNutritionData.date;
+    document.getElementById('nutritionDiet').value     = pendingNutritionData.diet || '';
+    document.getElementById('nutritionCalories').value = pendingNutritionData.estimated_calories || '';
+    document.getElementById('nutritionProtein').value  = pendingNutritionData.estimated_protein || '';
+    document.getElementById('nutritionSodium').value   = pendingNutritionData.estimated_sodium || '';
+    document.getElementById('nutritionSatFat').value   = pendingNutritionData.estimated_saturated_fat || '';
+    document.getElementById('nutritionNotes').value    = pendingNutritionData.notes || '';
+    document.getElementById('nutritionModal').classList.add('open');
+  }
+}
+
+async function confirmOverrideNutrition() {
+  document.getElementById('conflictModal').classList.remove('open');
+  if (pendingNutritionData) await trySaveNutrition(pendingNutritionData, true);
+  pendingNutritionData = null;
+}
 
 document.getElementById('editNutritionForm').addEventListener('submit', async function(e) {
   e.preventDefault();

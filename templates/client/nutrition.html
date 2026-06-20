@@ -90,6 +90,10 @@
   html.dark .form-input, html.dark .form-textarea, html.dark .form-select { background:#1E293B; color:#F1F5F9; border-color:#334155; }
   html.dark .modal-btn-secondary { background:#1E293B; color:#CBD5E1; border-color:#334155; }
   html.dark .modal-body p  { color:#CBD5E1; }
+  .conflict-text { font-size:0.875rem; color:var(--slate-600); line-height:1.5; margin:0 0 1.25rem; }
+  .conflict-date { color:var(--navy); }
+  html.dark .conflict-text { color:#F1F5F9; }
+  html.dark .conflict-date { color:#F1F5F9; }
   html.dark .modal-box     { background:#1E293B; }
   html.dark .modal-header  { background:#1E293B; border-color:#334155; }
   html.dark .modal-title   { color:#F1F5F9; }
@@ -275,6 +279,26 @@
   </div>
 </div>
 
+<!-- Conflict Warning Modal -->
+<div id="conflictModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-triangle-exclamation" style="color:var(--amber);margin-right:0.4rem;"></i>Entry Already Exists</span>
+      <button class="modal-close" onclick="closeConflictModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="conflict-text">
+        You already have a nutrition entry on <strong id="conflictDateText" class="conflict-date"></strong>.
+        Do you want to override it with your new entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0">
+        <button class="modal-btn modal-btn-danger" onclick="confirmOverride()">Override</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeConflictModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Edit Modal -->
 <div id="editModal" class="modal-backdrop">
   <div class="modal-box">
@@ -374,6 +398,8 @@ function localToday() {
     document.getElementById('addNotes').value    = '';
     openModal('addModal');
   }
+  let pendingAddData = null;
+
   async function submitAdd() {
     const date = document.getElementById('addDate').value;
     if (!date) { alert('Please enter a date.'); return; }
@@ -386,10 +412,53 @@ function localToday() {
       estimated_saturated_fat: parseFloat(document.getElementById('addSatFat').value) || null,
       notes:                 document.getElementById('addNotes').value
     };
+    await trySaveNutrition(payload, false);
+  }
+
+  async function trySaveNutrition(payload, override) {
     try {
-      const r = await fetch('/client-portal/nutrition', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-      if (r.ok) location.reload(); else alert('Error saving entry.');
+      const r = await fetch('/client-portal/nutrition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, override })
+      });
+      if (r.ok) {
+        location.reload();
+        return;
+      }
+      if (r.status === 409) {
+        // Existing entry on that date — keep the form data and ask the user.
+        pendingAddData = payload;
+        const d = new Date(payload.date + 'T00:00:00');
+        document.getElementById('conflictDateText').textContent =
+          d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        closeModal('addModal');
+        openModal('conflictModal');
+        return;
+      }
+      alert('Error saving entry.');
     } catch { alert('Error saving entry.'); }
+  }
+
+  function closeConflictModal() {
+    // Cancel: reopen the add form with everything the user already typed, untouched.
+    document.getElementById('conflictModal').classList.remove('open');
+    if (pendingAddData) {
+      document.getElementById('addDate').value     = pendingAddData.date;
+      document.getElementById('addDiet').value     = pendingAddData.diet || '';
+      document.getElementById('addCalories').value = pendingAddData.estimated_calories ?? '';
+      document.getElementById('addProtein').value  = pendingAddData.estimated_protein ?? '';
+      document.getElementById('addSodium').value   = pendingAddData.estimated_sodium ?? '';
+      document.getElementById('addSatFat').value   = pendingAddData.estimated_saturated_fat ?? '';
+      document.getElementById('addNotes').value    = pendingAddData.notes || '';
+      openModal('addModal');
+    }
+  }
+
+  async function confirmOverride() {
+    document.getElementById('conflictModal').classList.remove('open');
+    if (pendingAddData) await trySaveNutrition(pendingAddData, true);
+    pendingAddData = null;
   }
 
   function openEditFromData(btn) {

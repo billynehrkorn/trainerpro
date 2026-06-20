@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Workout Templates - TrainerPro{% endblock %}
+{% block title %}{{ client.name }} — Templates - TrainerPro{% endblock %}
 
 {% block content %}
 <style>
@@ -274,31 +274,38 @@
   html.dark .client-name { color:#F1F5F9; }
   html.dark .client-avatar-ph { background:#0F172A; border-color:#334155; }
   html.dark .tmpl-count-badge { background:#0F172A; color:#CBD5E1; }
+
+  .template-accent-client { background:#7C3AED; }
 </style>
 
-<div class="page-wrap">
-
-  <!-- ── Header ── -->
-  <div class="page-header">
-    <div>
-      <div class="page-title">Workout Templates</div>
-      <div class="page-subtitle">Create reusable templates to quickly log workouts</div>
+<div class="clients-page" style="max-width:960px;margin:0 auto;padding:1.5rem 1rem 3rem;">
+  <!-- Header -->
+  <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;gap:0.85rem;">
+      <a href="{{ url_for('workout_templates') }}" class="back-btn" title="Back to templates"
+         style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;border:1.5px solid var(--slate-200);background:white;color:var(--slate-600);text-decoration:none;flex-shrink:0;">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <div>
+        <div class="page-label" style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--slate-400);margin-bottom:0.15rem;">Client Templates</div>
+        <h1 class="page-title" style="font-size:1.6rem;font-weight:700;color:var(--navy);line-height:1.2;">{{ client.name }}</h1>
+      </div>
     </div>
     <button onclick="openCreateTemplateModal()" class="btn btn-primary">
       <i class="fas fa-plus"></i> Create Template
     </button>
   </div>
 
-  <!-- ── Universal Templates ── -->
   <div class="section-heading">
-    <span class="section-heading-title"><i class="fas fa-globe"></i> Universal Templates</span>
-    <span class="section-heading-sub">Available when logging for any client</span>
+    <span class="section-heading-title"><i class="fas fa-user-tag"></i> Templates for {{ client.name }}</span>
+    <span class="section-heading-sub">Only shown when logging a workout for this client</span>
   </div>
-  {% if universal_templates %}
+
+  {% if templates %}
   <div class="templates-grid">
-    {% for template in universal_templates %}
+    {% for template in templates %}
     <div class="template-card">
-      <div class="template-accent"></div>
+      <div class="template-accent template-accent-client"></div>
       <div class="template-body">
         <div class="template-card-header">
           <div class="template-name">{{ template.name }}</div>
@@ -320,50 +327,16 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="section-empty">No universal templates yet. Create one and leave it set to "Universal".</div>
-  {% endif %}
-
-  <!-- ── Client-Specific Templates ── -->
-  <div class="section-heading" style="margin-top:2rem;">
-    <span class="section-heading-title"><i class="fas fa-user-tag"></i> Client-Specific Templates</span>
-    <span class="section-heading-sub">Pick a client to manage their own templates</span>
+  <div class="empty-state">
+    <i class="fas fa-puzzle-piece"></i>
+    <h3>No templates for {{ client.name }} yet</h3>
+    <p>Create a template that only appears when logging workouts for this client.</p>
+    <button onclick="openCreateTemplateModal()" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Create First Template
+    </button>
   </div>
-  {% if clients %}
-  <div class="client-grid">
-    {% for client in clients %}
-    <div class="client-card" onclick="window.location.href='{{ url_for('specific_workout_templates', client_id=client.id) }}'">
-      <span class="card-accent
-        {% if client.status == 'active' %}accent-active
-        {% elif client.status == 'potential' %}accent-potential
-        {% else %}accent-cancelled{% endif %}"></span>
-      <div class="card-body">
-        <div class="card-top">
-          {% if client.photo_url %}
-            <img src="{{ url_for('static', filename=client.photo_url) }}" alt="{{ client.name }}" class="client-avatar">
-          {% else %}
-            <div class="client-avatar-ph"><i class="fas fa-user"></i></div>
-          {% endif %}
-          <div style="flex:1; min-width:0;">
-            <h3 class="client-name">{{ client.name }}</h3>
-          </div>
-        </div>
-        <div class="card-foot">
-          <span class="tmpl-count-badge">
-            <i class="fas fa-layer-group"></i>
-            {{ client.template_count }} template{{ 's' if client.template_count != 1 else '' }}
-          </span>
-          <i class="fas fa-chevron-right" style="color:var(--slate-200);font-size:0.75rem;"></i>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="section-empty">No clients yet. Add a client to create templates just for them.</div>
   {% endif %}
-
 </div>
-
 
 <!-- ════════════ CREATE TEMPLATE MODAL ════════════ -->
 <div id="createTemplateModal" class="modal-backdrop">
@@ -378,14 +351,11 @@
           <label class="form-label">Template Name</label>
           <input type="text" id="templateName" required class="form-input" placeholder="e.g., Chest Day, Leg Workout">
         </div>
-        <div class="form-group">
-          <label class="form-label">Assign To</label>
-          <select id="templateClient" class="form-input">
-            <option value="">Universal (any client)</option>
-            {% for c in clients %}
-            <option value="{{ c.id }}">{{ c.name }}</option>
-            {% endfor %}
-          </select>
+        <div class="form-group" style="margin-bottom:0.5rem;">
+          <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--slate-600);background:#F3E8FF;border:1.5px solid #E9D5FF;border-radius:8px;padding:0.5rem 0.75rem;">
+            <i class="fas fa-user-tag" style="color:#7C3AED;"></i>
+            This template will be saved for <strong style="color:var(--navy);margin-left:0.2rem;">{{ client.name }}</strong>
+          </div>
         </div>
 
         <!-- Import from AI -->
@@ -519,15 +489,6 @@ Notes: Weight TBD</pre>
           <label class="form-label">Template Name</label>
           <input type="text" id="editTemplateName" required class="form-input" placeholder="e.g., Chest Day, Leg Workout">
         </div>
-        <div class="form-group">
-          <label class="form-label">Assign To</label>
-          <select id="editTemplateClient" class="form-input">
-            <option value="">Universal (any client)</option>
-            {% for c in clients %}
-            <option value="{{ c.id }}">{{ c.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
         <div id="editTemplateExercisesList"></div>
         <button type="button" onclick="addEditTemplateExercise()" class="add-exercise-btn">
           <i class="fas fa-plus"></i> Add Exercise
@@ -557,7 +518,6 @@ let editTemplateExerciseCount = 0;
 // ── Create modal ──
 function openCreateTemplateModal() {
   document.getElementById('templateName').value = '';
-  const tc = document.getElementById('templateClient'); if (tc) tc.value = '';
   document.getElementById('templateExercisesList').innerHTML = '';
   templateExerciseCount = 0;
   addTemplateExercise();
@@ -729,7 +689,7 @@ async function createTemplate(event) {
     const r = await fetch('/api/templates', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: document.getElementById('templateName').value, client_id: (document.getElementById('templateClient')||{}).value || null, exercises: collectExercises('templateExercisesList') })
+      body: JSON.stringify({ name: document.getElementById('templateName').value, client_id: FIXED_CLIENT_ID, exercises: collectExercises('templateExercisesList') })
     });
     if (r.ok) { closeModal('createTemplateModal'); location.reload(); }
     else alert('Error creating template');
@@ -766,7 +726,6 @@ async function editTemplate(templateId) {
     const template = await r.json();
     document.getElementById('editTemplateId').value   = template.id;
     document.getElementById('editTemplateName').value = template.name;
-    const etc = document.getElementById('editTemplateClient'); if (etc) etc.value = template.client_id || '';
     document.getElementById('editTemplateExercisesList').innerHTML = '';
     editTemplateExerciseCount = 0;
     template.exercises.forEach(ex => addEditTemplateExercise(ex));
@@ -782,7 +741,7 @@ async function updateTemplate(event) {
     const r = await fetch(`/api/templates/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: document.getElementById('editTemplateName').value, client_id: (document.getElementById('editTemplateClient')||{}).value || null, exercises: collectExercises('editTemplateExercisesList') })
+      body: JSON.stringify({ name: document.getElementById('editTemplateName').value, client_id: FIXED_CLIENT_ID, exercises: collectExercises('editTemplateExercisesList') })
     });
     if (r.ok) { closeModal('editTemplateModal'); location.reload(); }
     else alert('Error updating template');
@@ -910,5 +869,9 @@ function applyTemplateAIImport() {
   closeTemplateAIImportModal();
   alert(`Imported ${parsedTemplateAIExercises.length} exercise(s)!`);
 }
+
+// This page is scoped to one client: every created/updated template belongs to them.
+window.FIXED_CLIENT_ID = "{{ client.id }}";
 </script>
+
 {% endblock %}

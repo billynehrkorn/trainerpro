@@ -98,6 +98,10 @@
   .modal-btn-secondary:hover { background: var(--slate-200); }
   .modal-btn-danger { background: #EF4444; color: white; }
   .modal-btn-danger:hover { background: #DC2626; }
+  .conflict-text { font-size:0.875rem; color:var(--slate-600); line-height:1.5; margin:0 0 1.25rem; }
+  .conflict-date { color:var(--navy); }
+  html.dark .conflict-text { color:#F1F5F9; }
+  html.dark .conflict-date { color:#F1F5F9; }
   .modal-text { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
 
   /* ── Dark mode ── */
@@ -218,6 +222,26 @@
         <button type="button" onclick="closeWeightModal()" class="modal-btn modal-btn-secondary">Cancel</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Conflict Warning Modal -->
+<div id="conflictModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-triangle-exclamation" style="color:#D97706;margin-right:0.4rem;"></i>Entry Already Exists</span>
+      <button onclick="closeConflictModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:1.5rem;">
+      <p class="conflict-text">
+        This client already has a weight entry on <strong id="conflictDateText" class="conflict-date"></strong>.
+        Do you want to override it with the new entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0">
+        <button type="button" class="modal-btn modal-btn-danger" onclick="confirmOverrideWeight()">Override</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeConflictModal()">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -350,13 +374,56 @@ function changeView(view) {
 
 document.addEventListener('DOMContentLoaded', () => { formatDates(); initializeChart(); });
 
+let pendingWeightData = null;
+
 document.getElementById('weightForm').addEventListener('submit', async e => {
   e.preventDefault();
-  try {
-    const r = await fetch('/api/weight-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: '{{ client.id }}', date: document.getElementById('weightDate').value, weight: parseFloat(document.getElementById('weightValue').value), notes: document.getElementById('weightNotes').value }) });
-    if (r.ok) { closeWeightModal(); location.reload(); } else alert('Error logging weight.');
-  } catch { alert('Error logging weight.'); }
+  const payload = {
+    client_id: '{{ client.id }}',
+    date: document.getElementById('weightDate').value,
+    weight: parseFloat(document.getElementById('weightValue').value),
+    notes: document.getElementById('weightNotes').value
+  };
+  await trySaveWeight(payload, false);
 });
+
+async function trySaveWeight(payload, override) {
+  try {
+    const r = await fetch('/api/weight-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, override })
+    });
+    if (r.ok) { closeWeightModal(); location.reload(); return; }
+    if (r.status === 409) {
+      pendingWeightData = payload;
+      const d = new Date(payload.date + 'T00:00:00');
+      document.getElementById('conflictDateText').textContent =
+        d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      document.getElementById('weightModal').classList.remove('open');
+      document.getElementById('conflictModal').classList.add('open');
+      return;
+    }
+    alert('Error logging weight.');
+  } catch { alert('Error logging weight.'); }
+}
+
+function closeConflictModal() {
+  // Cancel: reopen the add form with what the user already typed, untouched.
+  document.getElementById('conflictModal').classList.remove('open');
+  if (pendingWeightData) {
+    document.getElementById('weightDate').value  = pendingWeightData.date;
+    document.getElementById('weightValue').value = pendingWeightData.weight;
+    document.getElementById('weightNotes').value = pendingWeightData.notes;
+    document.getElementById('weightModal').classList.add('open');
+  }
+}
+
+async function confirmOverrideWeight() {
+  document.getElementById('conflictModal').classList.remove('open');
+  if (pendingWeightData) await trySaveWeight(pendingWeightData, true);
+  pendingWeightData = null;
+}
 
 document.getElementById('editWeightForm').addEventListener('submit', async e => {
   e.preventDefault();

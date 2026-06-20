@@ -221,6 +221,10 @@
   .modal-btn-secondary:hover { background: var(--slate-200); }
   .modal-btn-danger { background: #EF4444; color: white; }
   .modal-btn-danger:hover { background: #DC2626; }
+  .conflict-text { font-size:0.875rem; color:var(--slate-600); line-height:1.5; margin:0 0 1.25rem; }
+  .conflict-date { color:var(--navy); }
+  html.dark .conflict-text { color:#F1F5F9; }
+  html.dark .conflict-date { color:#F1F5F9; }
   .modal-text { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
 
   @media (max-width: 680px) {
@@ -340,6 +344,26 @@
         <button type="button" onclick="closeSleepModal()" class="modal-btn modal-btn-secondary">Cancel</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ── Conflict Warning Modal ── -->
+<div id="conflictModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-triangle-exclamation" style="color:#D97706;margin-right:0.4rem;"></i>Entry Already Exists</div>
+      <button onclick="closeConflictModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:1.5rem;">
+      <p class="conflict-text">
+        This client already has a sleep entry on <strong id="conflictDateText" class="conflict-date"></strong>.
+        Do you want to override it with the new entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0">
+        <button type="button" class="modal-btn modal-btn-danger" onclick="confirmOverrideSleep()">Override</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeConflictModal()">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -628,30 +652,62 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeChart();
 });
 
+let pendingSleepData = null;
+
 document.getElementById('sleepForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const formData = {
+    const payload = {
         client_id: '{{ client.id }}',
         date: document.getElementById('sleepDate').value,
         hours: parseFloat(document.getElementById('sleepHours').value),
         notes: document.getElementById('sleepNotes').value
     };
+    await trySaveSleep(payload, false);
+});
+
+async function trySaveSleep(payload, override) {
     try {
         const response = await fetch('/api/sleep-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
+            body: JSON.stringify({ ...payload, override })
         });
         if (response.ok) {
             closeSleepModal();
             location.reload();
-        } else {
-            alert('Error logging sleep. Please try again.');
+            return;
         }
+        if (response.status === 409) {
+            pendingSleepData = payload;
+            const d = new Date(payload.date + 'T00:00:00');
+            document.getElementById('conflictDateText').textContent =
+                d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            closeModal('sleepModal');
+            openModal('conflictModal');
+            return;
+        }
+        alert('Error logging sleep. Please try again.');
     } catch (error) {
         alert('Error logging sleep. Please try again.');
     }
-});
+}
+
+function closeConflictModal() {
+    // Cancel: reopen the add form with what the user already typed, untouched.
+    closeModal('conflictModal');
+    if (pendingSleepData) {
+        document.getElementById('sleepDate').value  = pendingSleepData.date;
+        document.getElementById('sleepHours').value = pendingSleepData.hours;
+        document.getElementById('sleepNotes').value = pendingSleepData.notes;
+        openModal('sleepModal');
+    }
+}
+
+async function confirmOverrideSleep() {
+    closeModal('conflictModal');
+    if (pendingSleepData) await trySaveSleep(pendingSleepData, true);
+    pendingSleepData = null;
+}
 
 document.getElementById('editSleepForm').addEventListener('submit', async function(e) {
     e.preventDefault();

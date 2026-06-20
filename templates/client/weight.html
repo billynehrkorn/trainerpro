@@ -8,7 +8,7 @@
     --navy:#0F172A; --slate-600:#475569; --slate-400:#94A3B8;
     --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC;
     --purple:#7C3AED; --purple-hover:#6D28D9; --purple-light:#F3E8FF;
-    --blue:#2563EB; --red:#EF4444; --red-light:#FEE2E2;
+    --blue:#2563EB; --red:#EF4444; --red-light:#FEE2E2; --amber:#D97706;
     --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
   }
   * { box-sizing:border-box; }
@@ -66,6 +66,18 @@
   .form-input:focus, .form-textarea:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
   .readonly-notice { display:flex; align-items:center; gap:0.6rem; background:var(--purple-light); border:1.5px solid #DDD6FE; border-radius:8px; padding:0.65rem 1rem; font-size:0.8rem; color:var(--purple); margin-bottom:1.5rem; }
   html.dark .readonly-notice { background:rgba(124,58,237,0.15); border-color:rgba(124,58,237,0.3); color:#C4B5FD; }
+
+  /* ── Conflict modal text ── */
+  .conflict-text { font-size:0.875rem; color:var(--slate-600); line-height:1.5; margin:0 0 1.25rem; }
+  .conflict-date { color:var(--navy); }
+  html.dark .conflict-text { color:#F1F5F9; }
+  html.dark .conflict-date { color:#F1F5F9; }
+  html.dark .modal-box    { background:#1E293B; }
+  html.dark .modal-title  { color:#F1F5F9; }
+  html.dark .modal-header { border-color:#334155; }
+  html.dark .modal-close  { color:#64748B; }
+  html.dark .modal-close:hover { color:#F1F5F9; }
+  html.dark .modal-btn-secondary { background:#0F172A; color:#CBD5E1; border-color:#334155; }
   @media (max-width:500px) { .page-wrap{padding:1rem;} .page-header{flex-direction:column;align-items:flex-start;} .modal-backdrop{padding:0;align-items:flex-end;} .modal-box{border-radius:14px 14px 0 0;} }
 </style>
 {% endblock %}
@@ -164,6 +176,26 @@
   </div>
 </div>
 
+<!-- Conflict Warning Modal -->
+<div id="conflictModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-triangle-exclamation" style="color:var(--amber);margin-right:0.4rem;"></i>Entry Already Exists</span>
+      <button class="modal-close" onclick="closeConflictModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="conflict-text">
+        You already have a weight entry on <strong id="conflictDateText" class="conflict-date"></strong>.
+        Do you want to override it with your new entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0">
+        <button class="modal-btn modal-btn-danger" onclick="confirmOverride()">Override</button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeConflictModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Edit Modal -->
 <div id="editModal" class="modal-backdrop">
   <div class="modal-box">
@@ -232,14 +264,56 @@ function localToday() {
     document.getElementById('addNotes').value  = '';
     openModal('addModal');
   }
+  let pendingAddData = null;
+
   async function submitAdd() {
     const weight = parseFloat(document.getElementById('addWeight').value);
     const date   = document.getElementById('addDate').value;
     if (!date || isNaN(weight)) { alert('Please enter a date and weight.'); return; }
+    const notes = document.getElementById('addNotes').value;
+    await trySaveWeight({ date, weight, notes }, false);
+  }
+
+  async function trySaveWeight(payload, override) {
     try {
-      const r = await fetch('/client-portal/weight', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({date,weight,notes:document.getElementById('addNotes').value}) });
-      if (r.ok) location.reload(); else alert('Error saving entry.');
+      const r = await fetch('/client-portal/weight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, override })
+      });
+      if (r.ok) {
+        location.reload();
+        return;
+      }
+      if (r.status === 409) {
+        // Existing entry on that date — keep the form data and ask the user.
+        pendingAddData = payload;
+        const d = new Date(payload.date + 'T00:00:00');
+        document.getElementById('conflictDateText').textContent =
+          d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        closeModal('addModal');
+        openModal('conflictModal');
+        return;
+      }
+      alert('Error saving entry.');
     } catch { alert('Error saving entry.'); }
+  }
+
+  function closeConflictModal() {
+    // Cancel: reopen the add form with the entry the user already typed, untouched.
+    document.getElementById('conflictModal').classList.remove('open');
+    if (pendingAddData) {
+      document.getElementById('addDate').value   = pendingAddData.date;
+      document.getElementById('addWeight').value = pendingAddData.weight;
+      document.getElementById('addNotes').value  = pendingAddData.notes;
+      openModal('addModal');
+    }
+  }
+
+  async function confirmOverride() {
+    document.getElementById('conflictModal').classList.remove('open');
+    if (pendingAddData) await trySaveWeight(pendingAddData, true);
+    pendingAddData = null;
   }
   function openEditModal(id, date, weight, notes) {
     document.getElementById('editId').value     = id;
