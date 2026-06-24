@@ -548,9 +548,9 @@ def register_client_routes(app):
         conn = get_db()
         client = conn.execute('SELECT * FROM clients WHERE id = ?', (client_id,)).fetchone()
         workouts = conn.execute('''
-            SELECT workout_date, COUNT(*) as exercise_count
+            SELECT workout_date, workout_type, COUNT(*) as exercise_count
             FROM workout_logs WHERE client_id = ?
-            GROUP BY workout_date ORDER BY workout_date DESC
+            GROUP BY workout_date, workout_type ORDER BY workout_date DESC, workout_type
         ''', (client_id,)).fetchall()
         acct = conn.execute(
             'SELECT perm_workouts FROM client_accounts WHERE client_id = ?', (client_id,)
@@ -564,12 +564,23 @@ def register_client_routes(app):
     def client_portal_workout_detail(date):
         client_id = session['client_id']
         conn = get_db()
-        exercises = conn.execute('''
-            SELECT id, exercise_name, sets_data, notes, tags
-            FROM workout_logs
-            WHERE client_id = ? AND workout_date = ?
-            ORDER BY created_at
-        ''', (client_id, date)).fetchall()
+        # Optional ?type=weightlifting|cardio — omitted means "all types for
+        # this date" (kept for backward compatibility with any older caller).
+        workout_type = request.args.get('type')
+        if workout_type in ('weightlifting', 'cardio'):
+            exercises = conn.execute('''
+                SELECT id, exercise_name, sets_data, notes, tags, workout_type
+                FROM workout_logs
+                WHERE client_id = ? AND workout_date = ? AND workout_type = ?
+                ORDER BY created_at
+            ''', (client_id, date, workout_type)).fetchall()
+        else:
+            exercises = conn.execute('''
+                SELECT id, exercise_name, sets_data, notes, tags, workout_type
+                FROM workout_logs
+                WHERE client_id = ? AND workout_date = ?
+                ORDER BY created_at
+            ''', (client_id, date)).fetchall()
         conn.close()
 
         result = []
@@ -580,7 +591,8 @@ def register_client_routes(app):
                 'exercise_name': ex['exercise_name'],
                 'notes': ex['notes'],
                 'sets_data': sets_data,
-                'tags': ex['tags'] or ''
+                'tags': ex['tags'] or '',
+                'workout_type': ex['workout_type'] if 'workout_type' in ex.keys() else 'weightlifting'
             })
         return jsonify(result)
 
@@ -601,28 +613,52 @@ def register_client_routes(app):
             exercises    = data.get('exercises', [])
             workout_tags = data.get('tags', '')
             override     = data.get('override', False)
+            workout_type = data.get('workout_type', 'weightlifting')
+            if workout_type not in ('weightlifting', 'cardio'):
+                workout_type = 'weightlifting'
             if not workout_date or not exercises:
                 conn.close()
                 return jsonify({'error': 'Missing date or exercises'}), 400
+
+            # Cardio workouts always carry a "Cardio" tag that can't be
+            # removed from the form — enforced here regardless of what was
+            # submitted, so the only way to get rid of it is deleting the
+            # whole workout.
+            if workout_type == 'cardio':
+                tag_list = [t.strip() for t in workout_tags.split(',') if t.strip()]
+                if 'Cardio' not in tag_list:
+                    tag_list.append('Cardio')
+                workout_tags = ','.join(tag_list)
+
             if not override:
                 existing = conn.execute(
-                    'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
-                    (client_id, workout_date)
+                    'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? AND workout_type = ? LIMIT 1',
+                    (client_id, workout_date, workout_type)
                 ).fetchone()
                 if existing:
                     conn.close()
                     return jsonify({'conflict': True}), 409
             for ex in exercises:
-                sets = ex.get('sets', []) or [{'weight': None, 'reps': None}]
-                total_sets = len(sets)
-                avg_weight = (sum(s['weight'] for s in sets if s.get('weight')) / len([s for s in sets if s.get('weight')])) if any(s.get('weight') for s in sets) else None
-                avg_reps   = (sum(s['reps'] for s in sets if s.get('reps')) // len([s for s in sets if s.get('reps')])) if any(s.get('reps') for s in sets) else None
-                conn.execute('''
-                    INSERT INTO workout_logs
-                    (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (str(uuid.uuid4()), client_id, trainer_id, ex['name'], total_sets, avg_reps, avg_weight,
-                      ex.get('notes', ''), workout_date, json.dumps(sets), workout_tags, datetime.now()))
+                if workout_type == 'cardio':
+                    sets = ex.get('sets', []) or [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                    total_sets = len(sets)
+                    conn.execute('''
+                        INSERT INTO workout_logs
+                        (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (str(uuid.uuid4()), client_id, trainer_id, ex['name'], total_sets, None, None,
+                          ex.get('notes', ''), workout_date, json.dumps(sets), workout_tags, workout_type, datetime.now()))
+                else:
+                    sets = ex.get('sets', []) or [{'weight': None, 'reps': None}]
+                    total_sets = len(sets)
+                    avg_weight = (sum(s['weight'] for s in sets if s.get('weight')) / len([s for s in sets if s.get('weight')])) if any(s.get('weight') for s in sets) else None
+                    avg_reps   = (sum(s['reps'] for s in sets if s.get('reps')) // len([s for s in sets if s.get('reps')])) if any(s.get('reps') for s in sets) else None
+                    conn.execute('''
+                        INSERT INTO workout_logs
+                        (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (str(uuid.uuid4()), client_id, trainer_id, ex['name'], total_sets, avg_reps, avg_weight,
+                          ex.get('notes', ''), workout_date, json.dumps(sets), workout_tags, workout_type, datetime.now()))
             log_activity(conn, client_id, 'workout', 'created', workout_date)
             conn.commit()
             conn.close()
@@ -648,18 +684,41 @@ def register_client_routes(app):
             new_date  = data.get('date', date)
             exercises = data.get('exercises', [])
             workout_tags = data.get('tags', '')
-            conn.execute('DELETE FROM workout_logs WHERE client_id = ? AND workout_date = ?', (client_id, date))
+            workout_type = data.get('workout_type', 'weightlifting')
+            if workout_type not in ('weightlifting', 'cardio'):
+                workout_type = 'weightlifting'
+
+            if workout_type == 'cardio':
+                tag_list = [t.strip() for t in workout_tags.split(',') if t.strip()]
+                if 'Cardio' not in tag_list:
+                    tag_list.append('Cardio')
+                workout_tags = ','.join(tag_list)
+
+            # Delete only this workout's own (date, type) pair — a
+            # weightlifting and a cardio workout on the same date are
+            # independent and must not affect each other when one is edited.
+            conn.execute('DELETE FROM workout_logs WHERE client_id = ? AND workout_date = ? AND workout_type = ?', (client_id, date, workout_type))
             for ex in exercises:
-                sets = ex.get('sets', []) or [{'weight': None, 'reps': None}]
-                total_sets = len(sets)
-                avg_weight = (sum(s['weight'] for s in sets if s.get('weight')) / len([s for s in sets if s.get('weight')])) if any(s.get('weight') for s in sets) else None
-                avg_reps   = (sum(s['reps'] for s in sets if s.get('reps')) // len([s for s in sets if s.get('reps')])) if any(s.get('reps') for s in sets) else None
-                conn.execute('''
-                    INSERT INTO workout_logs
-                    (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (str(uuid.uuid4()), client_id, trainer_id, ex['name'], total_sets, avg_reps, avg_weight,
-                      ex.get('notes', ''), new_date, json.dumps(sets), workout_tags, datetime.now()))
+                if workout_type == 'cardio':
+                    sets = ex.get('sets', []) or [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                    total_sets = len(sets)
+                    conn.execute('''
+                        INSERT INTO workout_logs
+                        (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (str(uuid.uuid4()), client_id, trainer_id, ex['name'], total_sets, None, None,
+                          ex.get('notes', ''), new_date, json.dumps(sets), workout_tags, workout_type, datetime.now()))
+                else:
+                    sets = ex.get('sets', []) or [{'weight': None, 'reps': None}]
+                    total_sets = len(sets)
+                    avg_weight = (sum(s['weight'] for s in sets if s.get('weight')) / len([s for s in sets if s.get('weight')])) if any(s.get('weight') for s in sets) else None
+                    avg_reps   = (sum(s['reps'] for s in sets if s.get('reps')) // len([s for s in sets if s.get('reps')])) if any(s.get('reps') for s in sets) else None
+                    conn.execute('''
+                        INSERT INTO workout_logs
+                        (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (str(uuid.uuid4()), client_id, trainer_id, ex['name'], total_sets, avg_reps, avg_weight,
+                          ex.get('notes', ''), new_date, json.dumps(sets), workout_tags, workout_type, datetime.now()))
             log_activity(conn, client_id, 'workout', 'updated', new_date)
             conn.commit()
             conn.close()
@@ -679,7 +738,14 @@ def register_client_routes(app):
             if not acct or not acct['perm_workouts']:
                 conn.close()
                 return jsonify({'error': 'Permission denied'}), 403
-            conn.execute('DELETE FROM workout_logs WHERE client_id = ? AND workout_date = ?', (client_id, date))
+            # workout_type is required so deleting one workout (e.g. cardio)
+            # on a date can never also wipe out a different workout type
+            # logged the same day. Falls back to 'weightlifting' only for
+            # any pre-existing caller that predates this parameter.
+            workout_type = request.args.get('type', 'weightlifting')
+            if workout_type not in ('weightlifting', 'cardio'):
+                workout_type = 'weightlifting'
+            conn.execute('DELETE FROM workout_logs WHERE client_id = ? AND workout_date = ? AND workout_type = ?', (client_id, date, workout_type))
             log_activity(conn, client_id, 'workout', 'deleted', date)
             conn.commit()
             conn.close()
@@ -709,43 +775,56 @@ def register_client_routes(app):
             original_date = data.get('original_date')
             new_date = data.get('new_date')
             override = data.get('override', False)
+            workout_type = data.get('workout_type', 'weightlifting')
+            if workout_type not in ('weightlifting', 'cardio'):
+                workout_type = 'weightlifting'
             if not original_date or not new_date:
                 conn.close()
                 return jsonify({'error': 'Missing date parameters'}), 400
 
             if not override:
                 existing = conn.execute(
-                    'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
-                    (client_id, new_date)
+                    'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? AND workout_type = ? LIMIT 1',
+                    (client_id, new_date, workout_type)
                 ).fetchone()
                 if existing:
                     conn.close()
                     return jsonify({'conflict': True}), 409
 
+            # Same type only — a cardio "duplicate" button only ever
+            # duplicates the cardio entry for that date, never an unrelated
+            # weightlifting entry logged the same day.
             exercises = conn.execute('''
                 SELECT exercise_name, sets_data, notes, tags
                 FROM workout_logs
-                WHERE client_id = ? AND workout_date = ?
+                WHERE client_id = ? AND workout_date = ? AND workout_type = ?
                 ORDER BY created_at
-            ''', (client_id, original_date)).fetchall()
+            ''', (client_id, original_date, workout_type)).fetchall()
 
             if not exercises:
                 conn.close()
                 return jsonify({'error': 'No workout found for that date'}), 404
 
+            default_sets = ([{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                             if workout_type == 'cardio' else [{'weight': None, 'reps': None}])
             for exercise in exercises:
                 sets_data = exercise['sets_data']
-                exercise_sets = json.loads(sets_data) if sets_data else [{'weight': None, 'reps': None}]
+                exercise_sets = json.loads(sets_data) if sets_data else default_sets
                 total_sets = len(exercise_sets)
-                avg_reps = sum(s['reps'] for s in exercise_sets if s['reps']) // len(
-                    [s for s in exercise_sets if s['reps']]) if any(s['reps'] for s in exercise_sets) else None
-                avg_weight = sum(s['weight'] for s in exercise_sets if s['weight']) / len(
-                    [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
+                if workout_type == 'cardio':
+                    avg_reps = None
+                    avg_weight = None
+                else:
+                    avg_reps = sum(s['reps'] for s in exercise_sets if s.get('reps')) // len(
+                        [s for s in exercise_sets if s.get('reps')]) if any(s.get('reps') for s in exercise_sets) else None
+                    avg_weight = sum(s['weight'] for s in exercise_sets if s.get('weight')) / len(
+                        [s for s in exercise_sets if s.get('weight')]) if any(s.get('weight') for s in exercise_sets) else None
                 conn.execute('''
-                    INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (str(uuid.uuid4()), client_id, trainer_id, exercise['exercise_name'],
-                      total_sets, avg_reps, avg_weight, exercise['notes'], new_date, sets_data, exercise['tags'], datetime.now()))
+                      total_sets, avg_reps, avg_weight, exercise['notes'], new_date, sets_data, exercise['tags'],
+                      workout_type, datetime.now()))
 
             log_activity(conn, client_id, 'workout', 'duplicated', new_date)
             conn.commit()

@@ -214,7 +214,7 @@
     padding: 0.8rem 1rem; border-radius: 9px; border: none; cursor: pointer;
     font-size: 0.85rem; font-weight: 600; color: white;
     transition: filter 0.15s, transform 0.1s;
-    text-align: left;
+    text-align: left; white-space: nowrap;
   }
   .action-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
   .action-btn:active { transform: translateY(0); }
@@ -228,6 +228,8 @@
   .action-btn.weight   { background: linear-gradient(135deg, #7C3AED, #6D28D9); }
   .action-btn.nutrition{ background: linear-gradient(135deg, #059669, #047857); }
   .action-btn.sleep    { background: linear-gradient(135deg, #4F46E5, #4338CA); }
+  .action-btn.photos       { background: linear-gradient(135deg, #EA580C, #C2410C); }
+  .action-btn.measurements { background: linear-gradient(135deg, #0D9488, #0F766E); }
 
   /* ── Empty States ── */
   .empty-state {
@@ -633,6 +635,14 @@
                   onclick="window.location.href='{{ url_for('client_sleep_logs', client_id=client.id) }}'">
             <span class="btn-icon"><i class="fas fa-moon"></i></span>
             <span>Sleep</span>
+          </button>
+          <button class="action-btn photos" onclick="alert('Photo progress is coming soon.')">
+            <span class="btn-icon"><i class="fas fa-camera"></i></span>
+            <span>Photo Progress</span>
+          </button>
+          <button class="action-btn measurements" onclick="alert('Body measurements is coming soon.')">
+            <span class="btn-icon"><i class="fas fa-ruler"></i></span>
+            <span>Measurements</span>
           </button>
         </div>
       </div>

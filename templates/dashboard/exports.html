@@ -172,14 +172,14 @@
   <!-- ── Export All Clients ── -->
   <div class="card">
     <div class="card-header">
-      <span class="card-title">All Client Info</span>
+      <span class="card-title">Client Directory</span>
     </div>
     <p class="card-desc">
-      Export a complete list of all clients with their profile information — Name, Email, Phone, Age, Gender, Weight, Height, and Status.
+      Export a complete list of all clients with their profile information — Name, Email, Phone, Age, Gender, Weight, Height, and Status. This does not include workout, weight, nutrition, or sleep logs — use Custom Export below for those.
     </p>
     <form method="POST" action="{{ url_for('export_all_clients') }}">
       <button type="submit" class="btn btn-emerald">
-        <i class="fas fa-file-excel"></i> Export All Clients
+        <i class="fas fa-file-excel"></i> Export Client Directory
       </button>
     </form>
   </div>
@@ -292,15 +292,16 @@
     });
   });
 
-  // Select all (only visible)
+  // Select all clients — every client, not just whatever the search box
+  // happens to be showing right now. Searching narrows what's *visible* so
+  // you can find someone, but Select All is a separate, explicit action
+  // that should always mean "every client", since that's what determines
+  // whether the export comes back as a single .xlsx or a zip.
   let allSelected = false;
   selectAllBtn.addEventListener('click', () => {
-    const visible = Array.from(clientCheckboxes).filter(
-      cb => cb.closest('.client-item').classList.contains('visible')
-    );
-    if (!visible.length) return;
+    if (!clientCheckboxes.length) return;
     allSelected = !allSelected;
-    visible.forEach(cb => cb.checked = allSelected);
+    clientCheckboxes.forEach(cb => cb.checked = allSelected);
     selectAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
     updateSelectedCount();
   });
@@ -317,16 +318,74 @@
         item.classList.toggle('visible', item.dataset.name.includes(term));
       });
     }
-    allSelected = false;
-    selectAllBtn.textContent = 'Select All';
+    // Searching doesn't change which clients are checked — only re-sync the
+    // Select All button's label to whatever the current selection state is.
+    allSelected = clientCheckboxes.length > 0 &&
+      Array.from(clientCheckboxes).every(cb => cb.checked);
+    selectAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
   });
 
-  clientCheckboxes.forEach(cb => cb.addEventListener('change', updateSelectedCount));
+  clientCheckboxes.forEach(cb => cb.addEventListener('change', () => {
+    updateSelectedCount();
+    allSelected = clientCheckboxes.length > 0 &&
+      Array.from(clientCheckboxes).every(c => c.checked);
+    selectAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
+  }));
 
-  // Loading state on submit
-  document.getElementById('exportForm').addEventListener('submit', () => {
+  // Submit via fetch instead of a native form POST. A plain form submit
+  // navigates to a file-attachment response, which the browser downloads
+  // without ever leaving or reloading this page — so the "Generating…"
+  // state set on submit had nothing to ever reset it back. Fetching the
+  // same endpoint lets us trigger the download ourselves and restore the
+  // button once the response actually arrives, whether it succeeds or not.
+  document.getElementById('exportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const originalLabel = exportBtn.innerHTML;
     exportBtn.disabled = true;
     exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+
+    try {
+      const form = e.target;
+      const response = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      // A validation failure on the backend (e.g. a selected client no
+      // longer exists) redirects back to this page with a flash message
+      // instead of returning a file — fetch follows that redirect
+      // transparently, so response.ok is still true. Checking the
+      // Content-Type catches that case before it gets treated as a
+      // downloadable file.
+      const contentType = response.headers.get('Content-Type') || '';
+      if (contentType.includes('text/html')) {
+        window.location.reload();
+        return;
+      }
+
+      // Pull the filename the server actually used out of Content-Disposition,
+      // falling back to a generic name only if that header is missing.
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : 'export.xlsx';
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Error generating export. Please try again.');
+    } finally {
+      exportBtn.disabled = false;
+      exportBtn.innerHTML = originalLabel;
+      updateSelectedCount();
+    }
   });
 
   updateSelectedCount();

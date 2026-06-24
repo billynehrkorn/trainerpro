@@ -47,8 +47,10 @@
 
   /* ── Templates grid ── */
   .templates-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
   }
+  @media (min-width: 768px)  { .templates-grid { grid-template-columns: repeat(3, 1fr); gap: 1rem; } }
+  @media (min-width: 1024px) { .templates-grid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; } }
 
   /* ── Template card ── */
   .template-card {
@@ -233,12 +235,8 @@
 
   @media (max-width: 700px) {
     .page-wrap { padding: 1rem; }
-    .templates-grid { grid-template-columns: 1fr; }
     .modal-backdrop { padding: 0; align-items: flex-end; }
     .modal-box { border-radius: 14px 14px 0 0; }
-  }
-  @media (min-width: 701px) and (max-width: 900px) {
-    .templates-grid { grid-template-columns: 1fr 1fr; }
   }
   /* ── Section headings ── */
   .section-heading { display:flex; align-items:baseline; gap:0.6rem; margin:0 0 0.85rem; flex-wrap:wrap; }

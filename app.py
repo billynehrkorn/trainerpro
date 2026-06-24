@@ -19,10 +19,26 @@ from auth_utils import login_required, client_login_required
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 16 * 1024  # 16MB max file size
+# 16 MB max upload size. Previously written as `16 * 16 * 1024`, which is
+# actually 256 KB (16*16*1024 = 262144 bytes) — any photo over a quarter of
+# a megabyte, which is nearly every phone photo, was getting rejected by
+# Flask before the upload route even ran, surfacing as a raw "413 Request
+# Entity Too Large" page rather than anything from this app's own code.
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+
+@app.errorhandler(413)
+def file_too_large(e):
+    """Flask's default 413 page is a bare, unstyled error with no context.
+    Send the person back to whatever form they were on with a clear
+    explanation instead — request.referrer is the page that submitted the
+    oversized upload, so this naturally returns to new.html, edit.html, or
+    wherever else a file is uploaded from."""
+    flash('That file is too large — please choose a photo under 16MB.')
+    return redirect(request.referrer or url_for('dashboard'))
 
 
 def init_template_client_column():
@@ -37,6 +53,47 @@ def init_template_client_column():
         conn.execute('ALTER TABLE workout_templates ADD COLUMN client_id TEXT')
         conn.commit()
         print('[templates] added client_id column to workout_templates')
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+
+def init_workout_type_column():
+    """Add a workout_type column to workout_logs if missing.
+
+    'weightlifting' or 'cardio'. Existing rows (logged before this column
+    existed) are backfilled to 'weightlifting' so they keep showing up
+    exactly where they did before. A weightlifting and a cardio workout
+    can now coexist on the same (client_id, workout_date) without
+    overriding or merging with each other — every query that used to key
+    on date alone now keys on (date, workout_type) too.
+    Idempotent; safe to run on every startup (also under WSGI).
+    """
+    conn = get_db()
+    try:
+        conn.execute("ALTER TABLE workout_logs ADD COLUMN workout_type TEXT NOT NULL DEFAULT 'weightlifting'")
+        conn.commit()
+        print('[workouts] added workout_type column to workout_logs')
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+
+def init_template_type_column():
+    """Add a workout_type column to workout_templates if missing.
+
+    Same idea as workout_logs' workout_type — existing templates are
+    weightlifting (sets are weight/reps), backfilled accordingly. Cardio
+    templates store distance/duration sets instead.
+    Idempotent; safe to run on every startup (also under WSGI).
+    """
+    conn = get_db()
+    try:
+        conn.execute("ALTER TABLE workout_templates ADD COLUMN workout_type TEXT NOT NULL DEFAULT 'weightlifting'")
+        conn.commit()
+        print('[templates] added workout_type column to workout_templates')
     except Exception:
         pass
     finally:
@@ -494,15 +551,27 @@ def client_workouts(client_id):
 
     if request.method == 'POST':
         workout_date = request.form['date']
+        workout_type = request.form.get('workout_type', 'weightlifting')
+        if workout_type not in ('weightlifting', 'cardio'):
+            workout_type = 'weightlifting'
         exercises = request.form.getlist('exercise_name[]')
         notes_list = request.form.getlist('exercise_notes[]')
         workout_tags = request.form.get('workout_tags', '')
         override = request.form.get('override', 'false') == 'true'
 
+        # Cardio workouts always carry a "Cardio" tag that can't be removed
+        # from the form — it's added here server-side regardless of what was
+        # submitted, so the only way to get rid of it is deleting the workout.
+        if workout_type == 'cardio':
+            tag_list = [t.strip() for t in workout_tags.split(',') if t.strip()]
+            if 'Cardio' not in tag_list:
+                tag_list.append('Cardio')
+            workout_tags = ','.join(tag_list)
+
         if not override:
             existing = conn.execute(
-                'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
-                (client_id, workout_date)
+                'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? AND workout_type = ? LIMIT 1',
+                (client_id, workout_date, workout_type)
             ).fetchone()
             if existing:
                 conn.close()
@@ -510,50 +579,81 @@ def client_workouts(client_id):
 
         for i, exercise in enumerate(exercises):
             if exercise.strip():  # Only save non-empty exercises
-                # Get sets for this specific exercise using the new field naming
-                exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
-                exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
+                if workout_type == 'cardio':
+                    distances = request.form.getlist(f'exercise_{i}_distance[]')
+                    distance_units = request.form.getlist(f'exercise_{i}_distance_unit[]')
+                    durations = request.form.getlist(f'exercise_{i}_duration[]')
+                    duration_units = request.form.getlist(f'exercise_{i}_duration_unit[]')
+                    set_notes = request.form.getlist(f'exercise_{i}_set_notes[]')
 
-                # Build sets data for this exercise
-                exercise_sets = []
-                for j in range(len(exercise_weights)):
-                    weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
-                    reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
+                    exercise_sets = []
+                    set_count = max(len(distances), len(durations), 1)
+                    for j in range(set_count):
+                        distance = distances[j] if j < len(distances) and distances[j] else None
+                        duration = durations[j] if j < len(durations) and durations[j] else None
+                        exercise_sets.append({
+                            'distance': float(distance) if distance else None,
+                            'distance_unit': distance_units[j] if j < len(distance_units) and distance_units[j] else None,
+                            'duration': float(duration) if duration else None,
+                            'duration_unit': duration_units[j] if j < len(duration_units) and duration_units[j] else None,
+                            'notes': set_notes[j] if j < len(set_notes) and set_notes[j] else None,
+                        })
+                    if not exercise_sets:
+                        exercise_sets = [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
 
-                    exercise_sets.append({
-                        'weight': float(weight) if weight else None,
-                        'reps': int(reps) if reps else None
-                    })
+                    total_sets = len(exercise_sets)
+                    conn.execute('''
+                        INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise.strip(),
+                          total_sets, None, None,
+                          notes_list[i] if i < len(notes_list) else '',
+                          workout_date, json.dumps(exercise_sets), workout_tags, workout_type, datetime.now()))
+                else:
+                    # Get sets for this specific exercise using the new field naming
+                    exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
+                    exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
 
-                # If no sets data, create a default set
-                if not exercise_sets:
-                    exercise_sets = [{'weight': None, 'reps': None}]
+                    # Build sets data for this exercise
+                    exercise_sets = []
+                    for j in range(len(exercise_weights)):
+                        weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
+                        reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
 
-                # Calculate totals for backward compatibility
-                total_sets = len(exercise_sets)
-                avg_reps = sum(s['reps'] for s in exercise_sets if s['reps']) // len(
-                    [s for s in exercise_sets if s['reps']]) if any(s['reps'] for s in exercise_sets) else None
-                avg_weight = sum(s['weight'] for s in exercise_sets if s['weight']) / len(
-                    [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
+                        exercise_sets.append({
+                            'weight': float(weight) if weight else None,
+                            'reps': int(reps) if reps else None
+                        })
 
-                conn.execute('''
-                    INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise.strip(),
-                      total_sets, avg_reps, avg_weight,
-                      notes_list[i] if i < len(notes_list) else '',
-                      workout_date, json.dumps(exercise_sets), workout_tags, datetime.now()))
+                    # If no sets data, create a default set
+                    if not exercise_sets:
+                        exercise_sets = [{'weight': None, 'reps': None}]
+
+                    # Calculate totals for backward compatibility
+                    total_sets = len(exercise_sets)
+                    avg_reps = sum(s['reps'] for s in exercise_sets if s['reps']) // len(
+                        [s for s in exercise_sets if s['reps']]) if any(s['reps'] for s in exercise_sets) else None
+                    avg_weight = sum(s['weight'] for s in exercise_sets if s['weight']) / len(
+                        [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
+
+                    conn.execute('''
+                        INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise.strip(),
+                          total_sets, avg_reps, avg_weight,
+                          notes_list[i] if i < len(notes_list) else '',
+                          workout_date, json.dumps(exercise_sets), workout_tags, workout_type, datetime.now()))
 
         conn.commit()
         conn.close()
         return jsonify({'success': True})
 
     workouts = conn.execute('''
-        SELECT workout_date, COUNT(*) as exercise_count
+        SELECT workout_date, workout_type, COUNT(*) as exercise_count
         FROM workout_logs
         WHERE client_id = ?
-        GROUP BY workout_date
-        ORDER BY workout_date DESC
+        GROUP BY workout_date, workout_type
+        ORDER BY workout_date DESC, workout_type
     ''', (client_id,)).fetchall()
 
     conn.close()
@@ -943,12 +1043,24 @@ def workout_detail(client_id, date):
         flash('Client not found')
         return redirect(url_for('clients'))
 
-    exercises = conn.execute('''
-        SELECT id, exercise_name, sets_data, notes, tags
-        FROM workout_logs
-        WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
-        ORDER BY created_at
-    ''', (client_id, date, session['user_id'])).fetchall()
+    # Optional ?type=weightlifting|cardio — when omitted, returns every
+    # exercise for that date regardless of type (kept for any older caller
+    # that predates workout_type and expects the old, unfiltered behavior).
+    workout_type = request.args.get('type')
+    if workout_type in ('weightlifting', 'cardio'):
+        exercises = conn.execute('''
+            SELECT id, exercise_name, sets_data, notes, tags, workout_type
+            FROM workout_logs
+            WHERE client_id = ? AND workout_date = ? AND trainer_id = ? AND workout_type = ?
+            ORDER BY created_at
+        ''', (client_id, date, session['user_id'], workout_type)).fetchall()
+    else:
+        exercises = conn.execute('''
+            SELECT id, exercise_name, sets_data, notes, tags, workout_type
+            FROM workout_logs
+            WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
+            ORDER BY created_at
+        ''', (client_id, date, session['user_id'])).fetchall()
 
     conn.close()
 
@@ -966,7 +1078,8 @@ def workout_detail(client_id, date):
             'exercise_name': ex['exercise_name'],
             'notes': ex['notes'],
             'sets_data': sets_data,
-            'tags': ex['tags'] if ex['tags'] else ''
+            'tags': ex['tags'] if ex['tags'] else '',
+            'workout_type': ex['workout_type'] if 'workout_type' in ex.keys() else 'weightlifting'
         })
 
     return jsonify(result)
@@ -985,53 +1098,96 @@ def update_workout(client_id, date):
         return jsonify({'error': 'Client not found'}), 404
 
     new_date = request.args.get('new_date', date)
+    workout_type = request.form.get('workout_type', 'weightlifting')
+    if workout_type not in ('weightlifting', 'cardio'):
+        workout_type = 'weightlifting'
 
     exercise_names = request.form.getlist('exercise_name[]')
     notes_list = request.form.getlist('exercise_notes[]')
     workout_tags = request.form.get('workout_tags', '')
 
-    # Delete existing exercises for this workout date
+    if workout_type == 'cardio':
+        tag_list = [t.strip() for t in workout_tags.split(',') if t.strip()]
+        if 'Cardio' not in tag_list:
+            tag_list.append('Cardio')
+        workout_tags = ','.join(tag_list)
+
+    # Delete only this workout's own (date, type) pair — a weightlifting and
+    # a cardio workout on the same date are independent and must not affect
+    # each other when one of them is edited.
     conn.execute('''
         DELETE FROM workout_logs
-        WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
-    ''', (client_id, date, session['user_id']))
+        WHERE client_id = ? AND workout_date = ? AND trainer_id = ? AND workout_type = ?
+    ''', (client_id, date, session['user_id'], workout_type))
 
     for i, exercise_name in enumerate(exercise_names):
         if exercise_name.strip():  # Only save non-empty exercises
-            # Get sets for this specific exercise using the new field naming
-            exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
-            exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
+            if workout_type == 'cardio':
+                distances = request.form.getlist(f'exercise_{i}_distance[]')
+                distance_units = request.form.getlist(f'exercise_{i}_distance_unit[]')
+                durations = request.form.getlist(f'exercise_{i}_duration[]')
+                duration_units = request.form.getlist(f'exercise_{i}_duration_unit[]')
+                set_notes = request.form.getlist(f'exercise_{i}_set_notes[]')
 
-            # Build sets data for this exercise
-            exercise_sets = []
-            for j in range(len(exercise_weights)):
-                weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
-                reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
+                exercise_sets = []
+                set_count = max(len(distances), len(durations), 1)
+                for j in range(set_count):
+                    distance = distances[j] if j < len(distances) and distances[j] else None
+                    duration = durations[j] if j < len(durations) and durations[j] else None
+                    exercise_sets.append({
+                        'distance': float(distance) if distance else None,
+                        'distance_unit': distance_units[j] if j < len(distance_units) and distance_units[j] else None,
+                        'duration': float(duration) if duration else None,
+                        'duration_unit': duration_units[j] if j < len(duration_units) and duration_units[j] else None,
+                        'notes': set_notes[j] if j < len(set_notes) and set_notes[j] else None,
+                    })
+                if not exercise_sets:
+                    exercise_sets = [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
 
-                exercise_sets.append({
-                    'weight': float(weight) if weight else None,
-                    'reps': int(reps) if reps else None
-                })
+                total_sets = len(exercise_sets)
+                notes_val = notes_list[i] if i < len(notes_list) else ''
 
-            # If no sets data, create a default set
-            if not exercise_sets:
-                exercise_sets = [{'weight': None, 'reps': None}]
+                conn.execute('''
+                    INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise_name.strip(),
+                      total_sets, None, None, notes_val, new_date, json.dumps(exercise_sets), workout_tags,
+                      workout_type, datetime.now()))
+            else:
+                # Get sets for this specific exercise using the new field naming
+                exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
+                exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
 
-            # Calculate totals for backward compatibility
-            total_sets = len(exercise_sets)
-            avg_reps = sum(s['reps'] for s in exercise_sets if s['reps']) // len(
-                [s for s in exercise_sets if s['reps']]) if any(s['reps'] for s in exercise_sets) else None
-            avg_weight = sum(s['weight'] for s in exercise_sets if s['weight']) / len(
-                [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
+                # Build sets data for this exercise
+                exercise_sets = []
+                for j in range(len(exercise_weights)):
+                    weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
+                    reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
 
-            notes_val = notes_list[i] if i < len(notes_list) else ''
+                    exercise_sets.append({
+                        'weight': float(weight) if weight else None,
+                        'reps': int(reps) if reps else None
+                    })
 
-            conn.execute('''
-                INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise_name.strip(),
-                  total_sets, avg_reps, avg_weight, notes_val, new_date, json.dumps(exercise_sets), workout_tags,
-                  datetime.now()))
+                # If no sets data, create a default set
+                if not exercise_sets:
+                    exercise_sets = [{'weight': None, 'reps': None}]
+
+                # Calculate totals for backward compatibility
+                total_sets = len(exercise_sets)
+                avg_reps = sum(s['reps'] for s in exercise_sets if s['reps']) // len(
+                    [s for s in exercise_sets if s['reps']]) if any(s['reps'] for s in exercise_sets) else None
+                avg_weight = sum(s['weight'] for s in exercise_sets if s['weight']) / len(
+                    [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
+
+                notes_val = notes_list[i] if i < len(notes_list) else ''
+
+                conn.execute('''
+                    INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise_name.strip(),
+                      total_sets, avg_reps, avg_weight, notes_val, new_date, json.dumps(exercise_sets), workout_tags,
+                      workout_type, datetime.now()))
 
     conn.commit()
     conn.close()
@@ -1051,11 +1207,18 @@ def delete_workout(client_id, date):
         conn.close()
         return jsonify({'error': 'Client not found'}), 404
 
-    # Delete all exercises for this workout date
+    # workout_type is required so deleting one workout (e.g. cardio) on a
+    # date can never also wipe out a different workout type logged the same
+    # day. Falls back to 'weightlifting' only for any pre-existing caller
+    # that predates this parameter.
+    workout_type = request.args.get('type', 'weightlifting')
+    if workout_type not in ('weightlifting', 'cardio'):
+        workout_type = 'weightlifting'
+
     conn.execute('''
         DELETE FROM workout_logs
-        WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
-    ''', (client_id, date, session['user_id']))
+        WHERE client_id = ? AND workout_date = ? AND trainer_id = ? AND workout_type = ?
+    ''', (client_id, date, session['user_id'], workout_type))
 
     conn.commit()
     conn.close()
@@ -1082,8 +1245,11 @@ def duplicate_workout(client_id):
     original_date = data.get('original_date')
     new_date = data.get('new_date')
     override = data.get('override', False)
+    workout_type = data.get('workout_type', 'weightlifting')
+    if workout_type not in ('weightlifting', 'cardio'):
+        workout_type = 'weightlifting'
 
-    app.logger.info(f"[v0] Duplicating workout from {original_date} to {new_date}")
+    app.logger.info(f"[v0] Duplicating {workout_type} workout from {original_date} to {new_date}")
 
     if not original_date or not new_date:
         app.logger.error("[v0] Missing date parameters")
@@ -1092,45 +1258,53 @@ def duplicate_workout(client_id):
 
     if not override:
         existing = conn.execute(
-            'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? LIMIT 1',
-            (client_id, new_date)
+            'SELECT 1 FROM workout_logs WHERE client_id = ? AND workout_date = ? AND workout_type = ? LIMIT 1',
+            (client_id, new_date, workout_type)
         ).fetchone()
         if existing:
             conn.close()
             return jsonify({'conflict': True}), 409
 
-    # Fetch all exercises from the original workout
+    # Fetch all exercises from the original workout (same type only — a
+    # cardio "duplicate" button only ever duplicates the cardio entry for
+    # that date, never an unrelated weightlifting entry on the same day).
     exercises = conn.execute('''
         SELECT exercise_name, sets_data, notes, tags
         FROM workout_logs
-        WHERE client_id = ? AND workout_date = ? AND trainer_id = ?
+        WHERE client_id = ? AND workout_date = ? AND trainer_id = ? AND workout_type = ?
         ORDER BY created_at
-    ''', (client_id, original_date, session['user_id'])).fetchall()
+    ''', (client_id, original_date, session['user_id'], workout_type)).fetchall()
 
     if not exercises:
-        app.logger.warning(f"[v0] No exercises found for date {original_date}")
+        app.logger.warning(f"[v0] No {workout_type} workout found for date {original_date}")
         conn.close()
         return jsonify({'error': 'No workout found for that date'}), 404
 
     app.logger.info(f"[v0] Found {len(exercises)} exercises to duplicate")
 
     # Duplicate each exercise to the new date
+    default_sets = ([{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                     if workout_type == 'cardio' else [{'weight': None, 'reps': None}])
     for exercise in exercises:
         sets_data = exercise['sets_data']
-        exercise_sets = json.loads(sets_data) if sets_data else [{'weight': None, 'reps': None}]
-
-        # Calculate totals for backward compatibility
+        exercise_sets = json.loads(sets_data) if sets_data else default_sets
         total_sets = len(exercise_sets)
-        avg_reps = sum(s['reps'] for s in exercise_sets if s['reps']) // len(
-            [s for s in exercise_sets if s['reps']]) if any(s['reps'] for s in exercise_sets) else None
-        avg_weight = sum(s['weight'] for s in exercise_sets if s['weight']) / len(
-            [s for s in exercise_sets if s['weight']]) if any(s['weight'] for s in exercise_sets) else None
+
+        if workout_type == 'cardio':
+            avg_reps = None
+            avg_weight = None
+        else:
+            avg_reps = sum(s['reps'] for s in exercise_sets if s.get('reps')) // len(
+                [s for s in exercise_sets if s.get('reps')]) if any(s.get('reps') for s in exercise_sets) else None
+            avg_weight = sum(s['weight'] for s in exercise_sets if s.get('weight')) / len(
+                [s for s in exercise_sets if s.get('weight')]) if any(s.get('weight') for s in exercise_sets) else None
 
         conn.execute('''
-            INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO workout_logs (id, client_id, trainer_id, exercise_name, sets, reps, weight, notes, workout_date, sets_data, tags, workout_type, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (str(uuid.uuid4()), client_id, session['user_id'], exercise['exercise_name'],
-              total_sets, avg_reps, avg_weight, exercise['notes'], new_date, sets_data, exercise['tags'], datetime.now()))
+              total_sets, avg_reps, avg_weight, exercise['notes'], new_date, sets_data, exercise['tags'],
+              workout_type, datetime.now()))
 
     conn.commit()
     conn.close()
@@ -1405,7 +1579,7 @@ def workout_templates():
 
     # Universal templates (client_id IS NULL)
     universal_templates = conn.execute('''
-        SELECT id, name, created_at,
+        SELECT id, name, created_at, workout_type,
                (SELECT COUNT(*) FROM template_exercises WHERE template_id = workout_templates.id) as exercise_count
         FROM workout_templates
         WHERE trainer_id = ? AND client_id IS NULL
@@ -1470,6 +1644,265 @@ def exports():
     return render_template('dashboard/exports.html', clients=clients)
 
 
+def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, export_weight_logs,
+                                  export_nutrition_logs, export_sleep_logs):
+    """Build one client's export workbook in memory.
+
+    Returns (client_name, excel_bytes) or None if the client doesn't exist
+    or doesn't belong to this trainer.
+    """
+    client = conn.execute('''
+        SELECT name FROM clients
+        WHERE id = ? AND trainer_id = ?
+    ''', (client_id, trainer_id)).fetchone()
+
+    if not client:
+        return None
+
+    # Create Excel workbook for this client
+    wb = Workbook()
+    wb.remove(wb.active)  # Remove default sheet
+
+    # Export workout history
+    if export_workouts:
+        ws_workouts = wb.create_sheet('Workout History')
+
+        # Get all workouts for this client, ordered by date (oldest first)
+        workouts = conn.execute('''
+            SELECT workout_date, exercise_name, sets_data, notes, tags, workout_type
+            FROM workout_logs
+            WHERE client_id = ?
+            ORDER BY workout_date ASC, created_at ASC
+        ''', (client_id,)).fetchall()
+
+        # Helper function to populate a workout sheet
+        def populate_workout_sheet(ws, filtered_workouts, show_tags=True):  # Added show_tags parameter
+            current_row = 1
+            current_date = None
+
+            for workout in filtered_workouts:
+                is_cardio = workout['workout_type'] == 'cardio' if 'workout_type' in workout.keys() else False
+
+                # Add blank row between different workout dates
+                if current_date and current_date != workout['workout_date']:
+                    current_row += 1
+
+                # Add workout date header
+                if current_date != workout['workout_date']:
+                    ws.cell(row=current_row, column=1, value=workout['workout_date'])
+                    ws.cell(row=current_row, column=1).font = Font(bold=True, size=12)
+                    current_row += 1
+                    current_date = workout['workout_date']
+
+                # Add exercise name
+                ws.cell(row=current_row, column=1, value=workout['exercise_name'])
+                ws.cell(row=current_row, column=1).font = Font(bold=True)
+                current_row += 1
+
+                sets_data = json.loads(workout['sets_data']) if workout['sets_data'] else []
+
+                if is_cardio:
+                    # Add sets header (cardio: distance / duration / notes)
+                    ws.cell(row=current_row, column=1, value='Set')
+                    ws.cell(row=current_row, column=2, value='Distance')
+                    ws.cell(row=current_row, column=3, value='Duration')
+                    ws.cell(row=current_row, column=4, value='Set Notes')
+                    for col in range(1, 5):
+                        ws.cell(row=current_row, column=col).font = Font(bold=True)
+                    current_row += 1
+
+                    for set_num, set_info in enumerate(sets_data, 1):
+                        distance = set_info.get('distance')
+                        distance_unit = set_info.get('distance_unit') or ''
+                        duration = set_info.get('duration')
+                        duration_unit = set_info.get('duration_unit') or ''
+                        ws.cell(row=current_row, column=1, value=f'Set {set_num}')
+                        ws.cell(row=current_row, column=2,
+                                value=f'{distance} {distance_unit}'.strip() if distance is not None else '')
+                        ws.cell(row=current_row, column=3,
+                                value=f'{duration} {duration_unit}'.strip() if duration is not None else '')
+                        ws.cell(row=current_row, column=4, value=set_info.get('notes') or '')
+                        current_row += 1
+                else:
+                    # Add sets header (weightlifting: weight / reps)
+                    ws.cell(row=current_row, column=1, value='Set')
+                    ws.cell(row=current_row, column=2, value='Weight (lbs)')
+                    ws.cell(row=current_row, column=3, value='Reps')
+                    for col in range(1, 4):
+                        ws.cell(row=current_row, column=col).font = Font(bold=True)
+                    current_row += 1
+
+                    for set_num, set_info in enumerate(sets_data, 1):
+                        ws.cell(row=current_row, column=1, value=f'Set {set_num}')
+                        ws.cell(row=current_row, column=2, value=set_info.get('weight', ''))
+                        ws.cell(row=current_row, column=3, value=set_info.get('reps', ''))
+                        current_row += 1
+
+                # Add notes if present
+                if workout['notes']:
+                    ws.cell(row=current_row, column=1, value=f"Notes: {workout['notes']}")
+                    ws.cell(row=current_row, column=1).font = Font(italic=True)
+                    current_row += 1
+
+                if show_tags and workout['tags']:
+                    ws.cell(row=current_row, column=1, value=f"Tags: {workout['tags']}")
+                    current_row += 1
+
+            # Adjust column widths (wide enough for either layout: weight/reps or distance/duration/notes)
+            ws.column_dimensions['A'].width = 25
+            ws.column_dimensions['B'].width = 18
+            ws.column_dimensions['C'].width = 18
+            ws.column_dimensions['D'].width = 30
+
+        populate_workout_sheet(ws_workouts, workouts)
+
+        muscle_groups = ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders', 'Legs', 'Core']
+
+        for muscle_group in muscle_groups:
+            # Filter workouts that have this muscle group tag
+            # Group by workout_date to get unique workout dates first
+            workout_dates_with_tag = {}
+            for workout in workouts:
+                if workout['tags'] and muscle_group in workout['tags']:
+                    date = workout['workout_date']
+                    if date not in workout_dates_with_tag:
+                        workout_dates_with_tag[date] = []
+                    workout_dates_with_tag[date].append(workout)
+
+            # If there are workouts with this tag, create a sheet
+            if workout_dates_with_tag:
+                ws_muscle = wb.create_sheet(muscle_group)
+
+                # Flatten the workouts back into a list for population
+                filtered_workouts = []
+                for date in sorted(workout_dates_with_tag.keys()):
+                    filtered_workouts.extend(workout_dates_with_tag[date])
+
+                populate_workout_sheet(ws_muscle, filtered_workouts, show_tags=False)
+
+        # Cardio gets its own sheet too, same as the muscle groups above —
+        # filtered by workout_type (a real column) rather than tag text,
+        # since every cardio workout is guaranteed to have that type set
+        # even if its tags ever changed.
+        cardio_dates = {}
+        for workout in workouts:
+            is_cardio = workout['workout_type'] == 'cardio' if 'workout_type' in workout.keys() else False
+            if is_cardio:
+                date = workout['workout_date']
+                cardio_dates.setdefault(date, []).append(workout)
+
+        if cardio_dates:
+            ws_cardio = wb.create_sheet('Cardio')
+            filtered_cardio = []
+            for date in sorted(cardio_dates.keys()):
+                filtered_cardio.extend(cardio_dates[date])
+            populate_workout_sheet(ws_cardio, filtered_cardio, show_tags=False)
+
+    # Export weight logs
+    if export_weight_logs:
+        ws_weight = wb.create_sheet('Weight Logs')
+
+        # Add headers
+        ws_weight.cell(row=1, column=1, value='Date')
+        ws_weight.cell(row=1, column=2, value='Weight (lbs)')
+        ws_weight.cell(row=1, column=1).font = Font(bold=True)
+        ws_weight.cell(row=1, column=2).font = Font(bold=True)
+
+        # Get weight logs ordered by date (oldest first)
+        weight_logs = conn.execute('''
+            SELECT date, weight
+            FROM weight_logs
+            WHERE client_id = ?
+            ORDER BY date ASC
+        ''', (client_id,)).fetchall()
+
+        for idx, log in enumerate(weight_logs, start=2):
+            ws_weight.cell(row=idx, column=1, value=log['date'])
+            ws_weight.cell(row=idx, column=2, value=log['weight'])
+
+        # Adjust column widths
+        ws_weight.column_dimensions['A'].width = 15
+        ws_weight.column_dimensions['B'].width = 15
+
+    if export_nutrition_logs:
+        ws_nutrition = wb.create_sheet('Nutrition')
+
+        # Add headers
+        ws_nutrition.cell(row=1, column=1, value='Date')
+        ws_nutrition.cell(row=1, column=2, value='Diet')  # Added Diet column
+        ws_nutrition.cell(row=1, column=3, value='Calories')
+        ws_nutrition.cell(row=1, column=4, value='Sodium')
+        ws_nutrition.cell(row=1, column=5, value='Sat Fat')  # Renamed column
+        ws_nutrition.cell(row=1, column=6, value='Notes')  # Added Notes column
+        for col in range(1, 7):
+            ws_nutrition.cell(row=1, column=col).font = Font(bold=True)
+
+        # Get nutrition logs ordered by date (oldest first)
+        nutrition_logs = conn.execute('''
+            SELECT date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes
+            FROM nutrition_logs
+            WHERE client_id = ?
+            ORDER BY date ASC
+        ''', (client_id,)).fetchall()
+
+        for idx, log in enumerate(nutrition_logs, start=2):
+            ws_nutrition.cell(row=idx, column=1, value=log['date'])
+            ws_nutrition.cell(row=idx, column=2, value=log['diet'])
+            ws_nutrition.cell(row=idx, column=3,
+                              value=log['estimated_calories'] if log['estimated_calories'] else '')
+            ws_nutrition.cell(row=idx, column=4,
+                              value=log['estimated_sodium'] if log['estimated_sodium'] else '')
+            ws_nutrition.cell(row=idx, column=5,
+                              value=log['estimated_saturated_fat'] if log['estimated_saturated_fat'] else '')
+            ws_nutrition.cell(row=idx, column=6, value=log['notes'])
+
+        # Adjust column widths
+        ws_nutrition.column_dimensions['A'].width = 15
+        ws_nutrition.column_dimensions['B'].width = 30  # Adjusted width for Diet
+        ws_nutrition.column_dimensions['C'].width = 15
+        ws_nutrition.column_dimensions['D'].width = 15
+        ws_nutrition.column_dimensions['E'].width = 15
+        ws_nutrition.column_dimensions['F'].width = 40  # Adjusted width for Notes
+
+    if export_sleep_logs:
+        ws_sleep = wb.create_sheet('Sleep Logs')
+
+        # Add headers
+        ws_sleep.cell(row=1, column=1, value='Date')
+        ws_sleep.cell(row=1, column=2, value='Hours')
+        ws_sleep.cell(row=1, column=3, value='Notes')
+        ws_sleep.cell(row=1, column=1).font = Font(bold=True)
+        ws_sleep.cell(row=1, column=2).font = Font(bold=True)
+        ws_sleep.cell(row=1, column=3).font = Font(bold=True)
+
+        # Get sleep logs ordered by date (oldest first)
+        sleep_logs = conn.execute('''
+            SELECT date, hours, notes
+            FROM sleep_logs
+            WHERE client_id = ?
+            ORDER BY date ASC
+        ''', (client_id,)).fetchall()
+
+        for idx, log in enumerate(sleep_logs, start=2):
+            ws_sleep.cell(row=idx, column=1, value=log['date'])
+            ws_sleep.cell(row=idx, column=2, value=log['hours'])
+            ws_sleep.cell(row=idx, column=3, value=log['notes'] if log['notes'] else '')
+
+        # Adjust column widths
+        ws_sleep.column_dimensions['A'].width = 15
+        ws_sleep.column_dimensions['B'].width = 15
+        ws_sleep.column_dimensions['C'].width = 40
+
+    # Save workbook to bytes
+    excel_buffer = io.BytesIO()
+    wb.save(excel_buffer)
+    excel_buffer.seek(0)
+
+    # Clean filename
+    safe_name = "".join(c for c in client['name'] if c.isalnum() or c in (' ', '-', '_')).strip()
+    return (safe_name, excel_buffer.read())
+
+
 @app.route('/exports/generate', methods=['POST'])
 @login_required
 def generate_export():
@@ -1489,222 +1922,38 @@ def generate_export():
 
     conn = get_db()
 
-    # Create a ZIP file in memory
-    zip_buffer = io.BytesIO()
-
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for client_id in client_ids:
-            # Get client info
-            client = conn.execute('''
-                SELECT name FROM clients
-                WHERE id = ? AND trainer_id = ?
-            ''', (client_id, session['user_id'])).fetchone()
-
-            if not client:
-                continue
-
-            # Create Excel workbook for this client
-            wb = Workbook()
-            wb.remove(wb.active)  # Remove default sheet
-
-            # Export workout history
-            if export_workouts:
-                ws_workouts = wb.create_sheet('Workout History')
-
-                # Get all workouts for this client, ordered by date (oldest first)
-                workouts = conn.execute('''
-                    SELECT workout_date, exercise_name, sets_data, notes, tags
-                    FROM workout_logs
-                    WHERE client_id = ?
-                    ORDER BY workout_date ASC, created_at ASC
-                ''', (client_id,)).fetchall()
-
-                # Helper function to populate a workout sheet
-                def populate_workout_sheet(ws, filtered_workouts, show_tags=True):  # Added show_tags parameter
-                    current_row = 1
-                    current_date = None
-
-                    for workout in filtered_workouts:
-                        # Add blank row between different workout dates
-                        if current_date and current_date != workout['workout_date']:
-                            current_row += 1
-
-                        # Add workout date header
-                        if current_date != workout['workout_date']:
-                            ws.cell(row=current_row, column=1, value=workout['workout_date'])
-                            ws.cell(row=current_row, column=1).font = Font(bold=True, size=12)
-                            current_row += 1
-                            current_date = workout['workout_date']
-
-                        # Add exercise name
-                        ws.cell(row=current_row, column=1, value=workout['exercise_name'])
-                        ws.cell(row=current_row, column=1).font = Font(bold=True)
-                        current_row += 1
-
-                        # Add sets header
-                        ws.cell(row=current_row, column=1, value='Set')
-                        ws.cell(row=current_row, column=2, value='Weight (lbs)')
-                        ws.cell(row=current_row, column=3, value='Reps')
-                        for col in range(1, 4):
-                            ws.cell(row=current_row, column=col).font = Font(bold=True)
-                        current_row += 1
-
-                        # Add sets data
-                        sets_data = json.loads(workout['sets_data']) if workout['sets_data'] else []
-                        for set_num, set_info in enumerate(sets_data, 1):
-                            ws.cell(row=current_row, column=1, value=f'Set {set_num}')
-                            ws.cell(row=current_row, column=2, value=set_info.get('weight', ''))
-                            ws.cell(row=current_row, column=3, value=set_info.get('reps', ''))
-                            current_row += 1
-
-                        # Add notes if present
-                        if workout['notes']:
-                            ws.cell(row=current_row, column=1, value=f"Notes: {workout['notes']}")
-                            ws.cell(row=current_row, column=1).font = Font(italic=True)
-                            current_row += 1
-
-                        if show_tags and workout['tags']:
-                            ws.cell(row=current_row, column=1, value=f"Tags: {workout['tags']}")
-                            current_row += 1
-
-                    # Adjust column widths
-                    ws.column_dimensions['A'].width = 25
-                    ws.column_dimensions['B'].width = 15
-                    ws.column_dimensions['C'].width = 15
-
-                populate_workout_sheet(ws_workouts, workouts)
-
-                muscle_groups = ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders', 'Legs','Core']
-
-                for muscle_group in muscle_groups:
-                    # Filter workouts that have this muscle group tag
-                    # Group by workout_date to get unique workout dates first
-                    workout_dates_with_tag = {}
-                    for workout in workouts:
-                        if workout['tags'] and muscle_group in workout['tags']:
-                            date = workout['workout_date']
-                            if date not in workout_dates_with_tag:
-                                workout_dates_with_tag[date] = []
-                            workout_dates_with_tag[date].append(workout)
-
-                    # If there are workouts with this tag, create a sheet
-                    if workout_dates_with_tag:
-                        ws_muscle = wb.create_sheet(muscle_group)
-
-                        # Flatten the workouts back into a list for population
-                        filtered_workouts = []
-                        for date in sorted(workout_dates_with_tag.keys()):
-                            filtered_workouts.extend(workout_dates_with_tag[date])
-
-                        populate_workout_sheet(ws_muscle, filtered_workouts, show_tags=False)
-
-            # Export weight logs
-            if export_weight_logs:
-                ws_weight = wb.create_sheet('Weight Logs')
-
-                # Add headers
-                ws_weight.cell(row=1, column=1, value='Date')
-                ws_weight.cell(row=1, column=2, value='Weight (lbs)')
-                ws_weight.cell(row=1, column=1).font = Font(bold=True)
-                ws_weight.cell(row=1, column=2).font = Font(bold=True)
-
-                # Get weight logs ordered by date (oldest first)
-                weight_logs = conn.execute('''
-                    SELECT date, weight
-                    FROM weight_logs
-                    WHERE client_id = ?
-                    ORDER BY date ASC
-                ''', (client_id,)).fetchall()
-
-                for idx, log in enumerate(weight_logs, start=2):
-                    ws_weight.cell(row=idx, column=1, value=log['date'])
-                    ws_weight.cell(row=idx, column=2, value=log['weight'])
-
-                # Adjust column widths
-                ws_weight.column_dimensions['A'].width = 15
-                ws_weight.column_dimensions['B'].width = 15
-
-            if export_nutrition_logs:
-                ws_nutrition = wb.create_sheet('Nutrition')
-
-                # Add headers
-                ws_nutrition.cell(row=1, column=1, value='Date')
-                ws_nutrition.cell(row=1, column=2, value='Diet')  # Added Diet column
-                ws_nutrition.cell(row=1, column=3, value='Calories')
-                ws_nutrition.cell(row=1, column=4, value='Sodium')
-                ws_nutrition.cell(row=1, column=5, value='Sat Fat')  # Renamed column
-                ws_nutrition.cell(row=1, column=6, value='Notes')  # Added Notes column
-                for col in range(1, 7):
-                    ws_nutrition.cell(row=1, column=col).font = Font(bold=True)
-
-                # Get nutrition logs ordered by date (oldest first)
-                nutrition_logs = conn.execute('''
-                    SELECT date, diet, estimated_calories, estimated_sodium, estimated_saturated_fat, notes
-                    FROM nutrition_logs
-                    WHERE client_id = ?
-                    ORDER BY date ASC
-                ''', (client_id,)).fetchall()
-
-                for idx, log in enumerate(nutrition_logs, start=2):
-                    ws_nutrition.cell(row=idx, column=1, value=log['date'])
-                    ws_nutrition.cell(row=idx, column=2, value=log['diet'])
-                    ws_nutrition.cell(row=idx, column=3,
-                                      value=log['estimated_calories'] if log['estimated_calories'] else '')
-                    ws_nutrition.cell(row=idx, column=4,
-                                      value=log['estimated_sodium'] if log['estimated_sodium'] else '')
-                    ws_nutrition.cell(row=idx, column=5,
-                                      value=log['estimated_saturated_fat'] if log['estimated_saturated_fat'] else '')
-                    ws_nutrition.cell(row=idx, column=6, value=log['notes'])
-
-                # Adjust column widths
-                ws_nutrition.column_dimensions['A'].width = 15
-                ws_nutrition.column_dimensions['B'].width = 30  # Adjusted width for Diet
-                ws_nutrition.column_dimensions['C'].width = 15
-                ws_nutrition.column_dimensions['D'].width = 15
-                ws_nutrition.column_dimensions['E'].width = 15
-                ws_nutrition.column_dimensions['F'].width = 40  # Adjusted width for Notes
-
-            if export_sleep_logs:
-                ws_sleep = wb.create_sheet('Sleep Logs')
-
-                # Add headers
-                ws_sleep.cell(row=1, column=1, value='Date')
-                ws_sleep.cell(row=1, column=2, value='Hours')
-                ws_sleep.cell(row=1, column=3, value='Notes')
-                ws_sleep.cell(row=1, column=1).font = Font(bold=True)
-                ws_sleep.cell(row=1, column=2).font = Font(bold=True)
-                ws_sleep.cell(row=1, column=3).font = Font(bold=True)
-
-                # Get sleep logs ordered by date (oldest first)
-                sleep_logs = conn.execute('''
-                    SELECT date, hours, notes
-                    FROM sleep_logs
-                    WHERE client_id = ?
-                    ORDER BY date ASC
-                ''', (client_id,)).fetchall()
-
-                for idx, log in enumerate(sleep_logs, start=2):
-                    ws_sleep.cell(row=idx, column=1, value=log['date'])
-                    ws_sleep.cell(row=idx, column=2, value=log['hours'])
-                    ws_sleep.cell(row=idx, column=3, value=log['notes'] if log['notes'] else '')
-
-                # Adjust column widths
-                ws_sleep.column_dimensions['A'].width = 15
-                ws_sleep.column_dimensions['B'].width = 15
-                ws_sleep.column_dimensions['C'].width = 40
-
-            # Save Excel file to ZIP
-            excel_buffer = io.BytesIO()
-            wb.save(excel_buffer)
-            excel_buffer.seek(0)
-
-            # Clean filename
-            safe_name = "".join(c for c in client['name'] if c.isalnum() or c in (' ', '-', '_')).strip()
-            zip_file.writestr(f'{safe_name}.xlsx', excel_buffer.read())
+    # Build each client's workbook; client_ids that don't belong to this
+    # trainer (or no longer exist) are silently skipped, same as before.
+    built = []
+    for client_id in client_ids:
+        result = build_client_export_workbook(
+            conn, client_id, session['user_id'],
+            export_workouts, export_weight_logs, export_nutrition_logs, export_sleep_logs
+        )
+        if result:
+            built.append(result)
 
     conn.close()
 
-    # Prepare ZIP for download
+    if not built:
+        flash('No matching clients found to export')
+        return redirect(url_for('exports'))
+
+    # A single client never needs a ZIP wrapper — just send the .xlsx directly.
+    if len(built) == 1:
+        safe_name, excel_bytes = built[0]
+        return send_file(
+            io.BytesIO(excel_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'{safe_name}.xlsx'
+        )
+
+    # Multiple clients: zip all their workbooks together.
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for safe_name, excel_bytes in built:
+            zip_file.writestr(f'{safe_name}.xlsx', excel_bytes)
     zip_buffer.seek(0)
 
     return send_file(
@@ -1806,6 +2055,9 @@ def create_template():
     template_name = data['name']
     exercises = data['exercises']
     client_id = data.get('client_id') or None
+    workout_type = data.get('workout_type', 'weightlifting')
+    if workout_type not in ('weightlifting', 'cardio'):
+        workout_type = 'weightlifting'
 
     template_id = str(uuid.uuid4())
 
@@ -1821,9 +2073,9 @@ def create_template():
 
         # Create template
         conn.execute('''
-            INSERT INTO workout_templates (id, trainer_id, client_id, name, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (template_id, session['user_id'], client_id, template_name, datetime.now()))
+            INSERT INTO workout_templates (id, trainer_id, client_id, name, workout_type, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (template_id, session['user_id'], client_id, template_name, workout_type, datetime.now()))
 
         # Add exercises to template
         for exercise in exercises:
@@ -1868,6 +2120,7 @@ def get_template(template_id):
         'id': template['id'],
         'name': template['name'],
         'client_id': template['client_id'] if 'client_id' in template.keys() else None,
+        'workout_type': template['workout_type'] if 'workout_type' in template.keys() else 'weightlifting',
         'exercises': [{
             'name': ex['exercise_name'],
             'sets': json.loads(ex['sets_data']) if ex['sets_data'] else [],
@@ -1919,6 +2172,10 @@ def update_template(template_id):
     template_name = data['name']
     exercises = data['exercises']
     client_id = data.get('client_id') or None
+    # A template's workout_type is fixed at creation — the UPDATE below never
+    # touches that column, so editing only ever changes name/client/exercises,
+    # never converts a weightlifting template into a cardio one (or vice
+    # versa), since the exercise shapes aren't compatible.
 
     try:
         if client_id:
@@ -1962,31 +2219,45 @@ def list_templates():
 
     ?client_id=<id> → universal templates PLUS that client's own templates.
     (no param)       → universal templates only.
+    ?type=weightlifting|cardio → only templates of that workout type
+    (the import picker passes this so a cardio template never gets offered
+    inside the weightlifting import flow, or vice versa).
     """
     client_id = request.args.get('client_id')
+    workout_type = request.args.get('type')
+    if workout_type not in ('weightlifting', 'cardio'):
+        workout_type = None
     conn = get_db()
 
     if client_id:
-        templates = conn.execute('''
-            SELECT id, name, client_id
+        query = '''
+            SELECT id, name, client_id, workout_type
             FROM workout_templates
             WHERE trainer_id = ? AND (client_id IS NULL OR client_id = ?)
-            ORDER BY client_id IS NULL, name COLLATE NOCASE
-        ''', (session['user_id'], client_id)).fetchall()
+        '''
+        params = [session['user_id'], client_id]
     else:
-        templates = conn.execute('''
-            SELECT id, name, client_id
+        query = '''
+            SELECT id, name, client_id, workout_type
             FROM workout_templates
             WHERE trainer_id = ? AND client_id IS NULL
-            ORDER BY name COLLATE NOCASE
-        ''', (session['user_id'],)).fetchall()
+        '''
+        params = [session['user_id']]
 
+    if workout_type:
+        query += ' AND workout_type = ?'
+        params.append(workout_type)
+
+    query += ' ORDER BY client_id IS NULL, name COLLATE NOCASE' if client_id else ' ORDER BY name COLLATE NOCASE'
+
+    templates = conn.execute(query, params).fetchall()
     conn.close()
 
     return jsonify([{
         'id': t['id'],
         'name': t['name'],
-        'is_client_specific': bool(t['client_id'])
+        'is_client_specific': bool(t['client_id']),
+        'workout_type': t['workout_type'] if 'workout_type' in t.keys() else 'weightlifting'
     } for t in templates])
 
 
@@ -2475,6 +2746,10 @@ init_activity_log_table()
 init_nutrition_protein_column()
 # Ensure workout_templates has the client_id column (universal vs client-specific).
 init_template_client_column()
+# Ensure workout_logs has the workout_type column (weightlifting vs cardio).
+init_workout_type_column()
+# Ensure workout_templates has the workout_type column too (weightlifting vs cardio templates).
+init_template_type_column()
 
 
 if __name__ == '__main__':
@@ -2485,4 +2760,6 @@ if __name__ == '__main__':
     init_activity_log_table()
     init_nutrition_protein_column()
     init_template_client_column()
+    init_workout_type_column()
+    init_template_type_column()
     app.run(debug=True)
