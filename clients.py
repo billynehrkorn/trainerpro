@@ -12,8 +12,10 @@ from flask import (
     render_template, request, redirect, url_for, flash, session, jsonify
 )
 from datetime import datetime
+from werkzeug.utils import secure_filename
 import uuid
 import json
+import os
 
 from db import get_db
 from auth_utils import login_required, client_login_required
@@ -43,6 +45,8 @@ def init_client_accounts_table():
         "ALTER TABLE client_accounts ADD COLUMN perm_weight INTEGER DEFAULT 1",
         "ALTER TABLE client_accounts ADD COLUMN perm_nutrition INTEGER DEFAULT 1",
         "ALTER TABLE client_accounts ADD COLUMN perm_sleep INTEGER DEFAULT 1",
+        "ALTER TABLE client_accounts ADD COLUMN perm_photos INTEGER DEFAULT 1",
+        "ALTER TABLE client_accounts ADD COLUMN perm_measurements INTEGER DEFAULT 1",
     ]
     for sql in migrations:
         try:
@@ -268,18 +272,20 @@ def register_client_routes(app):
             conn.close()
             return jsonify({'error': 'Client not found'}), 404
         account = conn.execute(
-            'SELECT is_active, perm_workouts, perm_weight, perm_nutrition, perm_sleep FROM client_accounts WHERE client_id = ?',
+            'SELECT is_active, perm_workouts, perm_weight, perm_nutrition, perm_sleep, perm_photos, perm_measurements FROM client_accounts WHERE client_id = ?',
             (client_id,)
         ).fetchone()
         conn.close()
         if not account:
             return jsonify({'error': 'No portal account found'}), 404
         return jsonify({
-            'access':    bool(account['is_active']),
-            'workouts':  bool(account['perm_workouts']),
-            'weight':    bool(account['perm_weight']),
-            'nutrition': bool(account['perm_nutrition']),
-            'sleep':     bool(account['perm_sleep']),
+            'access':       bool(account['is_active']),
+            'workouts':     bool(account['perm_workouts']),
+            'weight':       bool(account['perm_weight']),
+            'nutrition':    bool(account['perm_nutrition']),
+            'sleep':        bool(account['perm_sleep']),
+            'photos':       bool(account['perm_photos']),
+            'measurements': bool(account['perm_measurements']),
         })
 
 
@@ -297,18 +303,22 @@ def register_client_routes(app):
         data = request.get_json()
         conn.execute('''
             UPDATE client_accounts
-            SET is_active      = ?,
-                perm_workouts  = ?,
-                perm_weight    = ?,
-                perm_nutrition = ?,
-                perm_sleep     = ?
+            SET is_active         = ?,
+                perm_workouts     = ?,
+                perm_weight       = ?,
+                perm_nutrition    = ?,
+                perm_sleep        = ?,
+                perm_photos       = ?,
+                perm_measurements = ?
             WHERE client_id = ?
         ''', (
-            1 if data.get('access')    else 0,
-            1 if data.get('workouts')  else 0,
-            1 if data.get('weight')    else 0,
-            1 if data.get('nutrition') else 0,
-            1 if data.get('sleep')     else 0,
+            1 if data.get('access')       else 0,
+            1 if data.get('workouts')     else 0,
+            1 if data.get('weight')       else 0,
+            1 if data.get('nutrition')    else 0,
+            1 if data.get('sleep')        else 0,
+            1 if data.get('photos')       else 0,
+            1 if data.get('measurements') else 0,
             client_id
         ))
         conn.commit()
@@ -905,6 +915,233 @@ def register_client_routes(app):
             (data['date'], data['weight'], data.get('notes', ''), entry_id, client_id)
         )
         log_activity(conn, client_id, 'weight', 'updated', data['date'])
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+
+    @app.route('/client-portal/photos', methods=['GET', 'POST'])
+    @client_login_required
+    def client_portal_photos():
+        """Client logs and views their progress photos."""
+        client_id = session['client_id']
+        conn = get_db()
+
+        if request.method == 'POST':
+            date = request.form.get('date')
+            notes = request.form.get('notes', '')
+            override = request.form.get('override', 'false') == 'true'
+
+            if 'photo' not in request.files or not request.files['photo'].filename:
+                conn.close()
+                return jsonify({'error': 'A photo is required'}), 400
+
+            existing = conn.execute(
+                'SELECT id, photo_url FROM progress_photos WHERE client_id = ? AND date = ?',
+                (client_id, date)
+            ).fetchone()
+
+            if existing and not override:
+                conn.close()
+                return jsonify({'conflict': True}), 409
+
+            file = request.files['photo']
+            filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            photo_url = f"uploads/{filename}"
+
+            if existing and override:
+                old_path = os.path.join('static', existing['photo_url'])
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+                conn.execute(
+                    'UPDATE progress_photos SET photo_url = ?, notes = ?, updated_at = ? WHERE id = ?',
+                    (photo_url, notes, datetime.now(), existing['id'])
+                )
+                entry_id = existing['id']
+                log_activity(conn, client_id, 'photos', 'updated', date)
+            else:
+                entry_id = str(uuid.uuid4())
+                conn.execute('''
+                    INSERT INTO progress_photos (id, client_id, date, photo_url, notes, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (entry_id, client_id, date, photo_url, notes, datetime.now(), datetime.now()))
+                log_activity(conn, client_id, 'photos', 'created', date)
+
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'id': entry_id})
+
+        photo_history = conn.execute('''
+            SELECT id, date, photo_url, notes FROM progress_photos
+            WHERE client_id = ? ORDER BY date DESC
+        ''', (client_id,)).fetchall()
+
+        client = conn.execute('SELECT * FROM clients WHERE id = ?', (client_id,)).fetchone()
+        acct = conn.execute('SELECT perm_photos FROM client_accounts WHERE client_id = ?', (client_id,)).fetchone()
+        can_edit = bool(acct and acct['perm_photos'])
+        conn.close()
+
+        return render_template('client/photos.html',
+                               client=client,
+                               photo_history=[dict(r) for r in photo_history],
+                               can_edit=can_edit)
+
+    @app.route('/client-portal/api/photos/<entry_id>', methods=['PUT'])
+    @client_login_required
+    def client_update_photo(entry_id):
+        client_id = session['client_id']
+        conn = get_db()
+
+        photo = conn.execute(
+            'SELECT * FROM progress_photos WHERE id = ? AND client_id = ?',
+            (entry_id, client_id)
+        ).fetchone()
+        if not photo:
+            conn.close()
+            return jsonify({'error': 'Photo entry not found'}), 404
+
+        date = request.form.get('date')
+        notes = request.form.get('notes', '')
+        photo_url = photo['photo_url']
+
+        # A new file is optional on edit — only replace it if one was chosen.
+        if 'photo' in request.files and request.files['photo'].filename:
+            old_path = os.path.join('static', photo['photo_url'])
+            if os.path.exists(old_path):
+                os.remove(old_path)
+            file = request.files['photo']
+            filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            photo_url = f"uploads/{filename}"
+
+        conn.execute(
+            'UPDATE progress_photos SET date = ?, photo_url = ?, notes = ?, updated_at = ? WHERE id = ? AND client_id = ?',
+            (date, photo_url, notes, datetime.now(), entry_id, client_id)
+        )
+        log_activity(conn, client_id, 'photos', 'updated', date)
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+
+    @app.route('/client-portal/api/photos/<entry_id>', methods=['DELETE'])
+    @client_login_required
+    def client_delete_photo(entry_id):
+        client_id = session['client_id']
+        conn = get_db()
+
+        photo = conn.execute(
+            'SELECT * FROM progress_photos WHERE id = ? AND client_id = ?',
+            (entry_id, client_id)
+        ).fetchone()
+        if not photo:
+            conn.close()
+            return jsonify({'error': 'Photo entry not found'}), 404
+
+        old_path = os.path.join('static', photo['photo_url'])
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+        conn.execute('DELETE FROM progress_photos WHERE id = ? AND client_id = ?', (entry_id, client_id))
+        log_activity(conn, client_id, 'photos', 'deleted', '')
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+
+    MEASUREMENT_FIELDS = ['neck', 'shoulders', 'chest', 'waist', 'hips', 'bicep', 'forearm', 'thigh', 'calf']
+
+    @app.route('/client-portal/measurements', methods=['GET', 'POST'])
+    @client_login_required
+    def client_portal_measurements():
+        """Client logs and views their body measurements."""
+        client_id = session['client_id']
+        conn = get_db()
+
+        if request.method == 'POST':
+            data = request.get_json()
+            date = data.get('date')
+            notes = data.get('notes', '')
+            override = data.get('override', False)
+
+            values = {f: data.get(f) for f in MEASUREMENT_FIELDS}
+            if not any(v is not None and v != '' for v in values.values()):
+                conn.close()
+                return jsonify({'error': 'At least one measurement is required'}), 400
+
+            existing = conn.execute(
+                'SELECT id FROM body_measurements WHERE client_id = ? AND date = ?',
+                (client_id, date)
+            ).fetchone()
+
+            if existing and not override:
+                conn.close()
+                return jsonify({'conflict': True}), 409
+
+            if existing and override:
+                conn.execute(f'''
+                    UPDATE body_measurements
+                    SET {", ".join(f"{f} = ?" for f in MEASUREMENT_FIELDS)}, notes = ?, updated_at = ?
+                    WHERE id = ?
+                ''', (*[values[f] for f in MEASUREMENT_FIELDS], notes, datetime.now(), existing['id']))
+                entry_id = existing['id']
+                log_activity(conn, client_id, 'measurements', 'updated', date)
+            else:
+                entry_id = str(uuid.uuid4())
+                conn.execute(f'''
+                    INSERT INTO body_measurements
+                    (id, client_id, date, {", ".join(MEASUREMENT_FIELDS)}, notes, created_at, updated_at)
+                    VALUES (?, ?, ?, {", ".join(["?"] * len(MEASUREMENT_FIELDS))}, ?, ?, ?)
+                ''', (entry_id, client_id, date, *[values[f] for f in MEASUREMENT_FIELDS], notes,
+                      datetime.now(), datetime.now()))
+                log_activity(conn, client_id, 'measurements', 'created', date)
+
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'id': entry_id})
+
+        measurement_history = conn.execute(f'''
+            SELECT id, date, {", ".join(MEASUREMENT_FIELDS)}, notes FROM body_measurements
+            WHERE client_id = ? ORDER BY date DESC
+        ''', (client_id,)).fetchall()
+
+        client = conn.execute('SELECT * FROM clients WHERE id = ?', (client_id,)).fetchone()
+        acct = conn.execute('SELECT perm_measurements FROM client_accounts WHERE client_id = ?', (client_id,)).fetchone()
+        can_edit = bool(acct and acct['perm_measurements'])
+        conn.close()
+
+        return render_template('client/measurements.html',
+                               client=client,
+                               measurement_history=[dict(r) for r in measurement_history],
+                               can_edit=can_edit)
+
+    @app.route('/client-portal/api/measurements/<entry_id>', methods=['PUT'])
+    @client_login_required
+    def client_update_measurement(entry_id):
+        client_id = session['client_id']
+        data = request.get_json()
+        values = {f: data.get(f) for f in MEASUREMENT_FIELDS}
+
+        if not any(v is not None and v != '' for v in values.values()):
+            return jsonify({'error': 'At least one measurement is required'}), 400
+
+        conn = get_db()
+        conn.execute(f'''
+            UPDATE body_measurements
+            SET date = ?, {", ".join(f"{f} = ?" for f in MEASUREMENT_FIELDS)}, notes = ?, updated_at = ?
+            WHERE id = ? AND client_id = ?
+        ''', (data['date'], *[values[f] for f in MEASUREMENT_FIELDS], data.get('notes', ''),
+              datetime.now(), entry_id, client_id))
+        log_activity(conn, client_id, 'measurements', 'updated', data['date'])
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+
+    @app.route('/client-portal/api/measurements/<entry_id>', methods=['DELETE'])
+    @client_login_required
+    def client_delete_measurement(entry_id):
+        client_id = session['client_id']
+        conn = get_db()
+        conn.execute('DELETE FROM body_measurements WHERE id = ? AND client_id = ?', (entry_id, client_id))
+        log_activity(conn, client_id, 'measurements', 'deleted', '')
         conn.commit()
         conn.close()
         return jsonify({'success': True})

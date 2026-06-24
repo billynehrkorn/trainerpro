@@ -100,6 +100,60 @@ def init_template_type_column():
         conn.close()
 
 
+def init_progress_photos_table():
+    """Create the progress_photos table, one row per dated photo entry.
+
+    Mirrors weight_logs: one entry per (client_id, date), photo_url points
+    into static/uploads same as client profile photos.
+    """
+    conn = get_db()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS progress_photos (
+            id          TEXT PRIMARY KEY,
+            client_id   TEXT NOT NULL,
+            date        TEXT NOT NULL,
+            photo_url   TEXT NOT NULL,
+            notes       TEXT,
+            created_at  TIMESTAMP NOT NULL,
+            updated_at  TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+def init_body_measurements_table():
+    """Create the body_measurements table, one row per dated entry.
+
+    Every measurement column is nullable — the only requirement enforced at
+    the route level is that at least one of them is filled in. Values are
+    stored in inches, matching this app's existing imperial convention
+    (weight is tracked in lbs throughout).
+    """
+    conn = get_db()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS body_measurements (
+            id          TEXT PRIMARY KEY,
+            client_id   TEXT NOT NULL,
+            date        TEXT NOT NULL,
+            neck        REAL,
+            shoulders   REAL,
+            chest       REAL,
+            waist       REAL,
+            hips        REAL,
+            bicep       REAL,
+            forearm     REAL,
+            thigh       REAL,
+            calf        REAL,
+            notes       TEXT,
+            created_at  TIMESTAMP NOT NULL,
+            updated_at  TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
 @app.route('/')
 def index():
     if 'user_id' in session:
@@ -1572,6 +1626,313 @@ def client_weight_logs(client_id):
                            weight_history=weight_history)
 
 
+@app.route('/clients/<client_id>/progress-photos')
+@login_required
+def client_progress_photos(client_id):
+    conn = get_db()
+    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+
+    if not client:
+        conn.close()
+        flash('Client not found')
+        return redirect(url_for('clients'))
+
+    photo_rows = conn.execute('''
+        SELECT id, date, photo_url, notes
+        FROM progress_photos
+        WHERE client_id = ?
+        ORDER BY date DESC
+    ''', (client_id,)).fetchall()
+
+    photo_history = [dict(row) for row in photo_rows]
+
+    conn.close()
+
+    return render_template('dashboard/clients/progress_photos.html',
+                           client=client,
+                           photo_history=photo_history)
+
+
+@app.route('/api/progress-photo', methods=['POST'])
+@login_required
+def add_progress_photo():
+    client_id = request.form.get('client_id')
+    date = request.form.get('date')
+    notes = request.form.get('notes', '')
+    override = request.form.get('override', 'false') == 'true'
+
+    conn = get_db()
+    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+
+    if not client:
+        conn.close()
+        return jsonify({'error': 'Client not found'}), 404
+
+    if 'photo' not in request.files or not request.files['photo'].filename:
+        conn.close()
+        return jsonify({'error': 'A photo is required'}), 400
+
+    existing = conn.execute(
+        'SELECT id, photo_url FROM progress_photos WHERE client_id = ? AND date = ?',
+        (client_id, date)
+    ).fetchone()
+
+    if existing and not override:
+        conn.close()
+        return jsonify({'conflict': True}), 409
+
+    file = request.files['photo']
+    filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    photo_url = f"uploads/{filename}"
+
+    try:
+        if existing and override:
+            # Remove the old photo file before replacing it, same cleanup
+            # pattern used for client profile photos elsewhere in this file.
+            old_path = os.path.join('static', existing['photo_url'])
+            if os.path.exists(old_path):
+                os.remove(old_path)
+            conn.execute(
+                'UPDATE progress_photos SET photo_url = ?, notes = ?, updated_at = ? WHERE id = ?',
+                (photo_url, notes, datetime.now(), existing['id'])
+            )
+            photo_id = existing['id']
+        else:
+            photo_id = str(uuid.uuid4())
+            conn.execute('''
+                INSERT INTO progress_photos (id, client_id, date, photo_url, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (photo_id, client_id, date, photo_url, notes, datetime.now(), datetime.now()))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': photo_id})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/progress-photo/<photo_id>', methods=['PUT'])
+@login_required
+def update_progress_photo(photo_id):
+    conn = get_db()
+
+    photo = conn.execute('''
+        SELECT pp.* FROM progress_photos pp
+        JOIN clients c ON pp.client_id = c.id
+        WHERE pp.id = ? AND c.trainer_id = ?
+    ''', (photo_id, session['user_id'])).fetchone()
+
+    if not photo:
+        conn.close()
+        return jsonify({'error': 'Photo entry not found'}), 404
+
+    date = request.form.get('date')
+    notes = request.form.get('notes', '')
+    photo_url = photo['photo_url']
+
+    try:
+        # A new file is optional on edit — only replace it if one was chosen.
+        if 'photo' in request.files and request.files['photo'].filename:
+            old_path = os.path.join('static', photo['photo_url'])
+            if os.path.exists(old_path):
+                os.remove(old_path)
+            file = request.files['photo']
+            filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            photo_url = f"uploads/{filename}"
+
+        conn.execute(
+            'UPDATE progress_photos SET date = ?, photo_url = ?, notes = ?, updated_at = ? WHERE id = ?',
+            (date, photo_url, notes, datetime.now(), photo_id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/progress-photo/<photo_id>', methods=['DELETE'])
+@login_required
+def delete_progress_photo(photo_id):
+    conn = get_db()
+
+    photo = conn.execute('''
+        SELECT pp.* FROM progress_photos pp
+        JOIN clients c ON pp.client_id = c.id
+        WHERE pp.id = ? AND c.trainer_id = ?
+    ''', (photo_id, session['user_id'])).fetchone()
+
+    if not photo:
+        conn.close()
+        return jsonify({'error': 'Photo entry not found'}), 404
+
+    try:
+        old_path = os.path.join('static', photo['photo_url'])
+        if os.path.exists(old_path):
+            os.remove(old_path)
+        conn.execute('DELETE FROM progress_photos WHERE id = ?', (photo_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/clients/<client_id>/measurements')
+@login_required
+def client_measurements(client_id):
+    conn = get_db()
+    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+
+    if not client:
+        conn.close()
+        flash('Client not found')
+        return redirect(url_for('clients'))
+
+    measurement_rows = conn.execute('''
+        SELECT id, date, neck, shoulders, chest, waist, hips, bicep, forearm, thigh, calf, notes
+        FROM body_measurements
+        WHERE client_id = ?
+        ORDER BY date DESC
+    ''', (client_id,)).fetchall()
+
+    measurement_history = [dict(row) for row in measurement_rows]
+
+    conn.close()
+
+    return render_template('dashboard/clients/measurements.html',
+                           client=client,
+                           measurement_history=measurement_history)
+
+
+MEASUREMENT_FIELDS = ['neck', 'shoulders', 'chest', 'waist', 'hips', 'bicep', 'forearm', 'thigh', 'calf']
+
+
+@app.route('/api/measurement', methods=['POST'])
+@login_required
+def add_measurement():
+    data = request.json
+    client_id = data['client_id']
+    date = data['date']
+    notes = data.get('notes', '')
+    override = data.get('override', False)
+
+    conn = get_db()
+    client = conn.execute('SELECT * FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+
+    if not client:
+        conn.close()
+        return jsonify({'error': 'Client not found'}), 404
+
+    values = {f: data.get(f) for f in MEASUREMENT_FIELDS}
+    if not any(v is not None and v != '' for v in values.values()):
+        conn.close()
+        return jsonify({'error': 'At least one measurement is required'}), 400
+
+    existing = conn.execute(
+        'SELECT id FROM body_measurements WHERE client_id = ? AND date = ?',
+        (client_id, date)
+    ).fetchone()
+
+    if existing and not override:
+        conn.close()
+        return jsonify({'conflict': True}), 409
+
+    try:
+        if existing and override:
+            conn.execute(f'''
+                UPDATE body_measurements
+                SET {", ".join(f"{f} = ?" for f in MEASUREMENT_FIELDS)}, notes = ?, updated_at = ?
+                WHERE id = ?
+            ''', (*[values[f] for f in MEASUREMENT_FIELDS], notes, datetime.now(), existing['id']))
+            measurement_id = existing['id']
+        else:
+            measurement_id = str(uuid.uuid4())
+            conn.execute(f'''
+                INSERT INTO body_measurements
+                (id, client_id, date, {", ".join(MEASUREMENT_FIELDS)}, notes, created_at, updated_at)
+                VALUES (?, ?, ?, {", ".join(["?"] * len(MEASUREMENT_FIELDS))}, ?, ?, ?)
+            ''', (measurement_id, client_id, date, *[values[f] for f in MEASUREMENT_FIELDS], notes,
+                  datetime.now(), datetime.now()))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'id': measurement_id})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/measurement/<measurement_id>', methods=['PUT'])
+@login_required
+def update_measurement(measurement_id):
+    conn = get_db()
+
+    measurement = conn.execute('''
+        SELECT bm.* FROM body_measurements bm
+        JOIN clients c ON bm.client_id = c.id
+        WHERE bm.id = ? AND c.trainer_id = ?
+    ''', (measurement_id, session['user_id'])).fetchone()
+
+    if not measurement:
+        conn.close()
+        return jsonify({'error': 'Measurement entry not found'}), 404
+
+    data = request.json
+    date = data['date']
+    notes = data.get('notes', '')
+    values = {f: data.get(f) for f in MEASUREMENT_FIELDS}
+
+    if not any(v is not None and v != '' for v in values.values()):
+        conn.close()
+        return jsonify({'error': 'At least one measurement is required'}), 400
+
+    try:
+        conn.execute(f'''
+            UPDATE body_measurements
+            SET date = ?, {", ".join(f"{f} = ?" for f in MEASUREMENT_FIELDS)}, notes = ?, updated_at = ?
+            WHERE id = ?
+        ''', (date, *[values[f] for f in MEASUREMENT_FIELDS], notes, datetime.now(), measurement_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/measurement/<measurement_id>', methods=['DELETE'])
+@login_required
+def delete_measurement(measurement_id):
+    conn = get_db()
+
+    measurement = conn.execute('''
+        SELECT bm.* FROM body_measurements bm
+        JOIN clients c ON bm.client_id = c.id
+        WHERE bm.id = ? AND c.trainer_id = ?
+    ''', (measurement_id, session['user_id'])).fetchone()
+
+    if not measurement:
+        conn.close()
+        return jsonify({'error': 'Measurement entry not found'}), 404
+
+    try:
+        conn.execute('DELETE FROM body_measurements WHERE id = ?', (measurement_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/templates')
 @login_required
 def workout_templates():
@@ -1645,11 +2006,16 @@ def exports():
 
 
 def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, export_weight_logs,
-                                  export_nutrition_logs, export_sleep_logs):
-    """Build one client's export workbook in memory.
+                                  export_nutrition_logs, export_sleep_logs, export_measurements=False,
+                                  export_photos=False):
+    """Build one client's export workbook in memory, plus their progress
+    photo files if requested.
 
-    Returns (client_name, excel_bytes) or None if the client doesn't exist
-    or doesn't belong to this trainer.
+    Returns (client_name, excel_bytes, photo_files) or None if the client
+    doesn't exist or doesn't belong to this trainer. photo_files is a list
+    of (filename, file_bytes) tuples — filename is just the entry's date
+    plus the original file's extension, since each client can only have one
+    photo entry per date.
     """
     client = conn.execute('''
         SELECT name FROM clients
@@ -1893,6 +2259,57 @@ def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, e
         ws_sleep.column_dimensions['B'].width = 15
         ws_sleep.column_dimensions['C'].width = 40
 
+    if export_measurements:
+        ws_measurements = wb.create_sheet('Measurements')
+
+        measurement_cols = ['neck', 'shoulders', 'chest', 'waist', 'hips', 'bicep', 'forearm', 'thigh', 'calf']
+        headers = ['Date'] + [c.capitalize() for c in measurement_cols] + ['Notes']
+        for col, header in enumerate(headers, start=1):
+            ws_measurements.cell(row=1, column=col, value=header)
+            ws_measurements.cell(row=1, column=col).font = Font(bold=True)
+
+        measurement_logs = conn.execute(f'''
+            SELECT date, {", ".join(measurement_cols)}, notes
+            FROM body_measurements
+            WHERE client_id = ?
+            ORDER BY date ASC
+        ''', (client_id,)).fetchall()
+
+        for idx, log in enumerate(measurement_logs, start=2):
+            ws_measurements.cell(row=idx, column=1, value=log['date'])
+            for col_offset, field in enumerate(measurement_cols, start=2):
+                value = log[field]
+                ws_measurements.cell(row=idx, column=col_offset, value=value if value is not None else '')
+            ws_measurements.cell(row=idx, column=len(measurement_cols) + 2, value=log['notes'] or '')
+
+        # Adjust column widths
+        ws_measurements.column_dimensions['A'].width = 15
+        for col_offset in range(2, len(measurement_cols) + 2):
+            ws_measurements.column_dimensions[ws_measurements.cell(row=1, column=col_offset).column_letter].width = 12
+        ws_measurements.column_dimensions[
+            ws_measurements.cell(row=1, column=len(measurement_cols) + 2).column_letter
+        ].width = 40
+
+    # Collect progress photo files (exported separately as actual image
+    # files, not spreadsheet rows — named by entry date since a client can
+    # only have one photo per date).
+    photo_files = []
+    if export_photos:
+        photo_rows = conn.execute('''
+            SELECT date, photo_url
+            FROM progress_photos
+            WHERE client_id = ?
+            ORDER BY date ASC
+        ''', (client_id,)).fetchall()
+
+        for row in photo_rows:
+            disk_path = os.path.join('static', row['photo_url'])
+            if not os.path.exists(disk_path):
+                continue  # File missing on disk — skip rather than fail the whole export
+            ext = os.path.splitext(row['photo_url'])[1] or '.jpg'
+            with open(disk_path, 'rb') as f:
+                photo_files.append((f"{row['date']}{ext}", f.read()))
+
     # Save workbook to bytes
     excel_buffer = io.BytesIO()
     wb.save(excel_buffer)
@@ -1900,7 +2317,7 @@ def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, e
 
     # Clean filename
     safe_name = "".join(c for c in client['name'] if c.isalnum() or c in (' ', '-', '_')).strip()
-    return (safe_name, excel_buffer.read())
+    return (safe_name, excel_buffer.read(), photo_files)
 
 
 @app.route('/exports/generate', methods=['POST'])
@@ -1911,24 +2328,29 @@ def generate_export():
     export_weight_logs = 'export_weight_logs' in request.form
     export_nutrition_logs = 'export_nutrition_logs' in request.form
     export_sleep_logs = 'export_sleep_logs' in request.form
+    export_measurements = 'export_measurements' in request.form
+    export_photos = 'export_photos' in request.form
 
     if not client_ids:
         flash('Please select at least one client')
         return redirect(url_for('exports'))
 
-    if not export_workouts and not export_weight_logs and not export_nutrition_logs and not export_sleep_logs:
+    if not any([export_workouts, export_weight_logs, export_nutrition_logs,
+                export_sleep_logs, export_measurements, export_photos]):
         flash('Please select at least one export option')
         return redirect(url_for('exports'))
 
     conn = get_db()
 
-    # Build each client's workbook; client_ids that don't belong to this
-    # trainer (or no longer exist) are silently skipped, same as before.
+    # Build each client's workbook (+ photo files); client_ids that don't
+    # belong to this trainer (or no longer exist) are silently skipped,
+    # same as before.
     built = []
     for client_id in client_ids:
         result = build_client_export_workbook(
             conn, client_id, session['user_id'],
-            export_workouts, export_weight_logs, export_nutrition_logs, export_sleep_logs
+            export_workouts, export_weight_logs, export_nutrition_logs, export_sleep_logs,
+            export_measurements, export_photos
         )
         if result:
             built.append(result)
@@ -1939,9 +2361,13 @@ def generate_export():
         flash('No matching clients found to export')
         return redirect(url_for('exports'))
 
-    # A single client never needs a ZIP wrapper — just send the .xlsx directly.
-    if len(built) == 1:
-        safe_name, excel_bytes = built[0]
+    # A single client with no photos can still go out as a bare .xlsx — no
+    # folder structure needed since there's nothing besides the spreadsheet.
+    # The moment photos are involved (even for one client), a flat file
+    # can't represent a "spreadsheet + photos folder" pair, so it always
+    # needs a zip from that point on.
+    if len(built) == 1 and not built[0][2]:
+        safe_name, excel_bytes, _ = built[0]
         return send_file(
             io.BytesIO(excel_bytes),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1949,11 +2375,16 @@ def generate_export():
             download_name=f'{safe_name}.xlsx'
         )
 
-    # Multiple clients: zip all their workbooks together.
+    # Every client gets their own folder inside the zip: {name}/{name}.xlsx
+    # plus {name}/photos/{date}.{ext} for each progress photo, so the
+    # spreadsheet and the photo files are clearly grouped per client instead
+    # of dumped together in one flat list.
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for safe_name, excel_bytes in built:
-            zip_file.writestr(f'{safe_name}.xlsx', excel_bytes)
+        for safe_name, excel_bytes, photo_files in built:
+            zip_file.writestr(f'{safe_name}/{safe_name}.xlsx', excel_bytes)
+            for photo_filename, photo_bytes in photo_files:
+                zip_file.writestr(f'{safe_name}/photos/{photo_filename}', photo_bytes)
     zip_buffer.seek(0)
 
     return send_file(
@@ -2750,6 +3181,9 @@ init_template_client_column()
 init_workout_type_column()
 # Ensure workout_templates has the workout_type column too (weightlifting vs cardio templates).
 init_template_type_column()
+# Ensure the progress_photos and body_measurements tables exist.
+init_progress_photos_table()
+init_body_measurements_table()
 
 
 if __name__ == '__main__':
@@ -2762,4 +3196,6 @@ if __name__ == '__main__':
     init_template_client_column()
     init_workout_type_column()
     init_template_type_column()
+    init_progress_photos_table()
+    init_body_measurements_table()
     app.run(debug=True)

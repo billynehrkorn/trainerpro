@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.name }} - Body Measurements - TrainerPro{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --navy: #0F172A;
+    --slate-600: #475569;
+    --slate-400: #94A3B8;
+    --slate-200: #E2E8F0;
+    --slate-100: #F1F5F9;
+    --slate-50: #F8FAFC;
+    --emerald: #059669;
+    --emerald-hover: #047857;
+    --red-light: #FEE2E2;
+    --blue: #2563EB;
+    --teal: #0D9488;
+    --teal-hover: #0F766E;
+    --teal-light: #CCFBF1;
+    --teal-text: #115E59;
+    --radius: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body { background: var(--slate-50); }
+  .page-wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* ── Header ── */
+  .wl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
+  .wl-header-left { display: flex; align-items: center; gap: 1rem; }
+  .back-link {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 8px;
+    color: var(--slate-600); text-decoration: none; flex-shrink: 0;
+    border: 1.5px solid var(--slate-200); background: white;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .back-link:hover { background: var(--slate-50); border-color: var(--slate-400); color: var(--navy); }
+  .wl-title { font-size: 1.75rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .wl-subtitle { font-size: 0.85rem; color: var(--slate-400); margin-top: 0.15rem; }
+  .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: background 0.15s; white-space: nowrap; }
+  .btn-primary { background: var(--teal); color: white; }
+  .btn-primary:hover { background: var(--teal-hover); }
+
+  /* ── Card ── */
+  .card { background: white; border: 1.5px solid var(--slate-200); border-radius: var(--radius); padding: 1.25rem 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.25rem; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1.5px solid var(--slate-100); gap: 1rem; flex-wrap: wrap; }
+  .card-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--slate-400); }
+
+  /* ── Entries ── */
+  .entries-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .entry-card { display: flex; align-items: stretch; border: 1.5px solid var(--slate-200); border-radius: 8px; overflow: hidden; background: white; transition: border-color 0.15s; }
+  .entry-card:hover { border-color: var(--slate-400); }
+  .entry-accent { width: 4px; flex-shrink: 0; background: var(--teal); }
+  .entry-body { flex: 1; padding: 0.85rem 1rem; display: flex; gap: 0.85rem; }
+  .entry-icon { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; background: var(--teal-light); color: var(--teal-text); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
+  .entry-main { flex: 1; min-width: 0; }
+  .entry-date-text { font-size: 0.85rem; font-weight: 700; color: var(--navy); margin-bottom: 0.45rem; }
+  .measurement-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .measurement-chip {
+    display: inline-flex; align-items: baseline; gap: 0.3rem;
+    background: var(--slate-100); border-radius: 7px; padding: 0.25rem 0.55rem;
+    font-size: 0.78rem; color: var(--slate-600);
+  }
+  .measurement-chip strong { color: var(--navy); font-size: 0.82rem; }
+  .entry-notes { font-size: 0.78rem; color: var(--slate-600); font-style: italic; margin-top: 0.5rem; }
+  .entry-actions { display: flex; align-items: center; gap: 0.25rem; padding: 0 0.6rem; flex-shrink: 0; }
+  .entry-icon-btn { background: none; border: none; cursor: pointer; padding: 0.4rem; color: var(--slate-400); border-radius: 5px; font-size: 0.8rem; transition: color 0.15s, background 0.15s; }
+  .entry-icon-btn.edit:hover { color: var(--blue); background: #EFF6FF; }
+  .entry-icon-btn.remove:hover { color: #EF4444; background: var(--red-light); }
+
+  /* ── Empty ── */
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem; text-align: center; color: var(--slate-400); }
+  .empty-state i { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.5; }
+  .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--navy); margin-bottom: 0.35rem; }
+  .empty-state p { font-size: 0.85rem; margin-bottom: 1.25rem; }
+
+  /* ── Modals ── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 50; padding: 1rem; overflow-y: auto; }
+  .modal-backdrop.open { display: flex; }
+  .modal-box { background: white; border-radius: 14px; padding: 1.75rem; width: 100%; max-width: 560px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); margin: auto; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .modal-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--slate-400); font-size: 1rem; padding: 0.25rem; border-radius: 5px; transition: color 0.15s; }
+  .modal-close:hover { color: var(--navy); }
+  .form-group { margin-bottom: 1rem; }
+  .form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-600); margin-bottom: 0.35rem; }
+  .form-input, .form-textarea { width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid var(--slate-200); border-radius: 8px; font-size: 0.875rem; color: var(--navy); outline: none; transition: border-color 0.15s; box-sizing: border-box; font-family: inherit; background: white; }
+  .form-input:focus, .form-textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+  .measurements-hint { font-size: 0.76rem; color: var(--slate-400); margin: -0.4rem 0 1rem; }
+  .measurements-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
+  .measurement-field-wrap { position: relative; }
+  .measurement-field-wrap .form-input { padding-right: 2.2rem; }
+  .measurement-unit { position: absolute; right: 0.7rem; top: 38px; font-size: 0.72rem; color: var(--slate-400); pointer-events: none; }
+  .modal-footer { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
+  .modal-btn { flex: 1; padding: 0.6rem; border-radius: 8px; border: none; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .modal-btn-primary { background: var(--teal); color: white; }
+  .modal-btn-primary:hover { background: var(--teal-hover); }
+  .modal-btn-secondary { background: var(--slate-100); color: var(--slate-600); border: 1.5px solid var(--slate-200); }
+  .modal-btn-secondary:hover { background: var(--slate-200); }
+  .modal-btn-danger { background: #EF4444; color: white; }
+  .modal-btn-danger:hover { background: #DC2626; }
+  .conflict-text { font-size:0.875rem; color:var(--slate-600); line-height:1.5; margin:0 0 1.25rem; }
+  .conflict-date { color:var(--navy); }
+  .modal-text { font-size: 0.875rem; color: var(--slate-600); line-height: 1.5; }
+  .form-error-text { font-size: 0.78rem; color: #DC2626; margin: -0.4rem 0 1rem; display: none; }
+  .form-error-text.visible { display: block; }
+
+  /* ── Dark mode ── */
+  html.dark .wl-title        { color: #F1F5F9; }
+  html.dark .back-link       { background: #1E293B; border-color: #334155; color: #94A3B8; }
+  html.dark .back-link:hover { background: #273548; border-color: #475569; color: #F1F5F9; }
+  html.dark .card            { background: #1E293B; border-color: #334155; }
+  html.dark .card-header     { border-color: #334155; }
+  html.dark .entry-card      { background: #1E293B; border-color: #334155; }
+  html.dark .entry-card:hover { border-color: #475569; }
+  html.dark .entry-icon      { background: rgba(13,148,136,0.22); color: #5EEAD4; }
+  html.dark .entry-date-text { color: #F1F5F9; }
+  html.dark .measurement-chip { background: #0F172A; color: #CBD5E1; }
+  html.dark .measurement-chip strong { color: #F1F5F9; }
+  html.dark .entry-notes     { color: #94A3B8; }
+  html.dark .empty-state h3  { color: #CBD5E1; }
+  html.dark .modal-box       { background: #1E293B; }
+  html.dark .modal-title     { color: #F1F5F9; }
+  html.dark .modal-close     { color: #64748B; }
+  html.dark .modal-close:hover { color: #F1F5F9; }
+  html.dark .modal-text      { color: #CBD5E1; }
+  html.dark .conflict-text   { color: #CBD5E1; }
+  html.dark .conflict-date   { color: #F1F5F9; }
+  html.dark .form-label      { color: #CBD5E1; }
+  html.dark .measurements-hint { color: #64748B; }
+  html.dark .form-input,
+  html.dark .form-textarea   { background: #0F172A; color: #F1F5F9; border-color: #334155; }
+  html.dark .modal-btn-secondary { background: #0F172A; color: #CBD5E1; border-color: #334155; }
+  html.dark .modal-btn-secondary:hover { background: #1a2535; }
+
+  @media (max-width: 680px) {
+    .page-wrap { padding: 1rem; }
+    .wl-header { flex-direction: column; align-items: flex-start; }
+    .measurements-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="page-wrap">
+  <div class="wl-header">
+    <div class="wl-header-left">
+      <a href="{{ url_for('client_detail', client_id=client.id) }}" class="back-link" title="Back to client">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <div>
+        <div class="wl-title">{{ client.name }} &mdash; Body Measurements</div>
+        <div class="wl-subtitle">Track circumference measurements over time (inches)</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button onclick="openMeasurementModal()" class="btn btn-primary">
+        <i class="fas fa-ruler"></i> Add Measurement Entry
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Entry History</span></div>
+    {% if measurement_history %}
+      <div class="entries-list">
+        {% for entry in measurement_history %}
+        <div class="entry-card">
+          <div class="entry-accent"></div>
+          <div class="entry-body">
+            <div class="entry-icon"><i class="fas fa-ruler"></i></div>
+            <div class="entry-main">
+              <div class="entry-date-text measurement-date" data-date="{{ entry.date }}">{{ entry.date }}</div>
+              <div class="measurement-chips">
+                {% if entry.neck %}<span class="measurement-chip">Neck <strong>{{ entry.neck }}"</strong></span>{% endif %}
+                {% if entry.shoulders %}<span class="measurement-chip">Shoulders <strong>{{ entry.shoulders }}"</strong></span>{% endif %}
+                {% if entry.chest %}<span class="measurement-chip">Chest <strong>{{ entry.chest }}"</strong></span>{% endif %}
+                {% if entry.waist %}<span class="measurement-chip">Waist <strong>{{ entry.waist }}"</strong></span>{% endif %}
+                {% if entry.hips %}<span class="measurement-chip">Hips <strong>{{ entry.hips }}"</strong></span>{% endif %}
+                {% if entry.bicep %}<span class="measurement-chip">Bicep <strong>{{ entry.bicep }}"</strong></span>{% endif %}
+                {% if entry.forearm %}<span class="measurement-chip">Forearm <strong>{{ entry.forearm }}"</strong></span>{% endif %}
+                {% if entry.thigh %}<span class="measurement-chip">Thigh <strong>{{ entry.thigh }}"</strong></span>{% endif %}
+                {% if entry.calf %}<span class="measurement-chip">Calf <strong>{{ entry.calf }}"</strong></span>{% endif %}
+              </div>
+              {% if entry.notes %}<div class="entry-notes">"{{ entry.notes }}"</div>{% endif %}
+            </div>
+          </div>
+          <div class="entry-actions">
+            <button onclick='editMeasurementEntry({{ entry|tojson }})' class="entry-icon-btn edit" title="Edit">
+              <i class="fas fa-pencil-alt"></i>
+            </button>
+            <button onclick="deleteMeasurementEntry('{{ entry.id }}')" class="entry-icon-btn remove" title="Delete">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-ruler"></i>
+        <h3>No measurement entries yet</h3>
+        <p>Start tracking {{ client.name }}'s body measurements</p>
+        <button onclick="openMeasurementModal()" class="btn btn-primary"><i class="fas fa-ruler"></i> Add First Entry</button>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div id="measurementModal" class="modal-backdrop" onclick="if(event.target===this)closeMeasurementModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Add Measurement Entry</span>
+      <button onclick="closeMeasurementModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="measurementForm">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="measurementDate" class="form-input" required></div>
+      <label class="form-label">Measurements (inches)</label>
+      <div class="measurements-hint">Fill in whichever you took — at least one is required, the rest can stay blank.</div>
+      <div class="measurements-grid">
+        <div class="measurement-field-wrap"><label class="form-label">Neck</label><input type="number" step="0.1" min="0" id="m_neck" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Shoulders</label><input type="number" step="0.1" min="0" id="m_shoulders" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Chest</label><input type="number" step="0.1" min="0" id="m_chest" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Waist</label><input type="number" step="0.1" min="0" id="m_waist" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Hips</label><input type="number" step="0.1" min="0" id="m_hips" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Bicep</label><input type="number" step="0.1" min="0" id="m_bicep" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Forearm</label><input type="number" step="0.1" min="0" id="m_forearm" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Thigh</label><input type="number" step="0.1" min="0" id="m_thigh" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Calf</label><input type="number" step="0.1" min="0" id="m_calf" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+      </div>
+      <p class="form-error-text" id="measurementFormError">Please fill in at least one measurement.</p>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="measurementNotes" rows="2" class="form-textarea" placeholder="Any additional notes..."></textarea></div>
+      <div class="modal-footer">
+        <button type="submit" class="modal-btn modal-btn-primary">Save Entry</button>
+        <button type="button" onclick="closeMeasurementModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Conflict Warning Modal -->
+<div id="conflictModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-triangle-exclamation" style="color:#D97706;margin-right:0.4rem;"></i>Entry Already Exists</span>
+      <button onclick="closeConflictModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:1.5rem;">
+      <p class="conflict-text">
+        This client already has a measurement entry on <strong id="conflictDateText" class="conflict-date"></strong>.
+        Do you want to override it with the new entry, or cancel and pick a different date?
+      </p>
+      <div class="modal-footer" style="margin-top:0">
+        <button type="button" class="modal-btn modal-btn-danger" onclick="confirmOverrideMeasurement()">Override</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeConflictModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editMeasurementModal" class="modal-backdrop" onclick="if(event.target===this)closeEditMeasurementModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Edit Measurement Entry</span>
+      <button onclick="closeEditMeasurementModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="editMeasurementForm">
+      <input type="hidden" id="editMeasurementId">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="editMeasurementDate" class="form-input" required></div>
+      <label class="form-label">Measurements (inches)</label>
+      <div class="measurements-hint">Fill in whichever you took — at least one is required, the rest can stay blank.</div>
+      <div class="measurements-grid">
+        <div class="measurement-field-wrap"><label class="form-label">Neck</label><input type="number" step="0.1" min="0" id="edit_m_neck" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Shoulders</label><input type="number" step="0.1" min="0" id="edit_m_shoulders" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Chest</label><input type="number" step="0.1" min="0" id="edit_m_chest" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Waist</label><input type="number" step="0.1" min="0" id="edit_m_waist" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Hips</label><input type="number" step="0.1" min="0" id="edit_m_hips" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Bicep</label><input type="number" step="0.1" min="0" id="edit_m_bicep" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Forearm</label><input type="number" step="0.1" min="0" id="edit_m_forearm" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Thigh</label><input type="number" step="0.1" min="0" id="edit_m_thigh" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+        <div class="measurement-field-wrap"><label class="form-label">Calf</label><input type="number" step="0.1" min="0" id="edit_m_calf" class="form-input measurement-input"><span class="measurement-unit">in</span></div>
+      </div>
+      <p class="form-error-text" id="editMeasurementFormError">Please fill in at least one measurement.</p>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="editMeasurementNotes" rows="2" class="form-textarea"></textarea></div>
+      <div class="modal-footer">
+        <button type="submit" class="modal-btn modal-btn-primary">Update Entry</button>
+        <button type="button" onclick="closeEditMeasurementModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteMeasurementModal" class="modal-backdrop" onclick="if(event.target===this)closeDeleteMeasurementModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Delete Measurement Entry</span>
+      <button onclick="closeDeleteMeasurementModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <p class="modal-text">Are you sure you want to delete this measurement entry? This action cannot be undone.</p>
+    <div class="modal-footer">
+      <button type="button" onclick="confirmDeleteMeasurement()" class="modal-btn modal-btn-danger">Delete</button>
+      <button type="button" onclick="closeDeleteMeasurementModal()" class="modal-btn modal-btn-secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MEASUREMENT_FIELDS = ['neck', 'shoulders', 'chest', 'waist', 'hips', 'bicep', 'forearm', 'thigh', 'calf'];
+
+function localToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDates() {
+  document.querySelectorAll('.measurement-date').forEach(el => {
+    const d = el.getAttribute('data-date');
+    if (!d) return;
+    const date = new Date(d + 'T00:00:00');
+    const opts = { year: 'numeric', month: 'long', day: 'numeric' };
+    let formatted = date.toLocaleDateString('en-US', opts);
+    const day = date.getDate();
+    let suffix = 'th';
+    if (day % 10 === 1 && day !== 11) suffix = 'st';
+    else if (day % 10 === 2 && day !== 12) suffix = 'nd';
+    else if (day % 10 === 3 && day !== 13) suffix = 'rd';
+    el.textContent = formatted.replace(/(\d+),/, `$1${suffix},`);
+  });
+}
+document.addEventListener('DOMContentLoaded', formatDates);
+
+function openMeasurementModal() {
+  document.getElementById('measurementModal').classList.add('open');
+  document.getElementById('measurementDate').value = localToday();
+}
+function closeMeasurementModal() {
+  document.getElementById('measurementModal').classList.remove('open');
+  document.getElementById('measurementForm').reset();
+  document.getElementById('measurementFormError').classList.remove('visible');
+}
+
+function editMeasurementEntry(entry) {
+  document.getElementById('editMeasurementId').value = entry.id;
+  document.getElementById('editMeasurementDate').value = entry.date;
+  document.getElementById('editMeasurementNotes').value = entry.notes || '';
+  MEASUREMENT_FIELDS.forEach(f => {
+    document.getElementById(`edit_m_${f}`).value = entry[f] ?? '';
+  });
+  document.getElementById('editMeasurementModal').classList.add('open');
+}
+function closeEditMeasurementModal() {
+  document.getElementById('editMeasurementModal').classList.remove('open');
+  document.getElementById('editMeasurementForm').reset();
+  document.getElementById('editMeasurementFormError').classList.remove('visible');
+}
+
+let pendingDeleteId = null;
+function deleteMeasurementEntry(id) { pendingDeleteId = id; document.getElementById('deleteMeasurementModal').classList.add('open'); }
+function closeDeleteMeasurementModal() { pendingDeleteId = null; document.getElementById('deleteMeasurementModal').classList.remove('open'); }
+function confirmDeleteMeasurement() {
+  if (!pendingDeleteId) return;
+  fetch(`/api/measurement/${pendingDeleteId}`, { method: 'DELETE' })
+    .then(r => { if (r.ok) location.reload(); else alert('Error deleting entry.'); })
+    .catch(() => alert('Error deleting entry.'));
+}
+
+function collectMeasurementValues(prefix) {
+  const values = {};
+  MEASUREMENT_FIELDS.forEach(f => {
+    const raw = document.getElementById(`${prefix}${f}`).value;
+    values[f] = raw !== '' ? parseFloat(raw) : null;
+  });
+  return values;
+}
+function hasAnyMeasurement(values) {
+  return Object.values(values).some(v => v !== null && !Number.isNaN(v));
+}
+
+let pendingMeasurementData = null;
+
+document.getElementById('measurementForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const values = collectMeasurementValues('m_');
+  if (!hasAnyMeasurement(values)) {
+    document.getElementById('measurementFormError').classList.add('visible');
+    return;
+  }
+  document.getElementById('measurementFormError').classList.remove('visible');
+  const payload = {
+    client_id: '{{ client.id }}',
+    date: document.getElementById('measurementDate').value,
+    notes: document.getElementById('measurementNotes').value,
+    ...values
+  };
+  await trySaveMeasurement(payload, false);
+});
+
+async function trySaveMeasurement(payload, override) {
+  try {
+    const r = await fetch('/api/measurement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, override })
+    });
+    if (r.ok) { closeMeasurementModal(); closeConflictModal(); location.reload(); return; }
+    if (r.status === 409) {
+      pendingMeasurementData = payload;
+      const d = new Date(payload.date + 'T00:00:00');
+      document.getElementById('conflictDateText').textContent =
+        d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      document.getElementById('measurementModal').classList.remove('open');
+      document.getElementById('conflictModal').classList.add('open');
+      return;
+    }
+    const e = await r.json().catch(() => ({}));
+    alert(e.error || 'Error saving measurement entry.');
+  } catch { alert('Error saving measurement entry.'); }
+}
+
+function closeConflictModal() {
+  // Cancel: reopen the add form with what the user already typed, untouched.
+  document.getElementById('conflictModal').classList.remove('open');
+  if (pendingMeasurementData) {
+    document.getElementById('measurementDate').value  = pendingMeasurementData.date;
+    document.getElementById('measurementNotes').value = pendingMeasurementData.notes;
+    MEASUREMENT_FIELDS.forEach(f => {
+      document.getElementById(`m_${f}`).value = pendingMeasurementData[f] ?? '';
+    });
+    document.getElementById('measurementModal').classList.add('open');
+  }
+}
+
+async function confirmOverrideMeasurement() {
+  document.getElementById('conflictModal').classList.remove('open');
+  if (pendingMeasurementData) await trySaveMeasurement(pendingMeasurementData, true);
+  pendingMeasurementData = null;
+}
+
+document.getElementById('editMeasurementForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const values = collectMeasurementValues('edit_m_');
+  if (!hasAnyMeasurement(values)) {
+    document.getElementById('editMeasurementFormError').classList.add('visible');
+    return;
+  }
+  document.getElementById('editMeasurementFormError').classList.remove('visible');
+  const id = document.getElementById('editMeasurementId').value;
+  const payload = {
+    date: document.getElementById('editMeasurementDate').value,
+    notes: document.getElementById('editMeasurementNotes').value,
+    ...values
+  };
+  try {
+    const r = await fetch(`/api/measurement/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) { closeEditMeasurementModal(); location.reload(); }
+    else { const e = await r.json().catch(() => ({})); alert(e.error || 'Error updating entry.'); }
+  } catch { alert('Error updating entry.'); }
+});
+</script>
+{% endblock %}

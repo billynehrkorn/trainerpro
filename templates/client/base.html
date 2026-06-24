@@ -284,6 +284,14 @@
          class="sb-link {% if request.endpoint == 'client_portal_weight' %}active{% endif %}">
         <i class="fas fa-weight-scale"></i> Weight
       </a>
+      <a href="{{ url_for('client_portal_photos') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_photos' %}active{% endif %}">
+        <i class="fas fa-camera"></i> Photos
+      </a>
+      <a href="{{ url_for('client_portal_measurements') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_measurements' %}active{% endif %}">
+        <i class="fas fa-ruler"></i> Measurements
+      </a>
       <a href="{{ url_for('client_portal_sleep') }}"
          class="sb-link {% if request.endpoint == 'client_portal_sleep' %}active{% endif %}">
         <i class="fas fa-moon"></i> Sleep
@@ -321,6 +329,14 @@
       <a href="{{ url_for('client_portal_weight') }}"
          class="sb-link {% if request.endpoint == 'client_portal_weight' %}active{% endif %}">
         <i class="fas fa-weight-scale"></i> Weight
+      </a>
+      <a href="{{ url_for('client_portal_photos') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_photos' %}active{% endif %}">
+        <i class="fas fa-camera"></i> Photos
+      </a>
+      <a href="{{ url_for('client_portal_measurements') }}"
+         class="sb-link {% if request.endpoint == 'client_portal_measurements' %}active{% endif %}">
+        <i class="fas fa-ruler"></i> Measurements
       </a>
       <a href="{{ url_for('client_portal_sleep') }}"
          class="sb-link {% if request.endpoint == 'client_portal_sleep' %}active{% endif %}">

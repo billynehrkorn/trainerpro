@@ -636,11 +636,13 @@
             <span class="btn-icon"><i class="fas fa-moon"></i></span>
             <span>Sleep</span>
           </button>
-          <button class="action-btn photos" onclick="alert('Photo progress is coming soon.')">
+          <button class="action-btn photos"
+                  onclick="window.location.href='{{ url_for('client_progress_photos', client_id=client.id) }}'">
             <span class="btn-icon"><i class="fas fa-camera"></i></span>
             <span>Photo Progress</span>
           </button>
-          <button class="action-btn measurements" onclick="alert('Body measurements is coming soon.')">
+          <button class="action-btn measurements"
+                  onclick="window.location.href='{{ url_for('client_measurements', client_id=client.id) }}'">
             <span class="btn-icon"><i class="fas fa-ruler"></i></span>
             <span>Measurements</span>
           </button>
@@ -1042,11 +1044,13 @@ function openPortalSettings() {
   fetch(`/api/clients/${CLIENT_ID}/portal-settings`)
     .then(r => r.json())
     .then(data => {
-      applyToggleState('access',    data.access);
-      applyToggleState('workouts',  data.workouts);
-      applyToggleState('weight',    data.weight);
-      applyToggleState('nutrition', data.nutrition);
-      applyToggleState('sleep',     data.sleep);
+      applyToggleState('access',       data.access);
+      applyToggleState('workouts',     data.workouts);
+      applyToggleState('weight',       data.weight);
+      applyToggleState('nutrition',    data.nutrition);
+      applyToggleState('sleep',        data.sleep);
+      applyToggleState('photos',       data.photos);
+      applyToggleState('measurements', data.measurements);
     })
     .catch(() => {});
 }
@@ -1062,11 +1066,13 @@ function setToggle(group, value) {
   applyToggleState(group, value === 'on');
   // Collect all current settings and save immediately
   const settings = {
-    access:    getToggleValue('access'),
-    workouts:  getToggleValue('workouts'),
-    weight:    getToggleValue('weight'),
-    nutrition: getToggleValue('nutrition'),
-    sleep:     getToggleValue('sleep'),
+    access:       getToggleValue('access'),
+    workouts:     getToggleValue('workouts'),
+    weight:       getToggleValue('weight'),
+    nutrition:    getToggleValue('nutrition'),
+    sleep:        getToggleValue('sleep'),
+    photos:       getToggleValue('photos'),
+    measurements: getToggleValue('measurements'),
   };
   fetch(`/api/clients/${CLIENT_ID}/portal-settings`, {
     method: 'POST',
@@ -1155,7 +1161,7 @@ async function revokeAccess() {
       </div>
 
       <!-- Sleep logs -->
-      <div class="portal-setting-row" style="border-bottom:none;">
+      <div class="portal-setting-row">
         <div>
           <div class="portal-setting-label">Sleep Logs</div>
           <div class="portal-setting-sub">Client can log &amp; edit their sleep</div>
@@ -1163,6 +1169,30 @@ async function revokeAccess() {
         <div class="toggle-pair">
           <button data-group="sleep" data-value="on" class="on" onclick="setToggle('sleep','on')">On</button>
           <button data-group="sleep" data-value="off" onclick="setToggle('sleep','off')">Off</button>
+        </div>
+      </div>
+
+      <!-- Progress photos -->
+      <div class="portal-setting-row">
+        <div>
+          <div class="portal-setting-label">Photo Progress</div>
+          <div class="portal-setting-sub">Client can upload &amp; edit their own progress photos</div>
+        </div>
+        <div class="toggle-pair">
+          <button data-group="photos" data-value="on" class="on" onclick="setToggle('photos','on')">On</button>
+          <button data-group="photos" data-value="off" onclick="setToggle('photos','off')">Off</button>
+        </div>
+      </div>
+
+      <!-- Body measurements -->
+      <div class="portal-setting-row" style="border-bottom:none;">
+        <div>
+          <div class="portal-setting-label">Body Measurements</div>
+          <div class="portal-setting-sub">Client can log &amp; edit their own measurements</div>
+        </div>
+        <div class="toggle-pair">
+          <button data-group="measurements" data-value="on" class="on" onclick="setToggle('measurements','on')">On</button>
+          <button data-group="measurements" data-value="off" onclick="setToggle('measurements','off')">Off</button>
         </div>
       </div>
 

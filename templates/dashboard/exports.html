@@ -226,9 +226,12 @@
 
       <!-- Export options -->
       <div style="margin-bottom:0.5rem">
-        <label style="font-size:0.78rem;font-weight:700;color:var(--slate-600);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:0.65rem">
+        <label style="font-size:0.78rem;font-weight:700;color:var(--slate-600);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:0.4rem">
           Data to Include
         </label>
+        <p style="font-size:0.75rem;color:var(--slate-400);margin:0 0 0.65rem;line-height:1.45;">
+          Workouts, weight, nutrition, sleep, and measurements export into the spreadsheet. Photo Progress exports as actual image files in a separate <code>photos</code> folder, named by entry date.
+        </p>
         <div class="options-grid">
           <label class="option-item checked" id="opt-workouts">
             <input type="checkbox" name="export_workouts" value="true" checked class="option-checkbox export-option">
@@ -249,6 +252,16 @@
             <input type="checkbox" name="export_sleep_logs" value="true" checked class="option-checkbox export-option">
             <i class="fas fa-moon option-icon"></i>
             <span class="option-label">Sleep Logs</span>
+          </label>
+          <label class="option-item checked" id="opt-photos">
+            <input type="checkbox" name="export_photos" value="true" checked class="option-checkbox export-option">
+            <i class="fas fa-camera option-icon"></i>
+            <span class="option-label">Photo Progress</span>
+          </label>
+          <label class="option-item checked" id="opt-measurements">
+            <input type="checkbox" name="export_measurements" value="true" checked class="option-checkbox export-option">
+            <i class="fas fa-ruler option-icon"></i>
+            <span class="option-label">Body Measurements</span>
           </label>
         </div>
       </div>
