@@ -12,6 +12,8 @@
     --purple:#7C3AED; --purple-light:#F3E8FF; --purple-text:#5B21B6;
     --indigo:#4F46E5; --indigo-light:#EEF2FF; --indigo-text:#3730A3;
     --amber:#D97706; --amber-light:#FEF3C7; --amber-text:#92400E;
+    --orange:#EA580C; --orange-light:#FFEDD5; --orange-text:#9A3412;
+    --teal:#0D9488; --teal-light:#CCFBF1; --teal-text:#115E59;
     --red:#DC2626; --red-light:#FEE2E2; --red-text:#991B1B;
     --radius:10px; --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
   }
@@ -58,6 +60,8 @@
   .activity-icon.weight    { background:var(--purple-light);  color:var(--purple); }
   .activity-icon.sleep     { background:var(--indigo-light);  color:var(--indigo); }
   .activity-icon.nutrition { background:var(--emerald-light); color:var(--emerald); }
+  .activity-icon.photos       { background:var(--orange-light); color:var(--orange-text); }
+  .activity-icon.measurements { background:var(--teal-light);   color:var(--teal-text); }
   .activity-main { flex:1; min-width:0; }
   .activity-text { font-size:0.85rem; color:var(--navy); line-height:1.4; }
   .activity-text strong { font-weight:700; }
@@ -166,6 +170,8 @@
             {% elif a.category == 'weight' %}<i class="fas fa-weight-scale"></i>
             {% elif a.category == 'sleep' %}<i class="fas fa-moon"></i>
             {% elif a.category == 'nutrition' %}<i class="fas fa-utensils"></i>
+            {% elif a.category == 'photos' %}<i class="fas fa-camera"></i>
+            {% elif a.category == 'measurements' %}<i class="fas fa-ruler"></i>
             {% else %}<i class="fas fa-circle-info"></i>{% endif %}
           </div>
           <div class="activity-main">

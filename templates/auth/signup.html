@@ -36,27 +36,13 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.6rem;
         padding: 1.75rem 2rem 0;
     }
 
-    .auth-brand-mark {
-        width: 38px;
-        height: 38px;
-        border-radius: var(--radius);
-        background: var(--emerald);
-        color: #FFFFFF;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-    }
-
-    .auth-brand-name {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: var(--navy);
-        letter-spacing: -0.01em;
+    .auth-brand-img {
+        height: 46px;
+        width: auto;
+        display: block;
     }
 
     .auth-head {
@@ -168,8 +154,7 @@
 <div class="auth-wrap">
     <div class="auth-card">
         <div class="auth-brand">
-            <span class="auth-brand-mark"><i class="fas fa-dumbbell"></i></span>
-            <span class="auth-brand-name">TrainerPro</span>
+            <img src="{{ url_for('static', filename='trainerprologo2.png') }}" alt="TrainerPro" class="auth-brand-img">
         </div>
         <div class="auth-head">
             <div class="auth-label">Get Started</div>

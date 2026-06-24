@@ -31,20 +31,12 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    gap:0.65rem;
     margin-bottom:2rem;
   }
-  .login-logo-mark {
-    width:44px; height:44px;
-    border-radius:11px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:1.1rem; color:white;
-    background:var(--emerald);
-    box-shadow:0 2px 8px rgba(5,150,105,0.35);
-  }
-  .login-logo-name {
-    font-size:1.3rem; font-weight:800;
-    color:var(--navy); letter-spacing:-0.03em;
+  .login-logo-img {
+    height:56px;
+    width:auto;
+    display:block;
   }
 
   /* ── Switcher ── */
@@ -205,8 +197,7 @@
 
     <!-- Logo -->
     <div class="login-logo">
-      <div class="login-logo-mark"><i class="fas fa-dumbbell"></i></div>
-      <span class="login-logo-name">TrainerPro</span>
+      <img src="{{ url_for('static', filename='trainerprologo2.png') }}" alt="TrainerPro" class="login-logo-img">
     </div>
 
     <!-- Switcher -->

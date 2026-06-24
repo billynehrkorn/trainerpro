@@ -24,6 +24,8 @@
     --amber-text:   #92400E;
     --orange-light: #FFEDD5;
     --orange-text:  #9A3412;
+    --teal-light: #CCFBF1;
+    --teal-text:  #115E59;
     --radius: 10px;
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   }
@@ -140,6 +142,8 @@
   .activity-icon.weight    { background: var(--purple-light);  color: var(--purple); }
   .activity-icon.sleep     { background: var(--amber-light);   color: var(--amber-text); }
   .activity-icon.nutrition { background: var(--emerald-light); color: var(--emerald); }
+  .activity-icon.photos       { background: var(--orange-light); color: var(--orange-text); }
+  .activity-icon.measurements { background: var(--teal-light);   color: var(--teal-text); }
   .activity-text { flex: 1; min-width: 0; }
   .activity-line { font-size: 0.85rem; color: var(--navy); }
   .activity-line strong { font-weight: 600; }
@@ -202,6 +206,8 @@
   html.dark .activity-icon.weight    { background: rgba(124,58,237,0.2); color: #C4B5FD; }
   html.dark .activity-icon.sleep     { background: rgba(245,158,11,0.18); color: #FCD34D; }
   html.dark .activity-icon.nutrition { background: rgba(5,150,105,0.18);  color: #6EE7B7; }
+  html.dark .activity-icon.photos       { background: rgba(234,88,12,0.2);  color: #FDBA74; }
+  html.dark .activity-icon.measurements { background: rgba(13,148,136,0.22); color: #5EEAD4; }
   html.dark .activity-line { color: #F1F5F9; }
   html.dark .activity-time { color: #64748B; }
 </style>
@@ -314,6 +320,8 @@
             {% elif event.category == 'weight' %}<i class="fas fa-weight-scale"></i>
             {% elif event.category == 'sleep' %}<i class="fas fa-moon"></i>
             {% elif event.category == 'nutrition' %}<i class="fas fa-utensils"></i>
+            {% elif event.category == 'photos' %}<i class="fas fa-camera"></i>
+            {% elif event.category == 'measurements' %}<i class="fas fa-ruler"></i>
             {% else %}<i class="fas fa-circle-info"></i>
             {% endif %}
           </div>

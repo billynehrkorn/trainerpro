@@ -123,6 +123,9 @@
       display: flex; align-items: center; justify-content: center;
       color: white; font-size: 0.85rem; flex-shrink: 0;
     }
+    .sb-logo-img {
+      height: 40px; width: auto; display: block; flex-shrink: 0;
+    }
     .sb-logo-name { font-size: 1rem; font-weight: 700; color: var(--sb-text-bright); }
     .sb-logo-sub  { font-size: 0.62rem; color: var(--sb-section); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.1rem; }
 
@@ -235,6 +238,9 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 0.7rem; color: white;
     }
+    .topbar-brand-img {
+      height: 28px; width: auto; display: block; flex-shrink: 0;
+    }
     .topbar-brand-name { font-size: 0.9rem; font-weight: 700; color: var(--sb-text-bright); }
     .topbar-right { display: flex; align-items: center; gap: 0.5rem; }
     .topbar-user { font-size: 0.75rem; color: var(--sb-section); }
@@ -261,7 +267,7 @@
   <div id="client-mobile-nav">
     <div class="mobile-nav-header">
       <div class="mobile-nav-brand">
-        <div class="sb-logo-mark"><i class="fas fa-user"></i></div>
+        <img src="{{ url_for('static', filename='trainerprologo2.png') }}" alt="TrainerPro" class="sb-logo-img">
         <div>
           <div class="sb-logo-name">Client Portal</div>
         </div>
@@ -309,10 +315,9 @@
   <!-- Desktop sidebar -->
   <div id="client-sidebar">
     <div class="sb-logo">
-      <div class="sb-logo-mark"><i class="fas fa-user"></i></div>
+      <img src="{{ url_for('static', filename='trainerprologo2.png') }}" alt="TrainerPro" class="sb-logo-img">
       <div>
         <div class="sb-logo-name">Client Portal</div>
-        <div class="sb-logo-sub">TrainerPro</div>
       </div>
     </div>
 
@@ -372,7 +377,7 @@
         <i class="fas fa-bars"></i>
       </button>
       <div class="topbar-brand">
-        <div class="topbar-brand-mark"><i class="fas fa-user"></i></div>
+        <img src="{{ url_for('static', filename='trainerprologo2.png') }}" alt="TrainerPro" class="topbar-brand-img">
         <span class="topbar-brand-name">Client Portal</span>
       </div>
       <div class="topbar-right">
