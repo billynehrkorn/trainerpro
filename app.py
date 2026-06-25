@@ -1977,7 +1977,7 @@ def specific_workout_templates(client_id):
         return redirect(url_for('workout_templates'))
 
     templates = conn.execute('''
-        SELECT id, name, created_at,
+        SELECT id, name, created_at, workout_type,
                (SELECT COUNT(*) FROM template_exercises WHERE template_id = workout_templates.id) as exercise_count
         FROM workout_templates
         WHERE trainer_id = ? AND client_id = ?

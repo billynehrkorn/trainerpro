@@ -17,6 +17,10 @@
     --blue:       #2563EB;
     --blue-hover: #1D4ED8;
     --blue-light: #EFF6FF;
+    --purple:       #7C3AED;
+    --purple-hover: #6D28D9;
+    --purple-light: #F3E8FF;
+    --purple-text:  #5B21B6;
     --red:        #EF4444;
     --red-light:  #FEE2E2;
     --radius: 10px;
@@ -44,6 +48,28 @@
   }
   .btn-primary { background: var(--blue); color: white; }
   .btn-primary:hover { background: var(--blue-hover); }
+  .btn-purple { background: var(--purple); color: white; }
+  .btn-purple:hover { background: var(--purple-hover); }
+
+  /* ── Template type toggle (create modal only — locked after creation) ── */
+  .type-toggle { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+  .type-toggle-btn {
+    flex: 1; padding: 0.55rem 0.6rem; border-radius: 8px;
+    border: 1.5px solid var(--slate-200); background: white; color: var(--slate-600);
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .type-toggle-btn:hover { border-color: var(--slate-400); }
+  .type-toggle-btn.active.weightlifting { background: var(--blue); border-color: var(--blue); color: white; }
+  .type-toggle-btn.active.cardio { background: var(--purple); border-color: var(--purple); color: white; }
+  .locked-type-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.45rem 0.7rem; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  .locked-type-badge.weightlifting { background: var(--blue-light); color: var(--blue); }
+  .locked-type-badge.cardio { background: var(--purple-light); color: var(--purple-text); }
 
   /* ── Templates grid ── */
   .templates-grid {
@@ -61,6 +87,14 @@
   }
   .template-card:hover { border-color: var(--slate-400); }
   .template-accent { width: 4px; flex-shrink: 0; background: var(--blue); }
+  .template-accent.cardio { background: var(--purple); }
+  .template-type-badge {
+    display: inline-flex; align-items: center; margin-left: 0.4rem;
+    padding: 0.05rem 0.45rem; border-radius: 99px;
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    vertical-align: middle;
+  }
+  .template-type-badge.cardio { background: var(--purple-light); color: var(--purple-text); }
   .template-body { flex: 1; padding: 1rem 1.1rem; min-width: 0; }
   .template-card-header {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -132,6 +166,8 @@
   }
   .modal-btn-primary { background: var(--blue); color: white; }
   .modal-btn-primary:hover { background: var(--blue-hover); }
+  .modal-btn-purple { background: var(--purple); color: white; }
+  .modal-btn-purple:hover { background: var(--purple-hover); }
   .modal-btn-secondary { background: var(--slate-100); color: var(--slate-600); border: 1.5px solid var(--slate-200); }
   .modal-btn-secondary:hover { background: var(--slate-200); }
 
@@ -193,6 +229,31 @@
   }
   .remove-set-btn:hover { color: var(--red); }
 
+  /* ── Cardio set rows (distance/duration/notes) ── */
+  .cardio-add-set-btn {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    background: var(--purple); color: white; border: none; border-radius: 99px;
+    padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .cardio-add-set-btn:hover { background: var(--purple-hover); }
+  .cardio-set-row { border: 1.5px solid var(--slate-200); border-radius: 8px; padding: 0.65rem 0.7rem; margin-bottom: 0.5rem; }
+  .cardio-set-row-top { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+  .cardio-set-field { display: flex; align-items: center; gap: 0.35rem; }
+  .cardio-set-field .set-input { width: 64px; }
+  .cardio-set-field select {
+    padding: 0.35rem 1.5rem 0.35rem 0.5rem; font-size: 0.78rem;
+    border: 1.5px solid var(--slate-200); border-radius: 6px; color: var(--navy); background: white;
+  }
+  .cardio-set-row-bottom { display: flex; align-items: center; gap: 0.5rem; }
+  .cardio-set-row-bottom .form-input { font-size: 0.8rem; padding: 0.4rem 0.6rem; }
+  .cardio-remove-set-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--slate-300); font-size: 0.78rem; padding: 0.3rem;
+    border-radius: 4px; flex-shrink: 0;
+  }
+  .cardio-remove-set-btn:hover { color: var(--red); }
+
   /* ── Add exercise dashed button ── */
   .add-exercise-btn {
     display: flex; align-items: center; gap: 0.5rem;
@@ -228,6 +289,7 @@
     display: flex; align-items: stretch;
   }
   .view-exercise-accent { width: 4px; flex-shrink: 0; background: var(--blue); }
+  .view-exercise-accent.cardio { background: var(--purple); }
   .view-exercise-body { flex: 1; padding: 0.85rem 1rem; }
   .view-exercise-name { font-size: 0.9rem; font-weight: 700; color: var(--navy); margin-bottom: 0.5rem; }
   .view-set-line { font-size: 0.8rem; color: var(--slate-600); line-height: 1.8; }
@@ -272,6 +334,16 @@
   html.dark .client-name { color:#F1F5F9; }
   html.dark .client-avatar-ph { background:#0F172A; border-color:#334155; }
   html.dark .tmpl-count-badge { background:#0F172A; color:#CBD5E1; }
+  html.dark .template-type-badge.cardio { background:rgba(124,58,237,0.22); color:#C4B5FD; }
+  html.dark .type-toggle-btn { background:#0F172A; border-color:#334155; color:#94A3B8; }
+  html.dark .type-toggle-btn:hover { border-color:#475569; }
+  html.dark .type-toggle-btn.active.weightlifting { background:var(--blue); border-color:var(--blue); color:white; }
+  html.dark .type-toggle-btn.active.cardio { background:var(--purple); border-color:var(--purple); color:white; }
+  html.dark .locked-type-badge.weightlifting { background:rgba(37,99,235,0.18); color:#93C5FD; }
+  html.dark .locked-type-badge.cardio { background:rgba(124,58,237,0.22); color:#C4B5FD; }
+  html.dark .cardio-set-row { background:#0F172A; border-color:#334155; }
+  html.dark .cardio-set-field select { background:#1E293B; color:#F1F5F9; border-color:#334155; }
+  html.dark .cardio-remove-set-btn { color:#475569; }
 
   .template-accent-client { background:#7C3AED; }
 </style>
@@ -303,10 +375,13 @@
   <div class="templates-grid">
     {% for template in templates %}
     <div class="template-card">
-      <div class="template-accent template-accent-client"></div>
+      <div class="template-accent template-accent-client {{ 'cardio' if template.workout_type == 'cardio' else '' }}"></div>
       <div class="template-body">
         <div class="template-card-header">
-          <div class="template-name">{{ template.name }}</div>
+          <div class="template-name">
+            {{ template.name }}
+            {% if template.workout_type == 'cardio' %}<span class="template-type-badge cardio">Cardio</span>{% endif %}
+          </div>
           <div class="template-action-btns">
             <button class="tmpl-icon-btn edit" onclick="editTemplate('{{ template.id }}')" title="Edit">
               <i class="fas fa-pen"></i>
@@ -356,8 +431,22 @@
           </div>
         </div>
 
-        <!-- Import from AI -->
-        <div class="form-section" style="margin-bottom:1rem;">
+        <!-- Workout type — locked once the template is created -->
+        <div class="form-group">
+          <label class="form-label">Workout Type</label>
+          <div class="type-toggle" id="createTypeToggle">
+            <button type="button" class="type-toggle-btn active weightlifting" data-type="weightlifting" onclick="setCreateTemplateType('weightlifting')">
+              <i class="fas fa-dumbbell"></i> Weightlifting
+            </button>
+            <button type="button" class="type-toggle-btn cardio" data-type="cardio" onclick="setCreateTemplateType('cardio')">
+              <i class="fas fa-person-running"></i> Cardio
+            </button>
+          </div>
+        </div>
+        <input type="hidden" id="createTemplateType" value="weightlifting">
+
+        <!-- Import from AI (weightlifting templates only) -->
+        <div class="form-section" id="createAiImportSection" style="margin-bottom:1rem;">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>
               <div style="font-size:0.78rem;font-weight:600;color:var(--slate-600);">Import from AI</div>
@@ -371,11 +460,17 @@
         </div>
 
         <div id="templateExercisesList"></div>
-        <button type="button" onclick="addTemplateExercise()" class="add-exercise-btn">
+        <button type="button" id="createAddWeightliftingBtn" onclick="addTemplateExercise()" class="add-exercise-btn">
           <i class="fas fa-plus"></i> Add Exercise
         </button>
+
+        <div id="createCardioExercisesList" class="hidden"></div>
+        <button type="button" id="createAddCardioBtn" onclick="addCreateCardioTemplateExercise()" class="add-exercise-btn hidden">
+          <i class="fas fa-plus"></i> Add Exercise
+        </button>
+
         <div class="modal-footer" style="padding:0;border:none;margin-top:0.5rem;">
-          <button type="submit" class="modal-btn modal-btn-primary">Save Template</button>
+          <button type="submit" id="createTemplateSubmitBtn" class="modal-btn modal-btn-primary">Save Template</button>
           <button type="button" onclick="closeModal('createTemplateModal')" class="modal-btn modal-btn-secondary">Cancel</button>
         </div>
       </form>
@@ -487,12 +582,25 @@ Notes: Weight TBD</pre>
           <label class="form-label">Template Name</label>
           <input type="text" id="editTemplateName" required class="form-input" placeholder="e.g., Chest Day, Leg Workout">
         </div>
+
+        <!-- Workout type is fixed at creation — shown here read-only -->
+        <span class="locked-type-badge weightlifting" id="editTypeBadge">
+          <i class="fas fa-dumbbell"></i> Weightlifting Template
+        </span>
+        <input type="hidden" id="editTemplateType" value="weightlifting">
+
         <div id="editTemplateExercisesList"></div>
-        <button type="button" onclick="addEditTemplateExercise()" class="add-exercise-btn">
+        <button type="button" id="editAddWeightliftingBtn" onclick="addEditTemplateExercise()" class="add-exercise-btn">
           <i class="fas fa-plus"></i> Add Exercise
         </button>
+
+        <div id="editCardioExercisesList" class="hidden"></div>
+        <button type="button" id="editAddCardioBtn" onclick="addEditCardioTemplateExercise()" class="add-exercise-btn hidden">
+          <i class="fas fa-plus"></i> Add Exercise
+        </button>
+
         <div class="modal-footer" style="padding:0;border:none;margin-top:0.5rem;">
-          <button type="submit" class="modal-btn modal-btn-primary">Update Template</button>
+          <button type="submit" id="editTemplateSubmitBtn" class="modal-btn modal-btn-primary">Update Template</button>
           <button type="button" onclick="closeModal('editTemplateModal')" class="modal-btn modal-btn-secondary">Cancel</button>
         </div>
       </form>
@@ -512,6 +620,8 @@ document.querySelectorAll('.modal-backdrop').forEach(el => {
 // ── Counters ──
 let templateExerciseCount = 0;
 let editTemplateExerciseCount = 0;
+let createCardioTemplateExerciseCount = 0;
+let editCardioTemplateExerciseCount = 0;
 
 // ── Create modal ──
 function openCreateTemplateModal() {
@@ -519,7 +629,46 @@ function openCreateTemplateModal() {
   document.getElementById('templateExercisesList').innerHTML = '';
   templateExerciseCount = 0;
   addTemplateExercise();
+  document.getElementById('createCardioExercisesList').innerHTML = '';
+  createCardioTemplateExerciseCount = 0;
+  setCreateTemplateType('weightlifting');
   openModal('createTemplateModal');
+}
+
+// ── Create modal: workout type toggle ──
+function setCreateTemplateType(type) {
+  document.getElementById('createTemplateType').value = type;
+  document.querySelectorAll('#createTypeToggle .type-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  const isCardio = type === 'cardio';
+  document.getElementById('createAiImportSection').classList.toggle('hidden', isCardio);
+  document.getElementById('templateExercisesList').classList.toggle('hidden', isCardio);
+  document.getElementById('createAddWeightliftingBtn').classList.toggle('hidden', isCardio);
+  document.getElementById('createCardioExercisesList').classList.toggle('hidden', !isCardio);
+  document.getElementById('createAddCardioBtn').classList.toggle('hidden', !isCardio);
+  const submitBtn = document.getElementById('createTemplateSubmitBtn');
+  submitBtn.classList.toggle('modal-btn-purple', isCardio);
+  submitBtn.classList.toggle('modal-btn-primary', !isCardio);
+
+  // Whichever list is hidden still has `required` inputs inside it (exercise
+  // name, etc.) — the browser's native form validation checks ALL form
+  // controls, hidden or not, and silently blocks submit if a hidden
+  // required field is empty. Emptying the inactive list (instead of just
+  // hiding it) removes those stale required fields from the form entirely.
+  if (isCardio) {
+    document.getElementById('templateExercisesList').innerHTML = '';
+    templateExerciseCount = 0;
+    if (!document.getElementById('createCardioExercisesList').children.length) {
+      addCreateCardioTemplateExercise();
+    }
+  } else {
+    document.getElementById('createCardioExercisesList').innerHTML = '';
+    createCardioTemplateExerciseCount = 0;
+    if (!document.getElementById('templateExercisesList').children.length) {
+      addTemplateExercise();
+    }
+  }
 }
 
 // ── Exercise row builder ──
@@ -680,14 +829,170 @@ function collectExercises(listId) {
   }));
 }
 
+// ─────────────────────────────────────────
+// Cardio template exercise builder
+// (kept separate from the weightlifting builder above — cardio sets carry
+// distance/duration/notes instead of weight/reps. AI import stays
+// weightlifting-only, since its text format is weight×reps specific.)
+// ─────────────────────────────────────────
+function buildCardioExerciseRowHTML(listId, index, total, data = null) {
+  const sets = data?.sets?.length ? data.sets : [{ distance: '', distance_unit: 'mi', duration: '', duration_unit: 'min', notes: '' }];
+  const setsHTML = sets.map((s, si) => `
+    <div class="cardio-set-row">
+      <div class="cardio-set-row-top">
+        <span class="set-label">Set ${si + 1}</span>
+        <div class="cardio-set-field">
+          <input type="number" step="0.01" min="0" placeholder="Distance" value="${s.distance ?? ''}" class="set-input cardio-set-distance">
+          <select class="cardio-set-distance-unit">
+            <option value="mi" ${s.distance_unit === 'mi' ? 'selected' : ''}>mi</option>
+            <option value="km" ${s.distance_unit === 'km' ? 'selected' : ''}>km</option>
+            <option value="m" ${s.distance_unit === 'm' ? 'selected' : ''}>m</option>
+            <option value="yd" ${s.distance_unit === 'yd' ? 'selected' : ''}>yd</option>
+          </select>
+        </div>
+        <div class="cardio-set-field">
+          <input type="number" step="0.1" min="0" placeholder="Duration" value="${s.duration ?? ''}" class="set-input cardio-set-duration">
+          <select class="cardio-set-duration-unit">
+            <option value="min" ${s.duration_unit === 'min' ? 'selected' : ''}>min</option>
+            <option value="sec" ${s.duration_unit === 'sec' ? 'selected' : ''}>sec</option>
+            <option value="hr" ${s.duration_unit === 'hr' ? 'selected' : ''}>hr</option>
+          </select>
+        </div>
+        <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn ${sets.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="cardio-set-row-bottom">
+        <input type="text" placeholder="Notes for this set (optional)" value="${s.notes ?? ''}" class="form-input cardio-set-notes" style="flex:1;">
+      </div>
+    </div>`).join('');
+
+  return `
+  <div class="exercise-row" data-exercise-index="${index}">
+    <div class="exercise-row-header">
+      <span class="exercise-row-title">Exercise ${index + 1}</span>
+      <button type="button" onclick="removeCardioExerciseRow(this, '${listId}')" class="remove-exercise-btn ${total === 1 ? 'hidden' : ''}">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Exercise Name</label>
+      <input type="text" class="form-input cardio-exercise-input"
+             placeholder="e.g. Running, Cycling, Rowing…" required autocomplete="off"
+             value="${data?.name ?? ''}">
+    </div>
+    <div class="sets-container form-group">
+      <div class="sets-header">
+        <span class="sets-label">Sets</span>
+        <button type="button" onclick="addCardioSetTo(this)" class="cardio-add-set-btn"><i class="fas fa-plus"></i> Add Set</button>
+      </div>
+      <div class="sets-list">${setsHTML}</div>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">Notes <span style="font-weight:400;color:var(--slate-400)">(optional)</span></label>
+      <textarea class="form-textarea cardio-exercise-notes" rows="2" placeholder="Optional notes…">${data?.notes ?? ''}</textarea>
+    </div>
+  </div>`;
+}
+
+function addCreateCardioTemplateExercise(data = null) {
+  const list = document.getElementById('createCardioExercisesList');
+  const total = list.children.length + 1;
+  list.insertAdjacentHTML('beforeend', buildCardioExerciseRowHTML('createCardioExercisesList', createCardioTemplateExerciseCount, total, data));
+  createCardioTemplateExerciseCount++;
+  refreshRemoveBtns('createCardioExercisesList');
+}
+
+function addEditCardioTemplateExercise(data = null) {
+  const list = document.getElementById('editCardioExercisesList');
+  const total = list.children.length + 1;
+  list.insertAdjacentHTML('beforeend', buildCardioExerciseRowHTML('editCardioExercisesList', editCardioTemplateExerciseCount, total, data));
+  editCardioTemplateExerciseCount++;
+  refreshRemoveBtns('editCardioExercisesList');
+}
+
+function removeCardioExerciseRow(btn, listId) {
+  btn.closest('.exercise-row').remove();
+  reindexExercises(listId);
+}
+
+function addCardioSetTo(btn) {
+  const container = btn.closest('.sets-container');
+  const setsList  = container.querySelector('.sets-list');
+  const count = setsList.children.length + 1;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = buildCardioSetRowHTML(count);
+  setsList.appendChild(tmp.firstElementChild);
+  refreshCardioSetNumbers(container);
+  refreshCardioSetRemoveBtns(container);
+}
+function buildCardioSetRowHTML(setNum) {
+  return `<div class="cardio-set-row">
+    <div class="cardio-set-row-top">
+      <span class="set-label">Set ${setNum}</span>
+      <div class="cardio-set-field">
+        <input type="number" step="0.01" min="0" placeholder="Distance" class="set-input cardio-set-distance">
+        <select class="cardio-set-distance-unit">
+          <option value="mi">mi</option><option value="km">km</option><option value="m">m</option><option value="yd">yd</option>
+        </select>
+      </div>
+      <div class="cardio-set-field">
+        <input type="number" step="0.1" min="0" placeholder="Duration" class="set-input cardio-set-duration">
+        <select class="cardio-set-duration-unit">
+          <option value="min">min</option><option value="sec">sec</option><option value="hr">hr</option>
+        </select>
+      </div>
+      <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="cardio-set-row-bottom">
+      <input type="text" placeholder="Notes for this set (optional)" class="form-input cardio-set-notes" style="flex:1;">
+    </div>
+  </div>`;
+}
+function removeCardioSet(btn) {
+  const container = btn.closest('.sets-container');
+  btn.closest('.cardio-set-row').remove();
+  refreshCardioSetNumbers(container);
+  refreshCardioSetRemoveBtns(container);
+}
+function refreshCardioSetNumbers(container) {
+  container.querySelectorAll('.cardio-set-row').forEach((r, i) => r.querySelector('.set-label').textContent = `Set ${i + 1}`);
+}
+function refreshCardioSetRemoveBtns(container) {
+  const btns = container.querySelectorAll('.cardio-remove-set-btn');
+  btns.forEach(b => b.classList.toggle('hidden', btns.length === 1));
+}
+
+function collectCardioExercises(listId) {
+  return Array.from(document.querySelectorAll(`#${listId} .exercise-row`)).map((row, i) => ({
+    name:  row.querySelector('.cardio-exercise-input').value,
+    notes: row.querySelector('.cardio-exercise-notes').value,
+    order: i,
+    sets:  Array.from(row.querySelectorAll('.cardio-set-row')).map(sr => ({
+      distance: sr.querySelector('.cardio-set-distance').value ? parseFloat(sr.querySelector('.cardio-set-distance').value) : null,
+      distance_unit: sr.querySelector('.cardio-set-distance-unit').value || null,
+      duration: sr.querySelector('.cardio-set-duration').value ? parseFloat(sr.querySelector('.cardio-set-duration').value) : null,
+      duration_unit: sr.querySelector('.cardio-set-duration-unit').value || null,
+      notes: sr.querySelector('.cardio-set-notes').value.trim() || null
+    }))
+  }));
+}
+
 // ── Create template ──
 async function createTemplate(event) {
   event.preventDefault();
+  const workoutType = document.getElementById('createTemplateType').value;
+  const exercises = workoutType === 'cardio'
+    ? collectCardioExercises('createCardioExercisesList')
+    : collectExercises('templateExercisesList');
   try {
     const r = await fetch('/api/templates', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: document.getElementById('templateName').value, client_id: FIXED_CLIENT_ID, exercises: collectExercises('templateExercisesList') })
+      body: JSON.stringify({
+        name: document.getElementById('templateName').value,
+        client_id: FIXED_CLIENT_ID,
+        workout_type: workoutType,
+        exercises
+      })
     });
     if (r.ok) { closeModal('createTemplateModal'); location.reload(); }
     else alert('Error creating template');
@@ -701,17 +1006,27 @@ async function viewTemplate(templateId) {
     if (!r.ok) { alert('Error loading template'); return; }
     const template = await r.json();
     document.getElementById('viewTemplateName').textContent = template.name;
-    document.getElementById('viewTemplateContent').innerHTML = template.exercises.map(ex => `
+    const isCardio = template.workout_type === 'cardio';
+    document.getElementById('viewTemplateContent').innerHTML = template.exercises.map(ex => {
+      const setLines = isCardio
+        ? ex.sets.map((s, i) => {
+            const dist = (s.distance ?? null) !== null ? `${s.distance} ${s.distance_unit || ''}`.trim() : null;
+            const dur  = (s.duration ?? null) !== null ? `${s.duration} ${s.duration_unit || ''}`.trim() : null;
+            const parts = [dist, dur].filter(Boolean);
+            const main = parts.length ? parts.join(' · ') : 'No distance/duration set';
+            return `<div>Set ${i+1}: <strong>${main}</strong>${s.notes ? ` — ${s.notes}` : ''}</div>`;
+          }).join('')
+        : ex.sets.map((s, i) => `<div>Set ${i+1}: <strong>${s.weight ?? '—'}</strong> lbs × <strong>${s.reps ?? '—'}</strong> reps</div>`).join('');
+      return `
       <div class="view-exercise-card">
-        <div class="view-exercise-accent"></div>
+        <div class="view-exercise-accent ${isCardio ? 'cardio' : ''}"></div>
         <div class="view-exercise-body">
           <div class="view-exercise-name">${ex.name}</div>
-          <div class="view-set-line">
-            ${ex.sets.map((s, i) => `<div>Set ${i+1}: <strong>${s.weight ?? '—'}</strong> lbs × <strong>${s.reps ?? '—'}</strong> reps</div>`).join('')}
-          </div>
+          <div class="view-set-line">${setLines}</div>
           ${ex.notes ? `<div class="view-notes">"${ex.notes}"</div>` : ''}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     openModal('viewTemplateModal');
   } catch { alert('Error loading template'); }
 }
@@ -724,9 +1039,40 @@ async function editTemplate(templateId) {
     const template = await r.json();
     document.getElementById('editTemplateId').value   = template.id;
     document.getElementById('editTemplateName').value = template.name;
-    document.getElementById('editTemplateExercisesList').innerHTML = '';
-    editTemplateExerciseCount = 0;
-    template.exercises.forEach(ex => addEditTemplateExercise(ex));
+
+    const workoutType = template.workout_type || 'weightlifting';
+    document.getElementById('editTemplateType').value = workoutType;
+    const isCardio = workoutType === 'cardio';
+    const badge = document.getElementById('editTypeBadge');
+    badge.className = `locked-type-badge ${workoutType}`;
+    badge.innerHTML = isCardio
+      ? '<i class="fas fa-person-running"></i> Cardio Template'
+      : '<i class="fas fa-dumbbell"></i> Weightlifting Template';
+
+    document.getElementById('editTemplateExercisesList').classList.toggle('hidden', isCardio);
+    document.getElementById('editAddWeightliftingBtn').classList.toggle('hidden', isCardio);
+    document.getElementById('editCardioExercisesList').classList.toggle('hidden', !isCardio);
+    document.getElementById('editAddCardioBtn').classList.toggle('hidden', !isCardio);
+    const submitBtn = document.getElementById('editTemplateSubmitBtn');
+    submitBtn.classList.toggle('modal-btn-purple', isCardio);
+    submitBtn.classList.toggle('modal-btn-primary', !isCardio);
+
+    if (isCardio) {
+      // Clear the weightlifting list too — if the last template edited was
+      // weightlifting, it left required fields sitting in there, hidden but
+      // still part of the form, which silently blocks native validation.
+      document.getElementById('editTemplateExercisesList').innerHTML = '';
+      editTemplateExerciseCount = 0;
+      document.getElementById('editCardioExercisesList').innerHTML = '';
+      editCardioTemplateExerciseCount = 0;
+      template.exercises.forEach(ex => addEditCardioTemplateExercise(ex));
+    } else {
+      document.getElementById('editCardioExercisesList').innerHTML = '';
+      editCardioTemplateExerciseCount = 0;
+      document.getElementById('editTemplateExercisesList').innerHTML = '';
+      editTemplateExerciseCount = 0;
+      template.exercises.forEach(ex => addEditTemplateExercise(ex));
+    }
     openModal('editTemplateModal');
   } catch { alert('Error loading template'); }
 }
@@ -735,11 +1081,19 @@ async function editTemplate(templateId) {
 async function updateTemplate(event) {
   event.preventDefault();
   const id = document.getElementById('editTemplateId').value;
+  const workoutType = document.getElementById('editTemplateType').value;
+  const exercises = workoutType === 'cardio'
+    ? collectCardioExercises('editCardioExercisesList')
+    : collectExercises('editTemplateExercisesList');
   try {
     const r = await fetch(`/api/templates/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: document.getElementById('editTemplateName').value, client_id: FIXED_CLIENT_ID, exercises: collectExercises('editTemplateExercisesList') })
+      body: JSON.stringify({
+        name: document.getElementById('editTemplateName').value,
+        client_id: FIXED_CLIENT_ID,
+        exercises
+      })
     });
     if (r.ok) { closeModal('editTemplateModal'); location.reload(); }
     else alert('Error updating template');
