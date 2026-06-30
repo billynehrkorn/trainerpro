@@ -16,6 +16,7 @@
     --emerald-light: #D1FAE5;
     --emerald-text:  #065F46;
     --blue:       #2563EB;
+    --blue-hover: #1D4ED8;
     --blue-light: #EFF6FF;
     --purple:       #7C3AED;
     --purple-hover: #6D28D9;
@@ -37,6 +38,7 @@
     margin-bottom: 1.75rem; gap: 1rem; flex-wrap: wrap;
   }
   .page-header-left { display: flex; align-items: center; gap: 0.85rem; }
+  .page-header-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
   .back-btn {
     display: flex; align-items: center; justify-content: center;
     width: 36px; height: 36px; border-radius: 8px;
@@ -58,6 +60,8 @@
   }
   .btn-primary { background: var(--emerald); color: white; }
   .btn-primary:hover { background: var(--emerald-hover); }
+  .btn-blue { background: var(--blue); color: white; }
+  .btn-blue:hover { background: var(--blue-hover); }
   .btn-purple { background: var(--purple); color: white; }
   .btn-purple:hover { background: var(--purple-hover); }
 
@@ -173,7 +177,12 @@
     width: 100%; max-width: 760px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.2);
     margin: auto;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    max-height: 92vh;
   }
+  .modal-header { flex-shrink: 0; }
+  .modal-body { overflow-y: auto; }
   .modal-box.sm { max-width: 440px; }
   .modal-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -281,6 +290,7 @@
     transition: border-color 0.15s;
   }
   .set-input:focus { border-color: var(--emerald); }
+  .set-input-rpe { width: 58px; }
   .set-unit { font-size: 0.72rem; color: var(--slate-400); }
   .remove-set-btn {
     background: none; border: none; cursor: pointer;
@@ -402,6 +412,43 @@
     border: 1.5px solid var(--slate-200); border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.1); margin-top: 3px;
   }
+  /* "Fill from last time" — pulls the most recent prior log of this exercise */
+  .name-input-row { display: flex; align-items: stretch; gap: 0.4rem; }
+  .name-input-row .form-input,
+  .name-input-row .exercise-input { flex: 1; }
+  .history-btn {
+    flex-shrink: 0; width: 40px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--slate-200); border-radius: 8px;
+    background: var(--slate-50); color: var(--slate-400);
+    cursor: pointer; font-size: 0.85rem;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .history-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
+  .history-btn:disabled { opacity: 0.5; cursor: default; }
+  .history-btn.loading i { animation: hist-spin 0.7s linear infinite; }
+  @keyframes hist-spin { to { transform: rotate(360deg); } }
+  /* Exercise history preview modal */
+  .history-summary { font-size: 0.82rem; color: var(--slate-600); margin-bottom: 0.85rem; }
+  .history-summary .h-name { font-weight: 700; color: var(--navy); }
+  .history-summary .h-date { color: var(--slate-400); }
+  .history-sets { display: flex; flex-direction: column; gap: 0.4rem; }
+  .history-set-line {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.7rem; border: 1.5px solid var(--slate-200);
+    border-radius: 8px; background: var(--slate-50);
+    font-size: 0.85rem; color: var(--navy);
+  }
+  .history-set-line .h-set-label { font-size: 0.72rem; font-weight: 700; color: var(--slate-400); min-width: 42px; }
+  .history-set-line .h-set-val { font-weight: 600; }
+  .history-notes { font-size: 0.78rem; color: var(--slate-400); font-style: italic; margin-top: 0.6rem; }
+  .history-message {
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    padding: 0.85rem 1rem; border-radius: 9px;
+    background: var(--slate-50); border: 1.5px solid var(--slate-200);
+    font-size: 0.85rem; color: var(--slate-600); line-height: 1.5;
+  }
+  .history-message i { color: var(--slate-400); margin-top: 0.1rem; flex-shrink: 0; }
   .exercise-suggestion {
     padding: 0.6rem 0.85rem; cursor: pointer;
     border-bottom: 1px solid var(--slate-100);
@@ -523,6 +570,13 @@
   html.dark .chatgpt-preview-notes { color: #64748B; }
 
   html.dark .exercise-suggestions { background: #1E293B; border-color: #334155; }
+  html.dark .history-btn { background: #0F172A; border-color: #334155; color: #64748B; }
+  html.dark .history-btn:hover { border-color: var(--blue); color: #93C5FD; background: rgba(37,99,235,0.15); }
+  html.dark .history-summary { color: #CBD5E1; }
+  html.dark .history-summary .h-name { color: #F1F5F9; }
+  html.dark .history-set-line { background: #0F172A; border-color: #334155; color: #F1F5F9; }
+  html.dark .history-notes { color: #64748B; }
+  html.dark .history-message { background: #0F172A; border-color: #334155; color: #CBD5E1; }
   html.dark .exercise-suggestion { border-color: #334155; }
   html.dark .exercise-suggestion:hover { background: #273548; }
   html.dark .exercise-suggestion-name { color: #F1F5F9; }
@@ -542,11 +596,14 @@
   @media (max-width: 600px) {
   .page-wrap { padding: 0.85rem; }
 
-  /* Keep header on one row — no wrapping */
+  /* Header: stack the title row and the action buttons so the two full-width
+     buttons sit on their own row below the name instead of overflowing off
+     the right edge. */
   .page-header {
-    flex-wrap: nowrap;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
     margin-bottom: 1.1rem;
+    gap: 0.85rem;
   }
   .page-header-left { gap: 0.6rem; }
 
@@ -554,15 +611,45 @@
   .page-title { font-size: 1.15rem; }
   .page-subtitle { font-size: 0.72rem; }
 
-  /* Button: compact, not full-width */
+  /* Action buttons span the full width and split the row evenly */
+  .page-header-actions { width: 100%; gap: 0.5rem; }
+  .page-header-actions .btn { flex: 1; justify-content: center; padding: 0.6rem 0.5rem; font-size: 0.8rem; }
+
+  /* Other buttons: compact, not full-width */
   .btn { padding: 0.45rem 0.75rem; font-size: 0.8rem; }
 
-  /* Modals slide up from bottom */
+  /* Modals slide up from bottom. Extra bottom padding on the body keeps the
+     footer (Save/Cancel) clear of the rounded bottom edge instead of ending
+     flush against it. */
   .modal-backdrop { padding: 0; align-items: flex-end; }
   .modal-box { border-radius: 14px 14px 0 0; max-height: 92vh; }
+  .modal-body { padding-bottom: 2.5rem; }
 
   .workout-action-btns { flex-direction: row; }
   .form-grid-2 { grid-template-columns: 1fr; }
+
+  /* Cardio set inputs: a consistent 2-up grid — distance | duration on the
+     top row, speed | incline on the bottom — so each number field + its unit
+     reads as one tidy cell instead of wrapping raggedly at fixed widths. */
+  .cardio-set-row-top { gap: 0.4rem 0.5rem; }
+  .cardio-set-row-top .set-label { width: 100%; margin-bottom: 0.1rem; }
+  .cardio-set-row-top .cardio-set-field { flex: 1 1 calc(50% - 0.25rem); min-width: 0; }
+  .cardio-set-row-bottom { flex-wrap: wrap; gap: 0.4rem 0.5rem; }
+  .cardio-set-row-bottom .cardio-set-field { flex: 1 1 calc(50% - 0.25rem); min-width: 0; }
+  .cardio-set-field .set-input { flex: 1; width: auto; min-width: 0; }
+  .cardio-set-field .form-select { flex-shrink: 0; }
+  /* The set-notes input (the lone full-width field) spans the whole row */
+  .cardio-set-row-bottom > .form-input { flex: 1 1 100%; }
+  .cardio-remove-set-btn { position: absolute; top: 0.4rem; right: 0.4rem; }
+  .cardio-set-row { position: relative; }
+
+  /* Weightlifting set rows: the fixed-width inputs plus their separate unit
+     labels overflowed the screen (RPE got clipped off the right edge). The
+     placeholders already read "lbs"/"reps"/"RPE", so hide the redundant unit
+     spans and let the three inputs flex to share the row. */
+  .set-row .set-unit { display: none; }
+  .set-row .set-input { flex: 1; width: auto; min-width: 0; }
+  .set-row .set-input-rpe { flex: 0 0 56px; }
 }
 </style>
 
@@ -579,8 +666,8 @@
         <div class="page-subtitle">Workout history</div>
       </div>
     </div>
-    <div style="display:flex; gap:0.5rem;">
-      <button onclick="openCreateWorkoutModal()" class="btn btn-primary">
+    <div class="page-header-actions">
+      <button onclick="openCreateWorkoutModal()" class="btn btn-blue">
         <i class="fas fa-dumbbell"></i> Log Weightlifting
       </button>
       <button onclick="openCreateCardioModal()" class="btn btn-purple">
@@ -653,7 +740,7 @@
     <h3>No workouts logged yet</h3>
     <p>Start tracking {{ client.name }}'s fitness journey.</p>
     <div style="display:flex; gap:0.5rem; justify-content:center;">
-      <button onclick="openCreateWorkoutModal()" class="btn btn-primary">
+      <button onclick="openCreateWorkoutModal()" class="btn btn-blue">
         <i class="fas fa-dumbbell"></i> Log Weightlifting
       </button>
       <button onclick="openCreateCardioModal()" class="btn btn-purple">
@@ -1006,6 +1093,29 @@ Push-Ups
 </div>
 
 
+<!-- ════════════════════════════════════════
+     EXERCISE HISTORY (LAST TIME) MODAL
+════════════════════════════════════════ -->
+<div id="exerciseHistoryModal" class="modal-backdrop">
+  <div class="modal-box sm">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-clock-rotate-left" style="margin-right:0.45rem;color:var(--blue);"></i>Last Time</span>
+      <button class="modal-close" onclick="closeExerciseHistoryModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="historyModalMessage" class="history-message" style="display:none;"></div>
+      <div id="historyModalSummary" class="history-summary"></div>
+      <div id="historyModalSets" class="history-sets"></div>
+      <div id="historyModalNotes" class="history-notes"></div>
+      <div class="modal-footer" id="historyModalFooter" style="padding:0;border:none;margin-top:1.1rem;">
+        <button type="button" class="modal-btn modal-btn-blue" onclick="applyExerciseHistory()"><i class="fas fa-arrow-down-to-bracket" style="margin-right:0.4rem;"></i>Fill These Sets</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeExerciseHistoryModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <script>
 function localToday() {
   const d = new Date();
@@ -1019,6 +1129,7 @@ function localToday() {
 // ─────────────────────────────────────────
 // State
 // ─────────────────────────────────────────
+const CLIENT_ID = '{{ client.id }}';
 let createExerciseCount = 0;
 let templatesLoaded = false;
 let createSelectedTags = [];
@@ -1029,6 +1140,9 @@ let duplicateWorkoutDate = null;
 let duplicateWorkoutType = 'weightlifting';
 let currentFilter = 'all';
 let createCardioExerciseCount = 0;
+// Date of the workout currently open in the edit modal, so the "fill from last
+// time" lookup can exclude it and return a genuinely earlier entry.
+let editingWorkoutDate = null;
 
 // ─────────────────────────────────────────
 // Modal helpers
@@ -1042,6 +1156,7 @@ document.querySelectorAll('.modal-backdrop').forEach(el => {
 });
 
 function openCreateWorkoutModal() {
+  editingWorkoutDate = null;
   document.getElementById('createWorkoutDate').value = localToday();
   document.getElementById('createExercisesList').innerHTML = '';
   createExerciseCount = 0;
@@ -1054,6 +1169,7 @@ function closeCreateModal() { closeModal('createWorkoutModal'); }
 function closeEditModal()   { closeModal('editWorkoutModal'); }
 
 function openCreateCardioModal() {
+  editingWorkoutDate = null;
   document.getElementById('createCardioDate').value = localToday();
   document.getElementById('createCardioExercisesList').innerHTML = '';
   document.getElementById('createCardioTags').value = 'Cardio';
@@ -1121,8 +1237,13 @@ function buildExerciseRowHTML(index, isFirst, isLast, total) {
     </div>
     <div class="form-group" style="position:relative">
       <label class="form-label">Exercise Name</label>
-      <input type="text" name="exercise_name[]" class="form-input exercise-input"
-             placeholder="Start typing…" required autocomplete="off">
+      <div class="name-input-row">
+        <input type="text" name="exercise_name[]" class="form-input exercise-input"
+               placeholder="Start typing…" required autocomplete="off">
+        <button type="button" class="history-btn" onclick="fillFromLastTime(this,'weightlifting')" title="Fill sets from this client's most recent log of this exercise">
+          <i class="fas fa-clock-rotate-left"></i>
+        </button>
+      </div>
       <div class="exercise-suggestions hidden"></div>
     </div>
     <div class="sets-container form-group">
@@ -1137,6 +1258,8 @@ function buildExerciseRowHTML(index, isFirst, isLast, total) {
           <span class="set-unit">lbs</span>
           <input type="number" name="exercise_${index}_reps[]" min="1" placeholder="reps" class="set-input">
           <span class="set-unit">reps</span>
+          <input type="number" name="exercise_${index}_rpe[]" step="0.5" min="1" max="10" placeholder="RPE" class="set-input set-input-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+          <span class="set-unit">RPE</span>
           <button type="button" onclick="removeSet(this)" class="remove-set-btn hidden"><i class="fas fa-times"></i></button>
         </div>
       </div>
@@ -1180,7 +1303,7 @@ function buildCardioSetRowHTML(exIndex, setIndex, total) {
         </select>
       </div>
       <div class="cardio-set-field">
-        <input type="number" step="0.1" min="0" placeholder="Duration" class="set-input" name="exercise_${exIndex}_duration[]">
+        <input type="number" step="0.01" min="0" placeholder="Duration" class="set-input" name="exercise_${exIndex}_duration[]">
         <select class="form-select" name="exercise_${exIndex}_duration_unit[]">
           <option value="min">min</option>
           <option value="sec">sec</option>
@@ -1188,6 +1311,19 @@ function buildCardioSetRowHTML(exIndex, setIndex, total) {
         </select>
       </div>
       <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn ${total === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="cardio-set-row-bottom">
+      <div class="cardio-set-field">
+        <input type="number" step="0.1" min="0" placeholder="Speed" class="set-input" name="exercise_${exIndex}_speed[]" title="Speed (optional)">
+        <select class="form-select" name="exercise_${exIndex}_speed_unit[]">
+          <option value="mph">mph</option>
+          <option value="kph">kph</option>
+        </select>
+      </div>
+      <div class="cardio-set-field">
+        <input type="number" step="0.1" min="0" placeholder="Incline" class="set-input" name="exercise_${exIndex}_incline[]" title="Incline % (optional)">
+        <span class="set-unit">%</span>
+      </div>
     </div>
     <div class="cardio-set-row-bottom">
       <input type="text" placeholder="Notes for this set (optional)" class="form-input" name="exercise_${exIndex}_set_notes[]" style="flex:1;">
@@ -1212,8 +1348,13 @@ function buildCardioExerciseRowHTML(index, isFirst, isLast, total) {
     </div>
     <div class="form-group">
       <label class="form-label">Exercise Name</label>
-      <input type="text" name="exercise_name[]" class="form-input"
-             placeholder="e.g. Running, Cycling, Rowing…" required autocomplete="off">
+      <div class="name-input-row">
+        <input type="text" name="exercise_name[]" class="form-input"
+               placeholder="e.g. Running, Cycling, Rowing…" required autocomplete="off">
+        <button type="button" class="history-btn" onclick="fillFromLastTime(this,'cardio')" title="Fill sets from this client's most recent log of this exercise">
+          <i class="fas fa-clock-rotate-left"></i>
+        </button>
+      </div>
     </div>
     <div class="sets-container form-group">
       <div class="sets-header">
@@ -1295,10 +1436,14 @@ function reindexExercises(listId) {
       row.querySelectorAll('select[name*="_distance_unit"]').forEach(inp => inp.name = `exercise_${i}_distance_unit[]`);
       row.querySelectorAll('input[name*="_duration"]:not([name*="_duration_unit"])').forEach(inp => inp.name = `exercise_${i}_duration[]`);
       row.querySelectorAll('select[name*="_duration_unit"]').forEach(inp => inp.name = `exercise_${i}_duration_unit[]`);
+      row.querySelectorAll('input[name*="_speed"]:not([name*="_speed_unit"])').forEach(inp => inp.name = `exercise_${i}_speed[]`);
+      row.querySelectorAll('select[name*="_speed_unit"]').forEach(inp => inp.name = `exercise_${i}_speed_unit[]`);
+      row.querySelectorAll('input[name*="_incline"]').forEach(inp => inp.name = `exercise_${i}_incline[]`);
       row.querySelectorAll('input[name*="_set_notes"]').forEach(inp => inp.name = `exercise_${i}_set_notes[]`);
     } else {
       row.querySelectorAll('input[name*="_weight"]').forEach(inp => inp.name = `exercise_${i}_weight[]`);
       row.querySelectorAll('input[name*="_reps"]').forEach(inp => inp.name = `exercise_${i}_reps[]`);
+      row.querySelectorAll('input[name*="_rpe"]').forEach(inp => inp.name = `exercise_${i}_rpe[]`);
     }
   });
   if (listId === 'createExercisesList') refreshCreateArrows();
@@ -1339,6 +1484,8 @@ function addSetTo(btn) {
     <span class="set-unit">lbs</span>
     <input type="number" name="exercise_${idx}_reps[]" min="1" placeholder="reps" class="set-input">
     <span class="set-unit">reps</span>
+    <input type="number" name="exercise_${idx}_rpe[]" step="0.5" min="1" max="10" placeholder="RPE" class="set-input set-input-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+    <span class="set-unit">RPE</span>
     <button type="button" onclick="removeSet(this)" class="remove-set-btn"><i class="fas fa-times"></i></button>`;
   setsList.appendChild(setRow);
   refreshSetNumbers(container);
@@ -1362,7 +1509,10 @@ function refreshSetRemoveBtns(container) {
 // Exercise autocomplete
 // ─────────────────────────────────────────
 function setupExerciseAutocomplete(input) {
-  const dropdown = input.nextElementSibling;
+  // The input now lives inside a .name-input-row (alongside the history button),
+  // so the suggestions dropdown is no longer input.nextElementSibling — find it
+  // within the enclosing form-group instead.
+  const dropdown = input.closest('.form-group').querySelector('.exercise-suggestions');
   let timer;
   input.addEventListener('input', function() {
     clearTimeout(timer);
@@ -1390,6 +1540,167 @@ function setupExerciseAutocomplete(input) {
   document.addEventListener('click', e => {
     if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.add('hidden');
   });
+}
+
+// ─────────────────────────────────────────
+// "Last time" preview → fill flow.
+// The history icon opens a read-only preview modal showing the client's most
+// recent prior log of this exercise. A "Fill These Sets" button inside the
+// modal then rebuilds the set rows in the originating exercise. We stash the
+// target row + fetched sets so the fill step knows where to write.
+// ─────────────────────────────────────────
+let historyContext = null; // { row, idx, workoutType, sets, date, notes }
+
+function formatHistoryDate(d) {
+  if (!d) return '';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+async function fillFromLastTime(btn, workoutType) {
+  const row = btn.closest('.exercise-row');
+  const nameInput = row.querySelector('input[name="exercise_name[]"]');
+  const name = (nameInput?.value || '').trim();
+  if (!name) {
+    showHistoryMessage('fa-pen', 'Type an exercise name first, then tap the history icon to look up this client\u2019s last log of it.');
+    nameInput?.focus();
+    return;
+  }
+
+  const icon = btn.querySelector('i');
+  const origIcon = icon ? icon.className : '';
+  btn.classList.add('loading'); btn.disabled = true;
+  if (icon) icon.className = 'fas fa-spinner';
+
+  try {
+    let url = `/api/clients/${CLIENT_ID}/exercise-history?name=${encodeURIComponent(name)}&type=${workoutType}`;
+    if (editingWorkoutDate) url += `&exclude_date=${editingWorkoutDate}`;
+    const r = await fetch(url);
+    const data = await r.json().catch(() => ({}));
+
+    if (!r.ok || !data.found || !Array.isArray(data.sets_data) || !data.sets_data.length) {
+      showHistoryMessage('fa-circle-info', `No previous "${name}" ${workoutType === 'cardio' ? 'cardio ' : ''}log found for this client. Once you log it, it\u2019ll show up here next time.`);
+      return;
+    }
+
+    // Stash everything the Fill button will need.
+    historyContext = {
+      row,
+      idx: row.getAttribute('data-exercise-index'),
+      workoutType,
+      sets: data.sets_data,
+      date: data.workout_date,
+      notes: data.notes || '',
+      name: data.exercise_name || name
+    };
+    renderExerciseHistoryModal();
+    openModal('exerciseHistoryModal');
+  } catch (e) {
+    console.error(e);
+    showHistoryMessage('fa-triangle-exclamation', 'Couldn\u2019t load exercise history right now. Check your connection and try again.');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+    if (icon) icon.className = origIcon;
+  }
+}
+
+// Open the history modal in a plain-message state (no preview, no Fill button).
+// Used for "type a name first", "no prior log", and load-failure cases so the
+// user never sees a raw browser alert.
+function showHistoryMessage(iconClass, text) {
+  historyContext = null;
+  document.getElementById('historyModalSummary').innerHTML = '';
+  document.getElementById('historyModalSets').innerHTML = '';
+  document.getElementById('historyModalNotes').innerHTML = '';
+  const msg = document.getElementById('historyModalMessage');
+  msg.innerHTML = `<i class="fas ${iconClass}"></i><span>${text}</span>`;
+  msg.style.display = 'flex';
+  // Hide the Fill button — there's nothing to fill — leaving only the close (×).
+  document.getElementById('historyModalFooter').style.display = 'none';
+  openModal('exerciseHistoryModal');
+}
+
+function renderExerciseHistoryModal() {
+  const ctx = historyContext;
+  if (!ctx) return;
+
+  // Restore preview mode in case a message was shown previously.
+  document.getElementById('historyModalMessage').style.display = 'none';
+  document.getElementById('historyModalFooter').style.display = 'flex';
+
+  document.getElementById('historyModalSummary').innerHTML =
+    `<span class="h-name">${ctx.name}</span> — last logged <span class="h-date">${formatHistoryDate(ctx.date)}</span>`;
+
+  const setsEl = document.getElementById('historyModalSets');
+  setsEl.innerHTML = ctx.sets.map((s, i) => {
+    let val;
+    if (ctx.workoutType === 'cardio') {
+      const dist = (s.distance ?? null) !== null ? `${s.distance} ${s.distance_unit || ''}`.trim() : null;
+      const dur  = (s.duration ?? null) !== null ? `${s.duration} ${s.duration_unit || ''}`.trim() : null;
+      const spd  = (s.speed ?? null) !== null ? `${s.speed} ${s.speed_unit || 'mph'}`.trim() : null;
+      const inc  = (s.incline ?? null) !== null ? `${s.incline}% incline` : null;
+      const parts = [dist, dur, spd, inc].filter(Boolean);
+      val = (parts.length ? parts.join(' · ') : '—') + (s.notes ? ` — ${s.notes}` : '');
+    } else {
+      const rpe = (s.rpe ?? null) !== null ? ` · RPE ${s.rpe}` : '';
+      val = `${s.weight ?? '—'} lbs × ${s.reps ?? '—'}${rpe}`;
+    }
+    return `<div class="history-set-line"><span class="h-set-label">Set ${i + 1}</span><span class="h-set-val">${val}</span></div>`;
+  }).join('');
+
+  document.getElementById('historyModalNotes').innerHTML =
+    ctx.notes ? `Exercise notes: ${ctx.notes}` : '';
+}
+
+function closeExerciseHistoryModal() {
+  closeModal('exerciseHistoryModal');
+  historyContext = null;
+}
+
+function applyExerciseHistory() {
+  const ctx = historyContext;
+  if (!ctx) { closeExerciseHistoryModal(); return; }
+  const { row, idx, workoutType, sets } = ctx;
+
+  // The row could in principle have been removed while the modal was open.
+  if (!row || !row.isConnected) { closeExerciseHistoryModal(); return; }
+
+  const setsList = row.querySelector('.sets-list');
+  setsList.innerHTML = '';
+
+  if (workoutType === 'cardio') {
+    sets.forEach((s, si) => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = buildCardioSetRowHTML(idx, si, sets.length);
+      const sr = tmp.firstElementChild;
+      const setVal = (sel, v) => { const el = sr.querySelector(sel); if (el != null && v != null && v !== '') el.value = v; };
+      setVal('input[name*="_distance"]:not([name*="_distance_unit"])', s.distance);
+      if (s.distance_unit) setVal('select[name*="_distance_unit"]', s.distance_unit);
+      setVal('input[name*="_duration"]:not([name*="_duration_unit"])', s.duration);
+      if (s.duration_unit) setVal('select[name*="_duration_unit"]', s.duration_unit);
+      setVal('input[name*="_speed"]:not([name*="_speed_unit"])', s.speed);
+      if (s.speed_unit) setVal('select[name*="_speed_unit"]', s.speed_unit);
+      setVal('input[name*="_incline"]', s.incline);
+      setVal('input[name*="_set_notes"]', s.notes);
+      setsList.appendChild(sr);
+    });
+  } else {
+    sets.forEach((s, si) => {
+      const sr = document.createElement('div');
+      sr.className = 'set-row';
+      sr.innerHTML = `
+        <span class="set-label">Set ${si + 1}</span>
+        <input type="number" name="exercise_${idx}_weight[]" step="0.1" min="0" placeholder="lbs" value="${s.weight ?? ''}" class="set-input">
+        <span class="set-unit">lbs</span>
+        <input type="number" name="exercise_${idx}_reps[]" min="1" placeholder="reps" value="${s.reps ?? ''}" class="set-input">
+        <span class="set-unit">reps</span>
+        <input type="number" name="exercise_${idx}_rpe[]" step="0.5" min="1" max="10" placeholder="RPE" value="${s.rpe ?? ''}" class="set-input set-input-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+        <span class="set-unit">RPE</span>
+        <button type="button" onclick="removeSet(this)" class="remove-set-btn ${sets.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>`;
+      setsList.appendChild(sr);
+    });
+  }
+
+  closeExerciseHistoryModal();
 }
 
 // ─────────────────────────────────────────
@@ -1618,6 +1929,8 @@ async function importTemplate(templateId) {
           <span class="set-unit">lbs</span>
           <input type="number" name="exercise_${idx}_reps[]" min="1" placeholder="reps" value="${set.reps || ''}" class="set-input">
           <span class="set-unit">reps</span>
+          <input type="number" name="exercise_${idx}_rpe[]" step="0.5" min="1" max="10" placeholder="RPE" value="${set.rpe || ''}" class="set-input set-input-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+          <span class="set-unit">RPE</span>
           <button type="button" onclick="removeSet(this)" class="remove-set-btn ${ex.sets.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>`;
         setsList.appendChild(sr);
       });
@@ -1650,6 +1963,11 @@ async function importCardioTemplate(templateId) {
         if (set.distance_unit) sr.querySelector('select[name*="_distance_unit"]').value = set.distance_unit;
         sr.querySelector('input[name*="_duration"]:not([name*="_duration_unit"])').value = set.duration ?? '';
         if (set.duration_unit) sr.querySelector('select[name*="_duration_unit"]').value = set.duration_unit;
+        const spd = sr.querySelector('input[name*="_speed"]:not([name*="_speed_unit"])');
+        if (spd) spd.value = set.speed ?? '';
+        if (set.speed_unit) { const su = sr.querySelector('select[name*="_speed_unit"]'); if (su) su.value = set.speed_unit; }
+        const inc = sr.querySelector('input[name*="_incline"]');
+        if (inc) inc.value = set.incline ?? '';
         sr.querySelector('input[name*="_set_notes"]').value = set.notes ?? '';
         setsList.appendChild(sr);
       });
@@ -1663,6 +1981,7 @@ async function importCardioTemplate(templateId) {
 // ─────────────────────────────────────────
 async function editWorkout(clientId, workoutDate, workoutType) {
   workoutType = workoutType || 'weightlifting';
+  editingWorkoutDate = workoutDate;
   if (workoutType === 'cardio') {
     return editCardioWorkout(clientId, workoutDate);
   }
@@ -1684,6 +2003,8 @@ async function editWorkout(clientId, workoutDate, workoutType) {
           <span class="set-unit">lbs</span>
           <input type="number" name="exercise_${i}_reps[]" min="1" placeholder="reps" value="${s.reps || ''}" class="set-input">
           <span class="set-unit">reps</span>
+          <input type="number" name="exercise_${i}_rpe[]" step="0.5" min="1" max="10" placeholder="RPE" value="${s.rpe || ''}" class="set-input set-input-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+          <span class="set-unit">RPE</span>
           <button type="button" onclick="removeSet(this)" class="remove-set-btn ${setsData.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>
         </div>`).join('');
       exercisesHTML += `
@@ -1702,7 +2023,12 @@ async function editWorkout(clientId, workoutDate, workoutType) {
           </div>
           <div class="form-group" style="position:relative">
             <label class="form-label">Exercise Name</label>
-            <input type="text" name="exercise_name[]" value="${ex.exercise_name}" class="form-input exercise-input" required autocomplete="off">
+            <div class="name-input-row">
+              <input type="text" name="exercise_name[]" value="${ex.exercise_name}" class="form-input exercise-input" required autocomplete="off">
+              <button type="button" class="history-btn" onclick="fillFromLastTime(this,'weightlifting')" title="Fill sets from this client's most recent log of this exercise">
+                <i class="fas fa-clock-rotate-left"></i>
+              </button>
+            </div>
             <div class="exercise-suggestions hidden"></div>
           </div>
           <div class="sets-container form-group">
@@ -1763,6 +2089,7 @@ function addEditExercise() {
 // to follow, so this stays a separate, self-contained builder)
 // ─────────────────────────────────────────
 async function editCardioWorkout(clientId, workoutDate) {
+  editingWorkoutDate = workoutDate;
   try {
     const r = await fetch(`/clients/${clientId}/workouts/${workoutDate}?type=cardio`);
     const exercises = await r.json();
@@ -1786,7 +2113,7 @@ async function editCardioWorkout(clientId, workoutDate) {
               </select>
             </div>
             <div class="cardio-set-field">
-              <input type="number" step="0.1" min="0" placeholder="Duration" class="set-input" name="exercise_${i}_duration[]" value="${s.duration ?? ''}">
+              <input type="number" step="0.01" min="0" placeholder="Duration" class="set-input" name="exercise_${i}_duration[]" value="${s.duration ?? ''}">
               <select class="form-select" name="exercise_${i}_duration_unit[]">
                 <option value="min" ${s.duration_unit === 'min' ? 'selected' : ''}>min</option>
                 <option value="sec" ${s.duration_unit === 'sec' ? 'selected' : ''}>sec</option>
@@ -1794,6 +2121,19 @@ async function editCardioWorkout(clientId, workoutDate) {
               </select>
             </div>
             <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn ${setsData.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="cardio-set-row-bottom">
+            <div class="cardio-set-field">
+              <input type="number" step="0.1" min="0" placeholder="Speed" class="set-input" name="exercise_${i}_speed[]" value="${s.speed ?? ''}" title="Speed (optional)">
+              <select class="form-select" name="exercise_${i}_speed_unit[]">
+                <option value="mph" ${s.speed_unit === 'mph' || !s.speed_unit ? 'selected' : ''}>mph</option>
+                <option value="kph" ${s.speed_unit === 'kph' ? 'selected' : ''}>kph</option>
+              </select>
+            </div>
+            <div class="cardio-set-field">
+              <input type="number" step="0.1" min="0" placeholder="Incline" class="set-input" name="exercise_${i}_incline[]" value="${s.incline ?? ''}" title="Incline % (optional)">
+              <span class="set-unit">%</span>
+            </div>
           </div>
           <div class="cardio-set-row-bottom">
             <input type="text" placeholder="Notes for this set (optional)" class="form-input" name="exercise_${i}_set_notes[]" value="${s.notes ?? ''}" style="flex:1;">
@@ -1816,7 +2156,12 @@ async function editCardioWorkout(clientId, workoutDate) {
           </div>
           <div class="form-group">
             <label class="form-label">Exercise Name</label>
-            <input type="text" name="exercise_name[]" value="${ex.exercise_name}" class="form-input" required autocomplete="off">
+            <div class="name-input-row">
+              <input type="text" name="exercise_name[]" value="${ex.exercise_name}" class="form-input" required autocomplete="off">
+              <button type="button" class="history-btn" onclick="fillFromLastTime(this,'cardio')" title="Fill sets from this client's most recent log of this exercise">
+                <i class="fas fa-clock-rotate-left"></i>
+              </button>
+            </div>
           </div>
           <div class="sets-container form-group">
             <div class="sets-header">
@@ -1881,7 +2226,12 @@ function addEditCardioExercise() {
       </div>
       <div class="form-group">
         <label class="form-label">Exercise Name</label>
-        <input type="text" name="exercise_name[]" class="form-input" placeholder="e.g. Running, Cycling, Rowing…" required autocomplete="off">
+        <div class="name-input-row">
+          <input type="text" name="exercise_name[]" class="form-input" placeholder="e.g. Running, Cycling, Rowing…" required autocomplete="off">
+          <button type="button" class="history-btn" onclick="fillFromLastTime(this,'cardio')" title="Fill sets from this client's most recent log of this exercise">
+            <i class="fas fa-clock-rotate-left"></i>
+          </button>
+        </div>
       </div>
       <div class="sets-container form-group">
         <div class="sets-header">
@@ -1916,7 +2266,12 @@ function buildEditExerciseRowHTML(index, total) {
     </div>
     <div class="form-group" style="position:relative">
       <label class="form-label">Exercise Name</label>
-      <input type="text" name="exercise_name[]" class="form-input exercise-input" placeholder="Start typing…" required autocomplete="off">
+      <div class="name-input-row">
+        <input type="text" name="exercise_name[]" class="form-input exercise-input" placeholder="Start typing…" required autocomplete="off">
+        <button type="button" class="history-btn" onclick="fillFromLastTime(this,'weightlifting')" title="Fill sets from this client's most recent log of this exercise">
+          <i class="fas fa-clock-rotate-left"></i>
+        </button>
+      </div>
       <div class="exercise-suggestions hidden"></div>
     </div>
     <div class="sets-container form-group">
@@ -1931,6 +2286,8 @@ function buildEditExerciseRowHTML(index, total) {
           <span class="set-unit">lbs</span>
           <input type="number" name="exercise_${index}_reps[]" min="1" placeholder="reps" class="set-input">
           <span class="set-unit">reps</span>
+          <input type="number" name="exercise_${index}_rpe[]" step="0.5" min="1" max="10" placeholder="RPE" class="set-input set-input-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+          <span class="set-unit">RPE</span>
           <button type="button" onclick="removeSet(this)" class="remove-set-btn hidden"><i class="fas fa-times"></i></button>
         </div>
       </div>
@@ -2101,7 +2458,7 @@ function previewChatGPTImport() {
       <div class="chatgpt-preview-item">
         <div class="chatgpt-preview-name">${i+1}. ${ex.name}</div>
         <div class="chatgpt-preview-sets">
-          ${ex.sets.map((s,si) => `<div>Set ${si+1}: ${s.weight ?? '—'} lbs × ${s.reps ?? '—'} reps</div>`).join('')}
+          ${ex.sets.map((s,si) => `<div>Set ${si+1}: ${s.weight ?? '—'} lbs × ${s.reps ?? '—'} reps${(s.rpe ?? null) !== null ? ` · RPE ${s.rpe}` : ''}</div>`).join('')}
         </div>
         ${ex.notes ? `<div class="chatgpt-preview-notes">${ex.notes}</div>` : ''}
       </div>`).join('');
@@ -2130,6 +2487,8 @@ function applyChatGPTImport() {
         <span class="set-unit">lbs</span>
         <input type="number" name="exercise_${idx}_reps[]" min="1" placeholder="reps" value="${set.reps ?? ''}" class="set-input">
         <span class="set-unit">reps</span>
+        <input type="number" name="exercise_${idx}_rpe[]" step="0.5" min="1" max="10" placeholder="RPE" value="${set.rpe ?? ''}" class="set-input set-input-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+        <span class="set-unit">RPE</span>
         <button type="button" onclick="removeSet(this)" class="remove-set-btn ${ex.sets.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>`;
       setsList.appendChild(sr);
     });
@@ -2180,7 +2539,9 @@ async function loadAllWorkoutDetails() {
             ? ex.sets_data.map((s, i) => {
                 const dist = (s.distance ?? null) !== null ? `${s.distance} ${s.distance_unit || ''}`.trim() : null;
                 const dur  = (s.duration ?? null) !== null ? `${s.duration} ${s.duration_unit || ''}`.trim() : null;
-                const parts = [dist, dur].filter(Boolean);
+                const spd  = (s.speed ?? null) !== null ? `${s.speed} ${s.speed_unit || 'mph'}`.trim() : null;
+                const inc  = (s.incline ?? null) !== null ? `${s.incline}% incline` : null;
+                const parts = [dist, dur, spd, inc].filter(Boolean);
                 const main = parts.length ? parts.join(' · ') : 'No distance/duration logged';
                 return `<div class="exercise-set-row">Set ${i+1}: <strong>${main}</strong>${s.notes ? ` — ${s.notes}` : ''}</div>`;
               }).join('')
@@ -2198,7 +2559,7 @@ async function loadAllWorkoutDetails() {
         c.innerHTML = exercises.map(ex => {
           // CHANGED: Wrapped individual sets in divs and removed the horizontal separators
           const sets = Array.isArray(ex.sets_data)
-            ? ex.sets_data.map((s, i) => `<div class="exercise-set-row">Set ${i+1}: <strong>${s.weight ?? '—'}</strong> lbs × <strong>${s.reps ?? '—'}</strong></div>`).join('')
+            ? ex.sets_data.map((s, i) => `<div class="exercise-set-row">Set ${i+1}: <strong>${s.weight ?? '—'}</strong> lbs × <strong>${s.reps ?? '—'}</strong>${(s.rpe ?? null) !== null ? ` · RPE <strong>${s.rpe}</strong>` : ''}</div>`).join('')
             : `<div class="exercise-set-row">${ex.sets || 0} sets${ex.weight ? ' · ' + ex.weight + ' lbs' : ''}${ex.reps ? ' × ' + ex.reps : ''}</div>`;
           return `
             <div class="exercise-entry">

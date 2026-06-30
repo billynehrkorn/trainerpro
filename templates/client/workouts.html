@@ -20,6 +20,7 @@
 
   /* ── Header ── */
   .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.75rem; gap:1rem; flex-wrap:wrap; }
+  .page-header-actions { display:flex; gap:0.5rem; flex-shrink:0; }
   .page-title    { font-size:1.5rem; font-weight:700; color:var(--navy); }
   .page-subtitle { font-size:0.8rem; color:var(--slate-400); margin-top:0.1rem; }
   .btn { display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; border:none; text-decoration:none; transition:background 0.15s; white-space:nowrap; color:white; background:var(--blue); }
@@ -85,13 +86,13 @@
   /* ── Modals ── */
   .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,0.5); display:none; align-items:flex-start; justify-content:center; z-index:50; padding:2rem 1rem; overflow-y:auto; }
   .modal-backdrop.open { display:flex; }
-  .modal-box { background:white; border-radius:14px; width:100%; max-width:680px; box-shadow:0 20px 60px rgba(0,0,0,0.2); margin:auto; }
+  .modal-box { background:white; border-radius:14px; width:100%; max-width:680px; box-shadow:0 20px 60px rgba(0,0,0,0.2); margin:auto; overflow:hidden; display:flex; flex-direction:column; max-height:92vh; }
   .modal-box.sm { max-width:420px; }
-  .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1.5px solid var(--slate-100); }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1.5px solid var(--slate-100); flex-shrink:0; }
   .modal-title { font-size:1rem; font-weight:700; color:var(--navy); }
   .modal-close { background:none; border:none; cursor:pointer; color:var(--slate-400); font-size:1rem; padding:0.25rem; border-radius:5px; transition:color 0.15s; }
   .modal-close:hover { color:var(--navy); }
-  .modal-body { padding:1.5rem; }
+  .modal-body { padding:1.5rem; overflow-y:auto; }
   .modal-footer { display:flex; gap:0.6rem; padding:1rem 1.5rem; border-top:1.5px solid var(--slate-100); }
   .modal-btn { flex:1; padding:0.6rem; border-radius:8px; border:none; font-size:0.875rem; font-weight:600; cursor:pointer; transition:background 0.15s; }
   .modal-btn-primary   { background:var(--blue); color:white; }
@@ -135,7 +136,26 @@
   .set-label { font-size:0.75rem; font-weight:600; color:var(--slate-400); width:42px; flex-shrink:0; }
   .set-input { width:72px; padding:0.35rem 0.5rem; border:1.5px solid var(--slate-200); border-radius:6px; font-size:0.82rem; color:var(--navy); outline:none; }
   .set-input:focus { border-color:var(--blue); }
+  .set-input-rpe { width:58px; }
   .set-unit { font-size:0.72rem; color:var(--slate-400); }
+  /* "Fill from last time" — history icon + preview modal */
+  .name-input-row { display:flex; align-items:stretch; gap:0.4rem; }
+  .name-input-row .form-input { flex:1; }
+  .history-btn { flex-shrink:0; width:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid var(--slate-200); border-radius:8px; background:var(--slate-50); color:var(--slate-400); cursor:pointer; font-size:0.85rem; transition:border-color 0.15s, color 0.15s, background 0.15s; }
+  .history-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
+  .history-btn:disabled { opacity:0.5; cursor:default; }
+  .history-btn.loading i { animation:hist-spin 0.7s linear infinite; }
+  @keyframes hist-spin { to { transform:rotate(360deg); } }
+  .history-summary { font-size:0.82rem; color:var(--slate-600); margin-bottom:0.85rem; }
+  .history-summary .h-name { font-weight:700; color:var(--navy); }
+  .history-summary .h-date { color:var(--slate-400); }
+  .history-sets { display:flex; flex-direction:column; gap:0.4rem; }
+  .history-set-line { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.7rem; border:1.5px solid var(--slate-200); border-radius:8px; background:var(--slate-50); font-size:0.85rem; color:var(--navy); }
+  .history-set-line .h-set-label { font-size:0.72rem; font-weight:700; color:var(--slate-400); min-width:42px; }
+  .history-set-line .h-set-val { font-weight:600; }
+  .history-notes { font-size:0.78rem; color:var(--slate-400); font-style:italic; margin-top:0.6rem; }
+  .history-message { display:flex; align-items:flex-start; gap:0.6rem; padding:0.85rem 1rem; border-radius:9px; background:var(--slate-50); border:1.5px solid var(--slate-200); font-size:0.85rem; color:var(--slate-600); line-height:1.5; }
+  .history-message i { color:var(--slate-400); margin-top:0.1rem; flex-shrink:0; }
   .remove-set-btn { background:none; border:none; cursor:pointer; color:var(--slate-300); font-size:0.78rem; padding:0.15rem; border-radius:4px; margin-left:auto; }
   .remove-set-btn:hover { color:var(--red); }
   .remove-set-btn.hidden { display:none; }
@@ -188,14 +208,51 @@
   html.dark .exercise-row { background:#0F172A; border-color:#334155; }
   html.dark .exercise-row-title { color:#F1F5F9; }
   html.dark .set-input { background:#1E293B; color:#F1F5F9; border-color:#334155; }
+  html.dark .history-btn { background:#0F172A; border-color:#334155; color:#64748B; }
+  html.dark .history-btn:hover { border-color:var(--blue); color:#93C5FD; background:rgba(37,99,235,0.15); }
+  html.dark .history-summary { color:#CBD5E1; }
+  html.dark .history-summary .h-name { color:#F1F5F9; }
+  html.dark .history-set-line { background:#0F172A; border-color:#334155; color:#F1F5F9; }
+  html.dark .history-notes { color:#64748B; }
+  html.dark .history-message { background:#0F172A; border-color:#334155; color:#CBD5E1; }
   html.dark .modal-btn-secondary { background:#0F172A; color:#CBD5E1; border-color:#334155; }
   html.dark .tag-toggle-btn { background:#0F172A; border-color:#334155; color:#94A3B8; }
   html.dark .tag-toggle-btn.selected { background:var(--blue); border-color:var(--blue); color:white; }
 
   @media (max-width:600px) {
     .page-wrap { padding:1rem; }
+
+    /* Header: stack the action buttons full-width below the title so they
+       don't overflow off the right edge on a phone. */
+    .page-header { flex-wrap:wrap; align-items:flex-start; gap:0.85rem; }
+    .page-header-actions { width:100%; gap:0.5rem; }
+    .page-header-actions .btn { flex:1; justify-content:center; padding:0.6rem 0.5rem; font-size:0.8rem; }
+
+    /* Modals slide up from bottom; body scrolls internally (set on .modal-body
+       above) so content never spills past the rounded box onto the backdrop. */
     .modal-backdrop { padding:0; align-items:flex-end; }
     .modal-box { border-radius:14px 14px 0 0; max-height:92vh; }
+    .modal-body { padding-bottom:2.5rem; }
+
+    /* Weightlifting set rows: hide the redundant unit spans (placeholders
+       already read lbs/reps/RPE) and let the inputs flex so they don't run
+       off the screen. */
+    .set-row .set-unit { display:none; }
+    .set-row .set-input { flex:1; width:auto; min-width:0; }
+    .set-row .set-input-rpe { flex:0 0 56px; }
+
+    /* Cardio set inputs: a tidy 2-up grid — distance | duration on top,
+       speed | incline below, notes full-width. */
+    .cardio-set-row { position:relative; }
+    .cardio-set-row-top { gap:0.4rem 0.5rem; }
+    .cardio-set-row-top .set-label { width:100%; margin-bottom:0.1rem; }
+    .cardio-set-row-top .cardio-set-field { flex:1 1 calc(50% - 0.25rem); min-width:0; }
+    .cardio-set-row-bottom { flex-wrap:wrap; gap:0.4rem 0.5rem; }
+    .cardio-set-row-bottom .cardio-set-field { flex:1 1 calc(50% - 0.25rem); min-width:0; }
+    .cardio-set-field .set-input { flex:1; width:auto; min-width:0; }
+    .cardio-set-field select { flex-shrink:0; }
+    .cardio-set-row-bottom > .form-input { flex:1 1 100%; }
+    .cardio-remove-set-btn { position:absolute; top:0.4rem; right:0.4rem; }
   }
 </style>
 
@@ -208,7 +265,7 @@
       <div class="page-subtitle">{{ client.name }}</div>
     </div>
     {% if can_edit %}
-    <div style="display:flex; gap:0.5rem;">
+    <div class="page-header-actions">
       <button onclick="openCreateModal()" class="btn">
         <i class="fas fa-dumbbell"></i> Log Weightlifting
       </button>
@@ -477,6 +534,26 @@
     </div>
   </div>
 </div>
+
+<!-- Exercise History (Last Time) Modal -->
+<div id="exerciseHistoryModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-clock-rotate-left" style="margin-right:0.45rem;color:var(--blue);"></i>Last Time</span>
+      <button onclick="closeExerciseHistoryModal()" class="modal-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:1.5rem;">
+      <div id="historyModalMessage" class="history-message" style="display:none;"></div>
+      <div id="historyModalSummary" class="history-summary"></div>
+      <div id="historyModalSets" class="history-sets"></div>
+      <div id="historyModalNotes" class="history-notes"></div>
+      <div class="modal-footer" id="historyModalFooter" style="margin-top:1.1rem;padding:0;border:none;">
+        <button type="button" class="modal-btn modal-btn-primary" onclick="applyExerciseHistory()"><i class="fas fa-arrow-down-to-bracket" style="margin-right:0.4rem;"></i>Fill These Sets</button>
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeExerciseHistoryModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
 
@@ -536,7 +613,9 @@ async function loadAllWorkoutDetails() {
             ? ex.sets_data.map((s, i) => {
                 const dist = (s.distance ?? null) !== null ? `${s.distance} ${s.distance_unit || ''}`.trim() : null;
                 const dur  = (s.duration ?? null) !== null ? `${s.duration} ${s.duration_unit || ''}`.trim() : null;
-                const parts = [dist, dur].filter(Boolean);
+                const spd  = (s.speed ?? null) !== null ? `${s.speed} ${s.speed_unit || 'mph'}`.trim() : null;
+                const inc  = (s.incline ?? null) !== null ? `${s.incline}% incline` : null;
+                const parts = [dist, dur, spd, inc].filter(Boolean);
                 const main = parts.length ? parts.join(' · ') : 'No distance/duration logged';
                 return `<div class="exercise-set-row">Set ${i+1}: <strong>${main}</strong>${s.notes ? ` — ${s.notes}` : ''}</div>`;
               }).join('')
@@ -553,7 +632,7 @@ async function loadAllWorkoutDetails() {
       } else {
         c.innerHTML = exercises.map(ex => {
           const sets = Array.isArray(ex.sets_data)
-            ? ex.sets_data.map((s, i) => `<div class="exercise-set-row">Set ${i+1}: <strong>${s.weight ?? '—'}</strong> lbs × <strong>${s.reps ?? '—'}</strong></div>`).join('')
+            ? ex.sets_data.map((s, i) => `<div class="exercise-set-row">Set ${i+1}: <strong>${s.weight ?? '—'}</strong> lbs × <strong>${s.reps ?? '—'}</strong>${(s.rpe ?? null) !== null ? ` · RPE <strong>${s.rpe}</strong>` : ''}</div>`).join('')
             : `<div class="exercise-set-row">${ex.sets || 0} sets</div>`;
           return `
             <div class="exercise-entry">
@@ -655,7 +734,7 @@ if (CAN_EDIT) {
     const list = document.getElementById('exercisesList');
     const idx = exerciseCount++;
     const defaultSets = setsData.length ? setsData : [{ weight:'', reps:'' }];
-    const setsHTML = defaultSets.map((s, si) => buildSetRow(si, s.weight ?? '', s.reps ?? '', defaultSets.length)).join('');
+    const setsHTML = defaultSets.map((s, si) => buildSetRow(si, s.weight ?? '', s.reps ?? '', defaultSets.length, s.rpe ?? '')).join('');
     const div = document.createElement('div');
     div.className = 'exercise-row';
     div.innerHTML = `
@@ -665,7 +744,10 @@ if (CAN_EDIT) {
       </div>
       <div class="form-group">
         <label class="form-label">Exercise Name</label>
-        <input type="text" class="form-input exercise-name-input" placeholder="e.g. Bench Press" value="${name}" required>
+        <div class="name-input-row">
+          <input type="text" class="form-input exercise-name-input" placeholder="e.g. Bench Press" value="${name}" required>
+          <button type="button" class="history-btn" onclick="fillFromLastTime(this,'weightlifting')" title="Fill sets from your most recent log of this exercise"><i class="fas fa-clock-rotate-left"></i></button>
+        </div>
       </div>
       <div class="sets-container form-group">
         <div class="sets-header">
@@ -682,13 +764,15 @@ if (CAN_EDIT) {
     refreshRemoveButtons();
   };
 
-  function buildSetRow(setIdx, weight, reps, total) {
+  function buildSetRow(setIdx, weight, reps, total, rpe = '') {
     return `<div class="set-row">
       <span class="set-label">Set ${setIdx + 1}</span>
       <input type="number" step="0.1" min="0" placeholder="lbs" value="${weight}" class="set-input set-weight">
       <span class="set-unit">lbs</span>
       <input type="number" min="1" placeholder="reps" value="${reps}" class="set-input set-reps">
       <span class="set-unit">reps</span>
+      <input type="number" step="0.5" min="1" max="10" placeholder="RPE" value="${rpe}" class="set-input set-input-rpe set-rpe" title="Rate of Perceived Exertion (1-10, optional)">
+      <span class="set-unit">RPE</span>
       <button type="button" class="remove-set-btn ${total === 1 ? 'hidden' : ''}" onclick="removeSet(this)"><i class="fas fa-times"></i></button>
     </div>`;
   }
@@ -734,6 +818,124 @@ if (CAN_EDIT) {
     });
   }
 
+  // ── "Last time" preview → fill ──
+  // The history icon opens a read-only preview of this client's most recent
+  // prior log of the exercise; a "Fill These Sets" button then rebuilds the
+  // set rows in the originating exercise using the existing set builders.
+  let historyContext = null; // { row, workoutType, sets, date, notes, name }
+
+  function formatHistoryDate(d) {
+    if (!d) return '';
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+
+  window.fillFromLastTime = async function(btn, workoutType) {
+    const row = btn.closest('.exercise-row');
+    const nameSel = workoutType === 'cardio' ? '.cardio-exercise-name-input' : '.exercise-name-input';
+    const nameInput = row.querySelector(nameSel);
+    const name = (nameInput?.value || '').trim();
+    if (!name) {
+      showHistoryMessage('fa-pen', 'Type an exercise name first, then tap the history icon to look up your last log of it.');
+      nameInput?.focus();
+      return;
+    }
+
+    const icon = btn.querySelector('i');
+    const origIcon = icon ? icon.className : '';
+    btn.classList.add('loading'); btn.disabled = true;
+    if (icon) icon.className = 'fas fa-spinner';
+
+    try {
+      const excludeDate = workoutType === 'cardio' ? cardioEditingDate : editingDate;
+      let url = `/client-portal/api/exercise-history?name=${encodeURIComponent(name)}&type=${workoutType}`;
+      if (excludeDate) url += `&exclude_date=${excludeDate}`;
+      const r = await fetch(url);
+      const data = await r.json().catch(() => ({}));
+
+      if (!r.ok || !data.found || !Array.isArray(data.sets_data) || !data.sets_data.length) {
+        showHistoryMessage('fa-circle-info', `No previous "${name}" ${workoutType === 'cardio' ? 'cardio ' : ''}log found. Once you log it, it\u2019ll show up here next time.`);
+        return;
+      }
+
+      historyContext = {
+        row,
+        workoutType,
+        sets: data.sets_data,
+        date: data.workout_date,
+        notes: data.notes || '',
+        name: data.exercise_name || name
+      };
+      renderExerciseHistoryModal();
+      document.getElementById('exerciseHistoryModal').classList.add('open');
+    } catch (e) {
+      console.error(e);
+      showHistoryMessage('fa-triangle-exclamation', 'Couldn\u2019t load exercise history right now. Check your connection and try again.');
+    } finally {
+      btn.classList.remove('loading'); btn.disabled = false;
+      if (icon) icon.className = origIcon;
+    }
+  };
+
+  function showHistoryMessage(iconClass, text) {
+    historyContext = null;
+    document.getElementById('historyModalSummary').innerHTML = '';
+    document.getElementById('historyModalSets').innerHTML = '';
+    document.getElementById('historyModalNotes').innerHTML = '';
+    const msg = document.getElementById('historyModalMessage');
+    msg.innerHTML = `<i class="fas ${iconClass}"></i><span>${text}</span>`;
+    msg.style.display = 'flex';
+    document.getElementById('historyModalFooter').style.display = 'none';
+    document.getElementById('exerciseHistoryModal').classList.add('open');
+  }
+
+  function renderExerciseHistoryModal() {
+    const ctx = historyContext;
+    if (!ctx) return;
+    document.getElementById('historyModalMessage').style.display = 'none';
+    document.getElementById('historyModalFooter').style.display = 'flex';
+
+    document.getElementById('historyModalSummary').innerHTML =
+      `<span class="h-name">${ctx.name}</span> — last logged <span class="h-date">${formatHistoryDate(ctx.date)}</span>`;
+
+    document.getElementById('historyModalSets').innerHTML = ctx.sets.map((s, i) => {
+      let val;
+      if (ctx.workoutType === 'cardio') {
+        const dist = (s.distance ?? null) !== null ? `${s.distance} ${s.distance_unit || ''}`.trim() : null;
+        const dur  = (s.duration ?? null) !== null ? `${s.duration} ${s.duration_unit || ''}`.trim() : null;
+        const spd  = (s.speed ?? null) !== null ? `${s.speed} ${s.speed_unit || 'mph'}`.trim() : null;
+        const inc  = (s.incline ?? null) !== null ? `${s.incline}% incline` : null;
+        const parts = [dist, dur, spd, inc].filter(Boolean);
+        val = (parts.length ? parts.join(' · ') : '—') + (s.notes ? ` — ${s.notes}` : '');
+      } else {
+        const rpe = (s.rpe ?? null) !== null ? ` · RPE ${s.rpe}` : '';
+        val = `${s.weight ?? '—'} lbs × ${s.reps ?? '—'}${rpe}`;
+      }
+      return `<div class="history-set-line"><span class="h-set-label">Set ${i + 1}</span><span class="h-set-val">${val}</span></div>`;
+    }).join('');
+
+    document.getElementById('historyModalNotes').innerHTML =
+      ctx.notes ? `Exercise notes: ${ctx.notes}` : '';
+  }
+
+  window.closeExerciseHistoryModal = function() {
+    document.getElementById('exerciseHistoryModal').classList.remove('open');
+    historyContext = null;
+  };
+
+  window.applyExerciseHistory = function() {
+    const ctx = historyContext;
+    if (!ctx || !ctx.row || !ctx.row.isConnected) { closeExerciseHistoryModal(); return; }
+    const setsList = ctx.row.querySelector('.sets-list');
+    setsList.innerHTML = '';
+    if (ctx.workoutType === 'cardio') {
+      setsList.innerHTML = ctx.sets.map((s, si) => buildCardioSetRow(si, s, ctx.sets.length)).join('');
+    } else {
+      setsList.innerHTML = ctx.sets.map((s, si) =>
+        buildSetRow(si, s.weight ?? '', s.reps ?? '', ctx.sets.length, s.rpe ?? '')).join('');
+    }
+    closeExerciseHistoryModal();
+  };
+
   function collectExercises() {
     return Array.from(document.querySelectorAll('#exercisesList .exercise-row')).map(row => {
       const name  = row.querySelector('.exercise-name-input').value.trim();
@@ -741,6 +943,7 @@ if (CAN_EDIT) {
       const sets  = Array.from(row.querySelectorAll('.set-row')).map(sr => ({
         weight: parseFloat(sr.querySelector('.set-weight').value) || null,
         reps:   parseInt(sr.querySelector('.set-reps').value)    || null,
+        rpe:    parseFloat(sr.querySelector('.set-rpe').value)   || null,
       }));
       return { name, notes, sets };
     }).filter(ex => ex.name);
@@ -860,7 +1063,10 @@ if (CAN_EDIT) {
       </div>
       <div class="form-group">
         <label class="form-label">Exercise Name</label>
-        <input type="text" class="form-input cardio-exercise-name-input" placeholder="e.g. Running, Cycling, Rowing…" value="${name}" required>
+        <div class="name-input-row">
+          <input type="text" class="form-input cardio-exercise-name-input" placeholder="e.g. Running, Cycling, Rowing…" value="${name}" required>
+          <button type="button" class="history-btn" onclick="fillFromLastTime(this,'cardio')" title="Fill sets from your most recent log of this exercise"><i class="fas fa-clock-rotate-left"></i></button>
+        </div>
       </div>
       <div class="sets-container form-group">
         <div class="sets-header">
@@ -892,7 +1098,7 @@ if (CAN_EDIT) {
           </select>
         </div>
         <div class="cardio-set-field">
-          <input type="number" step="0.1" min="0" placeholder="Duration" value="${s.duration ?? ''}" class="set-input cardio-set-duration">
+          <input type="number" step="0.01" min="0" placeholder="Duration" value="${s.duration ?? ''}" class="set-input cardio-set-duration">
           <select class="cardio-set-duration-unit">
             <option value="min" ${s.duration_unit === 'min' ? 'selected' : ''}>min</option>
             <option value="sec" ${s.duration_unit === 'sec' ? 'selected' : ''}>sec</option>
@@ -900,6 +1106,19 @@ if (CAN_EDIT) {
           </select>
         </div>
         <button type="button" class="cardio-remove-set-btn ${total === 1 ? 'hidden' : ''}" onclick="removeCardioSet(this)"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="cardio-set-row-bottom">
+        <div class="cardio-set-field">
+          <input type="number" step="0.1" min="0" placeholder="Speed" value="${s.speed ?? ''}" class="set-input cardio-set-speed" title="Speed (optional)">
+          <select class="cardio-set-speed-unit">
+            <option value="mph" ${s.speed_unit === 'mph' || !s.speed_unit ? 'selected' : ''}>mph</option>
+            <option value="kph" ${s.speed_unit === 'kph' ? 'selected' : ''}>kph</option>
+          </select>
+        </div>
+        <div class="cardio-set-field">
+          <input type="number" step="0.1" min="0" placeholder="Incline" value="${s.incline ?? ''}" class="set-input cardio-set-incline" title="Incline % (optional)">
+          <span class="set-unit">%</span>
+        </div>
       </div>
       <div class="cardio-set-row-bottom">
         <input type="text" placeholder="Notes for this set (optional)" value="${s.notes ?? ''}" class="form-input cardio-set-notes" style="flex:1;">
@@ -957,6 +1176,9 @@ if (CAN_EDIT) {
         distance_unit: sr.querySelector('.cardio-set-distance-unit').value || null,
         duration: parseFloat(sr.querySelector('.cardio-set-duration').value) || null,
         duration_unit: sr.querySelector('.cardio-set-duration-unit').value || null,
+        speed: parseFloat(sr.querySelector('.cardio-set-speed').value) || null,
+        speed_unit: sr.querySelector('.cardio-set-speed-unit').value || null,
+        incline: parseFloat(sr.querySelector('.cardio-set-incline').value) || null,
         notes: sr.querySelector('.cardio-set-notes').value.trim() || null,
       }));
       return { name, notes, sets };

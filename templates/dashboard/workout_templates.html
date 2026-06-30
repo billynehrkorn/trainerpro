@@ -971,7 +971,7 @@ function buildCardioExerciseRowHTML(listId, index, total, data = null) {
           </select>
         </div>
         <div class="cardio-set-field">
-          <input type="number" step="0.1" min="0" placeholder="Duration" value="${s.duration ?? ''}" class="set-input cardio-set-duration">
+          <input type="number" step="0.01" min="0" placeholder="Duration" value="${s.duration ?? ''}" class="set-input cardio-set-duration">
           <select class="cardio-set-duration-unit">
             <option value="min" ${s.duration_unit === 'min' ? 'selected' : ''}>min</option>
             <option value="sec" ${s.duration_unit === 'sec' ? 'selected' : ''}>sec</option>
@@ -979,6 +979,19 @@ function buildCardioExerciseRowHTML(listId, index, total, data = null) {
           </select>
         </div>
         <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn ${sets.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="cardio-set-row-bottom">
+        <div class="cardio-set-field">
+          <input type="number" step="0.1" min="0" placeholder="Speed" value="${s.speed ?? ''}" class="set-input cardio-set-speed" title="Speed (optional)">
+          <select class="cardio-set-speed-unit">
+            <option value="mph" ${s.speed_unit === 'mph' || !s.speed_unit ? 'selected' : ''}>mph</option>
+            <option value="kph" ${s.speed_unit === 'kph' ? 'selected' : ''}>kph</option>
+          </select>
+        </div>
+        <div class="cardio-set-field">
+          <input type="number" step="0.1" min="0" placeholder="Incline" value="${s.incline ?? ''}" class="set-input cardio-set-incline" title="Incline % (optional)">
+          <span class="set-unit">%</span>
+        </div>
       </div>
       <div class="cardio-set-row-bottom">
         <input type="text" placeholder="Notes for this set (optional)" value="${s.notes ?? ''}" class="form-input cardio-set-notes" style="flex:1;">
@@ -1055,12 +1068,24 @@ function buildCardioSetRowHTML(setNum) {
         </select>
       </div>
       <div class="cardio-set-field">
-        <input type="number" step="0.1" min="0" placeholder="Duration" class="set-input cardio-set-duration">
+        <input type="number" step="0.01" min="0" placeholder="Duration" class="set-input cardio-set-duration">
         <select class="cardio-set-duration-unit">
           <option value="min">min</option><option value="sec">sec</option><option value="hr">hr</option>
         </select>
       </div>
       <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="cardio-set-row-bottom">
+      <div class="cardio-set-field">
+        <input type="number" step="0.1" min="0" placeholder="Speed" class="set-input cardio-set-speed" title="Speed (optional)">
+        <select class="cardio-set-speed-unit">
+          <option value="mph">mph</option><option value="kph">kph</option>
+        </select>
+      </div>
+      <div class="cardio-set-field">
+        <input type="number" step="0.1" min="0" placeholder="Incline" class="set-input cardio-set-incline" title="Incline % (optional)">
+        <span class="set-unit">%</span>
+      </div>
     </div>
     <div class="cardio-set-row-bottom">
       <input type="text" placeholder="Notes for this set (optional)" class="form-input cardio-set-notes" style="flex:1;">
@@ -1091,6 +1116,9 @@ function collectCardioExercises(listId) {
       distance_unit: sr.querySelector('.cardio-set-distance-unit').value || null,
       duration: sr.querySelector('.cardio-set-duration').value ? parseFloat(sr.querySelector('.cardio-set-duration').value) : null,
       duration_unit: sr.querySelector('.cardio-set-duration-unit').value || null,
+      speed: sr.querySelector('.cardio-set-speed').value ? parseFloat(sr.querySelector('.cardio-set-speed').value) : null,
+      speed_unit: sr.querySelector('.cardio-set-speed-unit').value || null,
+      incline: sr.querySelector('.cardio-set-incline').value ? parseFloat(sr.querySelector('.cardio-set-incline').value) : null,
       notes: sr.querySelector('.cardio-set-notes').value.trim() || null
     }))
   }));
@@ -1132,7 +1160,9 @@ async function viewTemplate(templateId) {
         ? ex.sets.map((s, i) => {
             const dist = (s.distance ?? null) !== null ? `${s.distance} ${s.distance_unit || ''}`.trim() : null;
             const dur  = (s.duration ?? null) !== null ? `${s.duration} ${s.duration_unit || ''}`.trim() : null;
-            const parts = [dist, dur].filter(Boolean);
+            const spd  = (s.speed ?? null) !== null ? `${s.speed} ${s.speed_unit || 'mph'}`.trim() : null;
+            const inc  = (s.incline ?? null) !== null ? `${s.incline}% incline` : null;
+            const parts = [dist, dur, spd, inc].filter(Boolean);
             const main = parts.length ? parts.join(' · ') : 'No distance/duration set';
             return `<div>Set ${i+1}: <strong>${main}</strong>${s.notes ? ` — ${s.notes}` : ''}</div>`;
           }).join('')

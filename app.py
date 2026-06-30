@@ -578,11 +578,63 @@ def delete_client(client_id):
         except:
             pass
 
+    # Remove this client's progress-photo image files from disk before deleting
+    # the rows (mirrors the single-photo cleanup in delete_progress_photo). The
+    # DB rows are removed below; this just prevents orphaned files under static/.
+    photo_rows = conn.execute(
+        'SELECT photo_url FROM progress_photos WHERE client_id = ?', (client_id,)
+    ).fetchall()
+    for row in photo_rows:
+        if row['photo_url']:
+            try:
+                fpath = os.path.join('static', row['photo_url'])
+                if os.path.exists(fpath):
+                    os.remove(fpath)
+            except:
+                pass
+
+    # Convert this client's client-specific templates into universal templates
+    # (client_id = NULL) so the trainer keeps the programming they built rather
+    # than losing it when the client is removed. Their template_exercises ride
+    # along unchanged since they key off template_id, not client_id.
+    #
+    # If a converted template's name would collide with an existing universal
+    # template the trainer already has, append the client's name (and, if that
+    # still collides, a counter) so both remain distinct and findable.
+    client_templates = conn.execute(
+        'SELECT id, name FROM workout_templates WHERE client_id = ? AND trainer_id = ?',
+        (client_id, session['user_id'])
+    ).fetchall()
+    for tmpl in client_templates:
+        existing = conn.execute(
+            '''SELECT name FROM workout_templates
+               WHERE trainer_id = ? AND client_id IS NULL AND id != ?''',
+            (session['user_id'], tmpl['id'])
+        ).fetchall()
+        existing_names = {r['name'] for r in existing}
+        new_name = tmpl['name']
+        if new_name in existing_names:
+            candidate = f"{tmpl['name']} ({client['name']})"
+            n = 2
+            while candidate in existing_names:
+                candidate = f"{tmpl['name']} ({client['name']} {n})"
+                n += 1
+            new_name = candidate
+        conn.execute(
+            'UPDATE workout_templates SET client_id = NULL, name = ? WHERE id = ?',
+            (new_name, tmpl['id'])
+        )
+
+    # Delete all data that is genuinely bound to this client.
     conn.execute('DELETE FROM weight_logs WHERE client_id = ?', (client_id,))
     conn.execute('DELETE FROM workout_logs WHERE client_id = ?', (client_id,))
+    conn.execute('DELETE FROM sleep_logs WHERE client_id = ?', (client_id,))
+    conn.execute('DELETE FROM nutrition_logs WHERE client_id = ?', (client_id,))
+    conn.execute('DELETE FROM body_measurements WHERE client_id = ?', (client_id,))
+    conn.execute('DELETE FROM progress_photos WHERE client_id = ?', (client_id,))
     conn.execute('DELETE FROM sessions WHERE client_id = ?', (client_id,))
     conn.execute('DELETE FROM client_notes WHERE client_id = ?', (client_id,))
-    conn.execute('DELETE FROM client_accounts WHERE client_id = ?', (client_id,))  # ← add here
+    conn.execute('DELETE FROM client_accounts WHERE client_id = ?', (client_id,))
     conn.execute('DELETE FROM clients WHERE id = ? AND trainer_id = ?', (client_id, session['user_id']))
 
     conn.commit()
@@ -638,6 +690,9 @@ def client_workouts(client_id):
                     distance_units = request.form.getlist(f'exercise_{i}_distance_unit[]')
                     durations = request.form.getlist(f'exercise_{i}_duration[]')
                     duration_units = request.form.getlist(f'exercise_{i}_duration_unit[]')
+                    speeds = request.form.getlist(f'exercise_{i}_speed[]')
+                    speed_units = request.form.getlist(f'exercise_{i}_speed_unit[]')
+                    inclines = request.form.getlist(f'exercise_{i}_incline[]')
                     set_notes = request.form.getlist(f'exercise_{i}_set_notes[]')
 
                     exercise_sets = []
@@ -645,15 +700,20 @@ def client_workouts(client_id):
                     for j in range(set_count):
                         distance = distances[j] if j < len(distances) and distances[j] else None
                         duration = durations[j] if j < len(durations) and durations[j] else None
+                        speed = speeds[j] if j < len(speeds) and speeds[j] else None
+                        incline = inclines[j] if j < len(inclines) and inclines[j] else None
                         exercise_sets.append({
                             'distance': float(distance) if distance else None,
                             'distance_unit': distance_units[j] if j < len(distance_units) and distance_units[j] else None,
                             'duration': float(duration) if duration else None,
                             'duration_unit': duration_units[j] if j < len(duration_units) and duration_units[j] else None,
+                            'speed': float(speed) if speed else None,
+                            'speed_unit': speed_units[j] if j < len(speed_units) and speed_units[j] else None,
+                            'incline': float(incline) if incline else None,
                             'notes': set_notes[j] if j < len(set_notes) and set_notes[j] else None,
                         })
                     if not exercise_sets:
-                        exercise_sets = [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                        exercise_sets = [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'speed': None, 'speed_unit': None, 'incline': None, 'notes': None}]
 
                     total_sets = len(exercise_sets)
                     conn.execute('''
@@ -667,21 +727,27 @@ def client_workouts(client_id):
                     # Get sets for this specific exercise using the new field naming
                     exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
                     exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
+                    # RPE (rate of perceived exertion) is an optional 1-10 per-set
+                    # rating that lives inside sets_data alongside weight/reps. No
+                    # DB column — weightlifting sets just gain an extra nullable key.
+                    exercise_rpes = request.form.getlist(f'exercise_{i}_rpe[]')
 
                     # Build sets data for this exercise
                     exercise_sets = []
                     for j in range(len(exercise_weights)):
                         weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
                         reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
+                        rpe = exercise_rpes[j] if j < len(exercise_rpes) and exercise_rpes[j] else None
 
                         exercise_sets.append({
                             'weight': float(weight) if weight else None,
-                            'reps': int(reps) if reps else None
+                            'reps': int(reps) if reps else None,
+                            'rpe': float(rpe) if rpe else None
                         })
 
                     # If no sets data, create a default set
                     if not exercise_sets:
-                        exercise_sets = [{'weight': None, 'reps': None}]
+                        exercise_sets = [{'weight': None, 'reps': None, 'rpe': None}]
 
                     # Calculate totals for backward compatibility
                     total_sets = len(exercise_sets)
@@ -735,21 +801,25 @@ def new_workout(client_id):
                 # Get sets for this specific exercise using the new field naming
                 exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
                 exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
+                # Optional per-set RPE (1-10), stored inside sets_data only.
+                exercise_rpes = request.form.getlist(f'exercise_{i}_rpe[]')
 
                 # Build sets data for this exercise
                 exercise_sets = []
                 for j in range(len(exercise_weights)):
                     weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
                     reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
+                    rpe = exercise_rpes[j] if j < len(exercise_rpes) and exercise_rpes[j] else None
 
                     exercise_sets.append({
                         'weight': float(weight) if weight else None,
-                        'reps': int(reps) if reps else None
+                        'reps': int(reps) if reps else None,
+                        'rpe': float(rpe) if rpe else None
                     })
 
                 # If no sets data, create a default set
                 if not exercise_sets:
-                    exercise_sets = [{'weight': None, 'reps': None}]
+                    exercise_sets = [{'weight': None, 'reps': None, 'rpe': None}]
 
                 # Calculate totals for backward compatibility
                 total_sets = len(exercise_sets)
@@ -1139,6 +1209,68 @@ def workout_detail(client_id, date):
     return jsonify(result)
 
 
+@app.route('/api/clients/<client_id>/exercise-history')
+@login_required
+def exercise_history(client_id):
+    """Return the most recent PRIOR log of a given exercise for this client, so
+    the trainer can pull last time's sets into the create/edit form. Matches by
+    exercise name (case-insensitive) and workout_type, newest workout_date first.
+
+    Optional ?exclude_date=YYYY-MM-DD skips the workout currently being edited so
+    'last time' means a genuinely earlier entry, not the one on screen.
+    """
+    name = (request.args.get('name') or '').strip()
+    workout_type = request.args.get('type', 'weightlifting')
+    exclude_date = request.args.get('exclude_date')
+
+    if not name:
+        return jsonify({'found': False}), 200
+    if workout_type not in ('weightlifting', 'cardio'):
+        workout_type = 'weightlifting'
+
+    conn = get_db()
+    # Verify the client belongs to this trainer before returning any history.
+    client = conn.execute('SELECT id FROM clients WHERE id = ? AND trainer_id = ?',
+                          (client_id, session['user_id'])).fetchone()
+    if not client:
+        conn.close()
+        return jsonify({'error': 'Client not found'}), 404
+
+    params = [client_id, session['user_id'], workout_type, name.lower()]
+    exclude_clause = ''
+    if exclude_date:
+        exclude_clause = ' AND workout_date != ?'
+        params.append(exclude_date)
+
+    row = conn.execute(f'''
+        SELECT exercise_name, sets_data, notes, workout_date
+        FROM workout_logs
+        WHERE client_id = ? AND trainer_id = ? AND workout_type = ?
+          AND LOWER(exercise_name) = ?{exclude_clause}
+        ORDER BY workout_date DESC, created_at DESC
+        LIMIT 1
+    ''', params).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'found': False}), 200
+
+    sets_data = None
+    if row['sets_data']:
+        try:
+            sets_data = json.loads(row['sets_data'])
+        except:
+            sets_data = None
+
+    return jsonify({
+        'found': True,
+        'exercise_name': row['exercise_name'],
+        'workout_date': row['workout_date'],
+        'notes': row['notes'] or '',
+        'sets_data': sets_data or []
+    })
+
+
 @app.route('/api/update-workout/<client_id>/<date>', methods=['POST'])
 @login_required
 def update_workout(client_id, date):
@@ -1181,6 +1313,9 @@ def update_workout(client_id, date):
                 distance_units = request.form.getlist(f'exercise_{i}_distance_unit[]')
                 durations = request.form.getlist(f'exercise_{i}_duration[]')
                 duration_units = request.form.getlist(f'exercise_{i}_duration_unit[]')
+                speeds = request.form.getlist(f'exercise_{i}_speed[]')
+                speed_units = request.form.getlist(f'exercise_{i}_speed_unit[]')
+                inclines = request.form.getlist(f'exercise_{i}_incline[]')
                 set_notes = request.form.getlist(f'exercise_{i}_set_notes[]')
 
                 exercise_sets = []
@@ -1188,15 +1323,20 @@ def update_workout(client_id, date):
                 for j in range(set_count):
                     distance = distances[j] if j < len(distances) and distances[j] else None
                     duration = durations[j] if j < len(durations) and durations[j] else None
+                    speed = speeds[j] if j < len(speeds) and speeds[j] else None
+                    incline = inclines[j] if j < len(inclines) and inclines[j] else None
                     exercise_sets.append({
                         'distance': float(distance) if distance else None,
                         'distance_unit': distance_units[j] if j < len(distance_units) and distance_units[j] else None,
                         'duration': float(duration) if duration else None,
                         'duration_unit': duration_units[j] if j < len(duration_units) and duration_units[j] else None,
+                        'speed': float(speed) if speed else None,
+                        'speed_unit': speed_units[j] if j < len(speed_units) and speed_units[j] else None,
+                        'incline': float(incline) if incline else None,
                         'notes': set_notes[j] if j < len(set_notes) and set_notes[j] else None,
                     })
                 if not exercise_sets:
-                    exercise_sets = [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                    exercise_sets = [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'speed': None, 'speed_unit': None, 'incline': None, 'notes': None}]
 
                 total_sets = len(exercise_sets)
                 notes_val = notes_list[i] if i < len(notes_list) else ''
@@ -1211,21 +1351,25 @@ def update_workout(client_id, date):
                 # Get sets for this specific exercise using the new field naming
                 exercise_weights = request.form.getlist(f'exercise_{i}_weight[]')
                 exercise_reps = request.form.getlist(f'exercise_{i}_reps[]')
+                # Optional per-set RPE (1-10), stored inside sets_data only.
+                exercise_rpes = request.form.getlist(f'exercise_{i}_rpe[]')
 
                 # Build sets data for this exercise
                 exercise_sets = []
                 for j in range(len(exercise_weights)):
                     weight = exercise_weights[j] if j < len(exercise_weights) and exercise_weights[j] else None
                     reps = exercise_reps[j] if j < len(exercise_reps) and exercise_reps[j] else None
+                    rpe = exercise_rpes[j] if j < len(exercise_rpes) and exercise_rpes[j] else None
 
                     exercise_sets.append({
                         'weight': float(weight) if weight else None,
-                        'reps': int(reps) if reps else None
+                        'reps': int(reps) if reps else None,
+                        'rpe': float(rpe) if rpe else None
                     })
 
                 # If no sets data, create a default set
                 if not exercise_sets:
-                    exercise_sets = [{'weight': None, 'reps': None}]
+                    exercise_sets = [{'weight': None, 'reps': None, 'rpe': None}]
 
                 # Calculate totals for backward compatibility
                 total_sets = len(exercise_sets)
@@ -1337,7 +1481,7 @@ def duplicate_workout(client_id):
     app.logger.info(f"[v0] Found {len(exercises)} exercises to duplicate")
 
     # Duplicate each exercise to the new date
-    default_sets = ([{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+    default_sets = ([{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'speed': None, 'speed_unit': None, 'incline': None, 'notes': None}]
                      if workout_type == 'cardio' else [{'weight': None, 'reps': None}])
     for exercise in exercises:
         sets_data = exercise['sets_data']
@@ -2068,12 +2212,14 @@ def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, e
                 sets_data = json.loads(workout['sets_data']) if workout['sets_data'] else []
 
                 if is_cardio:
-                    # Add sets header (cardio: distance / duration / notes)
+                    # Add sets header (cardio: distance / duration / speed / incline / notes)
                     ws.cell(row=current_row, column=1, value='Set')
                     ws.cell(row=current_row, column=2, value='Distance')
                     ws.cell(row=current_row, column=3, value='Duration')
-                    ws.cell(row=current_row, column=4, value='Set Notes')
-                    for col in range(1, 5):
+                    ws.cell(row=current_row, column=4, value='Speed')
+                    ws.cell(row=current_row, column=5, value='Incline')
+                    ws.cell(row=current_row, column=6, value='Set Notes')
+                    for col in range(1, 7):
                         ws.cell(row=current_row, column=col).font = Font(bold=True)
                     current_row += 1
 
@@ -2082,19 +2228,29 @@ def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, e
                         distance_unit = set_info.get('distance_unit') or ''
                         duration = set_info.get('duration')
                         duration_unit = set_info.get('duration_unit') or ''
+                        # Speed and incline are optional and only present on newer
+                        # entries; older cardio sets leave these blank.
+                        speed = set_info.get('speed')
+                        speed_unit = set_info.get('speed_unit') or 'mph'
+                        incline = set_info.get('incline')
                         ws.cell(row=current_row, column=1, value=f'Set {set_num}')
                         ws.cell(row=current_row, column=2,
                                 value=f'{distance} {distance_unit}'.strip() if distance is not None else '')
                         ws.cell(row=current_row, column=3,
                                 value=f'{duration} {duration_unit}'.strip() if duration is not None else '')
-                        ws.cell(row=current_row, column=4, value=set_info.get('notes') or '')
+                        ws.cell(row=current_row, column=4,
+                                value=f'{speed} {speed_unit}'.strip() if speed is not None else '')
+                        ws.cell(row=current_row, column=5,
+                                value=f'{incline}%' if incline is not None else '')
+                        ws.cell(row=current_row, column=6, value=set_info.get('notes') or '')
                         current_row += 1
                 else:
-                    # Add sets header (weightlifting: weight / reps)
+                    # Add sets header (weightlifting: weight / reps / RPE)
                     ws.cell(row=current_row, column=1, value='Set')
                     ws.cell(row=current_row, column=2, value='Weight (lbs)')
                     ws.cell(row=current_row, column=3, value='Reps')
-                    for col in range(1, 4):
+                    ws.cell(row=current_row, column=4, value='RPE')
+                    for col in range(1, 5):
                         ws.cell(row=current_row, column=col).font = Font(bold=True)
                     current_row += 1
 
@@ -2102,6 +2258,9 @@ def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, e
                         ws.cell(row=current_row, column=1, value=f'Set {set_num}')
                         ws.cell(row=current_row, column=2, value=set_info.get('weight', ''))
                         ws.cell(row=current_row, column=3, value=set_info.get('reps', ''))
+                        # RPE is optional and only present on newer entries; older
+                        # sets logged before RPE existed simply leave this blank.
+                        ws.cell(row=current_row, column=4, value=set_info.get('rpe') or '')
                         current_row += 1
 
                 # Add notes if present
@@ -2114,11 +2273,13 @@ def build_client_export_workbook(conn, client_id, trainer_id, export_workouts, e
                     ws.cell(row=current_row, column=1, value=f"Tags: {workout['tags']}")
                     current_row += 1
 
-            # Adjust column widths (wide enough for either layout: weight/reps or distance/duration/notes)
+            # Adjust column widths (wide enough for either layout: weight/reps/RPE or distance/duration/speed/incline/notes)
             ws.column_dimensions['A'].width = 25
             ws.column_dimensions['B'].width = 18
             ws.column_dimensions['C'].width = 18
-            ws.column_dimensions['D'].width = 30
+            ws.column_dimensions['D'].width = 14
+            ws.column_dimensions['E'].width = 12
+            ws.column_dimensions['F'].width = 30
 
         populate_workout_sheet(ws_workouts, workouts)
 

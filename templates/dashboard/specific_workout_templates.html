@@ -71,6 +71,16 @@
   .locked-type-badge.weightlifting { background: var(--blue-light); color: var(--blue); }
   .locked-type-badge.cardio { background: var(--purple-light); color: var(--purple-text); }
 
+  /* Client-assignment banner ("This template will be saved for …") */
+  .client-assign-banner {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.78rem; color: var(--slate-600);
+    background: var(--purple-light); border: 1.5px solid #E9D5FF;
+    border-radius: 8px; padding: 0.5rem 0.75rem;
+  }
+  .client-assign-banner i { color: var(--purple); }
+  .client-assign-banner strong { color: var(--navy); margin-left: 0.2rem; }
+
   /* ── Templates grid ── */
   .templates-grid {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
@@ -265,6 +275,10 @@
     margin-bottom: 0.5rem;
   }
   .add-exercise-btn:hover { border-color: var(--blue); color: var(--blue); }
+  /* Tailwind CDN's .hidden loses the specificity tie against .add-exercise-btn's
+     own display rule, which left the inactive workout-type's "Add Exercise"
+     button visible (two stacked buttons). Force it hidden explicitly. */
+  .add-exercise-btn.hidden { display: none !important; }
 
   /* ── Autocomplete ── */
   .input-wrap { position: relative; }
@@ -341,6 +355,9 @@
   html.dark .type-toggle-btn.active.cardio { background:var(--purple); border-color:var(--purple); color:white; }
   html.dark .locked-type-badge.weightlifting { background:rgba(37,99,235,0.18); color:#93C5FD; }
   html.dark .locked-type-badge.cardio { background:rgba(124,58,237,0.22); color:#C4B5FD; }
+  html.dark .client-assign-banner { background:rgba(124,58,237,0.18); border-color:rgba(124,58,237,0.35); color:#CBD5E1; }
+  html.dark .client-assign-banner i { color:#C4B5FD; }
+  html.dark .client-assign-banner strong { color:#F1F5F9; }
   html.dark .cardio-set-row { background:#0F172A; border-color:#334155; }
   html.dark .cardio-set-field select { background:#1E293B; color:#F1F5F9; border-color:#334155; }
   html.dark .cardio-remove-set-btn { color:#475569; }
@@ -425,9 +442,9 @@
           <input type="text" id="templateName" required class="form-input" placeholder="e.g., Chest Day, Leg Workout">
         </div>
         <div class="form-group" style="margin-bottom:0.5rem;">
-          <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--slate-600);background:#F3E8FF;border:1.5px solid #E9D5FF;border-radius:8px;padding:0.5rem 0.75rem;">
-            <i class="fas fa-user-tag" style="color:#7C3AED;"></i>
-            This template will be saved for <strong style="color:var(--navy);margin-left:0.2rem;">{{ client.name }}</strong>
+          <div class="client-assign-banner">
+            <i class="fas fa-user-tag"></i>
+            This template will be saved for <strong>{{ client.name }}</strong>
           </div>
         </div>
 
@@ -851,7 +868,7 @@ function buildCardioExerciseRowHTML(listId, index, total, data = null) {
           </select>
         </div>
         <div class="cardio-set-field">
-          <input type="number" step="0.1" min="0" placeholder="Duration" value="${s.duration ?? ''}" class="set-input cardio-set-duration">
+          <input type="number" step="0.01" min="0" placeholder="Duration" value="${s.duration ?? ''}" class="set-input cardio-set-duration">
           <select class="cardio-set-duration-unit">
             <option value="min" ${s.duration_unit === 'min' ? 'selected' : ''}>min</option>
             <option value="sec" ${s.duration_unit === 'sec' ? 'selected' : ''}>sec</option>
@@ -859,6 +876,19 @@ function buildCardioExerciseRowHTML(listId, index, total, data = null) {
           </select>
         </div>
         <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn ${sets.length === 1 ? 'hidden' : ''}"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="cardio-set-row-bottom">
+        <div class="cardio-set-field">
+          <input type="number" step="0.1" min="0" placeholder="Speed" value="${s.speed ?? ''}" class="set-input cardio-set-speed" title="Speed (optional)">
+          <select class="cardio-set-speed-unit">
+            <option value="mph" ${s.speed_unit === 'mph' || !s.speed_unit ? 'selected' : ''}>mph</option>
+            <option value="kph" ${s.speed_unit === 'kph' ? 'selected' : ''}>kph</option>
+          </select>
+        </div>
+        <div class="cardio-set-field">
+          <input type="number" step="0.1" min="0" placeholder="Incline" value="${s.incline ?? ''}" class="set-input cardio-set-incline" title="Incline % (optional)">
+          <span class="set-unit">%</span>
+        </div>
       </div>
       <div class="cardio-set-row-bottom">
         <input type="text" placeholder="Notes for this set (optional)" value="${s.notes ?? ''}" class="form-input cardio-set-notes" style="flex:1;">
@@ -935,12 +965,24 @@ function buildCardioSetRowHTML(setNum) {
         </select>
       </div>
       <div class="cardio-set-field">
-        <input type="number" step="0.1" min="0" placeholder="Duration" class="set-input cardio-set-duration">
+        <input type="number" step="0.01" min="0" placeholder="Duration" class="set-input cardio-set-duration">
         <select class="cardio-set-duration-unit">
           <option value="min">min</option><option value="sec">sec</option><option value="hr">hr</option>
         </select>
       </div>
       <button type="button" onclick="removeCardioSet(this)" class="cardio-remove-set-btn"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="cardio-set-row-bottom">
+      <div class="cardio-set-field">
+        <input type="number" step="0.1" min="0" placeholder="Speed" class="set-input cardio-set-speed" title="Speed (optional)">
+        <select class="cardio-set-speed-unit">
+          <option value="mph">mph</option><option value="kph">kph</option>
+        </select>
+      </div>
+      <div class="cardio-set-field">
+        <input type="number" step="0.1" min="0" placeholder="Incline" class="set-input cardio-set-incline" title="Incline % (optional)">
+        <span class="set-unit">%</span>
+      </div>
     </div>
     <div class="cardio-set-row-bottom">
       <input type="text" placeholder="Notes for this set (optional)" class="form-input cardio-set-notes" style="flex:1;">
@@ -971,6 +1013,9 @@ function collectCardioExercises(listId) {
       distance_unit: sr.querySelector('.cardio-set-distance-unit').value || null,
       duration: sr.querySelector('.cardio-set-duration').value ? parseFloat(sr.querySelector('.cardio-set-duration').value) : null,
       duration_unit: sr.querySelector('.cardio-set-duration-unit').value || null,
+      speed: sr.querySelector('.cardio-set-speed').value ? parseFloat(sr.querySelector('.cardio-set-speed').value) : null,
+      speed_unit: sr.querySelector('.cardio-set-speed-unit').value || null,
+      incline: sr.querySelector('.cardio-set-incline').value ? parseFloat(sr.querySelector('.cardio-set-incline').value) : null,
       notes: sr.querySelector('.cardio-set-notes').value.trim() || null
     }))
   }));
@@ -1012,7 +1057,9 @@ async function viewTemplate(templateId) {
         ? ex.sets.map((s, i) => {
             const dist = (s.distance ?? null) !== null ? `${s.distance} ${s.distance_unit || ''}`.trim() : null;
             const dur  = (s.duration ?? null) !== null ? `${s.duration} ${s.duration_unit || ''}`.trim() : null;
-            const parts = [dist, dur].filter(Boolean);
+            const spd  = (s.speed ?? null) !== null ? `${s.speed} ${s.speed_unit || 'mph'}`.trim() : null;
+            const inc  = (s.incline ?? null) !== null ? `${s.incline}% incline` : null;
+            const parts = [dist, dur, spd, inc].filter(Boolean);
             const main = parts.length ? parts.join(' · ') : 'No distance/duration set';
             return `<div>Set ${i+1}: <strong>${main}</strong>${s.notes ? ` — ${s.notes}` : ''}</div>`;
           }).join('')

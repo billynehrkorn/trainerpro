@@ -606,6 +606,58 @@ def register_client_routes(app):
             })
         return jsonify(result)
 
+    @app.route('/client-portal/api/exercise-history')
+    @client_login_required
+    def client_portal_exercise_history():
+        """Most recent PRIOR log of a given exercise for the logged-in client, so
+        they can pull last time's sets into the create/edit form. Matches by
+        exercise name (case-insensitive) and workout_type, newest date first.
+        Optional ?exclude_date=YYYY-MM-DD skips the workout being edited."""
+        client_id = session['client_id']
+        name = (request.args.get('name') or '').strip()
+        workout_type = request.args.get('type', 'weightlifting')
+        exclude_date = request.args.get('exclude_date')
+
+        if not name:
+            return jsonify({'found': False}), 200
+        if workout_type not in ('weightlifting', 'cardio'):
+            workout_type = 'weightlifting'
+
+        conn = get_db()
+        params = [client_id, workout_type, name.lower()]
+        exclude_clause = ''
+        if exclude_date:
+            exclude_clause = ' AND workout_date != ?'
+            params.append(exclude_date)
+
+        row = conn.execute(f'''
+            SELECT exercise_name, sets_data, notes, workout_date
+            FROM workout_logs
+            WHERE client_id = ? AND workout_type = ?
+              AND LOWER(exercise_name) = ?{exclude_clause}
+            ORDER BY workout_date DESC, created_at DESC
+            LIMIT 1
+        ''', params).fetchone()
+        conn.close()
+
+        if not row:
+            return jsonify({'found': False}), 200
+
+        sets_data = None
+        if row['sets_data']:
+            try:
+                sets_data = json.loads(row['sets_data'])
+            except:
+                sets_data = None
+
+        return jsonify({
+            'found': True,
+            'exercise_name': row['exercise_name'],
+            'workout_date': row['workout_date'],
+            'notes': row['notes'] or '',
+            'sets_data': sets_data or []
+        })
+
     @app.route('/client-portal/api/workouts', methods=['POST'])
     @client_login_required
     def client_log_workout():
@@ -650,7 +702,7 @@ def register_client_routes(app):
                     return jsonify({'conflict': True}), 409
             for ex in exercises:
                 if workout_type == 'cardio':
-                    sets = ex.get('sets', []) or [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                    sets = ex.get('sets', []) or [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'speed': None, 'speed_unit': None, 'incline': None, 'notes': None}]
                     total_sets = len(sets)
                     conn.execute('''
                         INSERT INTO workout_logs
@@ -710,7 +762,7 @@ def register_client_routes(app):
             conn.execute('DELETE FROM workout_logs WHERE client_id = ? AND workout_date = ? AND workout_type = ?', (client_id, date, workout_type))
             for ex in exercises:
                 if workout_type == 'cardio':
-                    sets = ex.get('sets', []) or [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+                    sets = ex.get('sets', []) or [{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'speed': None, 'speed_unit': None, 'incline': None, 'notes': None}]
                     total_sets = len(sets)
                     conn.execute('''
                         INSERT INTO workout_logs
@@ -815,7 +867,7 @@ def register_client_routes(app):
                 conn.close()
                 return jsonify({'error': 'No workout found for that date'}), 404
 
-            default_sets = ([{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'notes': None}]
+            default_sets = ([{'distance': None, 'distance_unit': None, 'duration': None, 'duration_unit': None, 'speed': None, 'speed_unit': None, 'incline': None, 'notes': None}]
                              if workout_type == 'cardio' else [{'weight': None, 'reps': None}])
             for exercise in exercises:
                 sets_data = exercise['sets_data']
